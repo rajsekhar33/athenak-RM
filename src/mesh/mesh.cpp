@@ -621,6 +621,10 @@ void Mesh::NewTimeStep(const Real tlim) {
       dt_cycle = std::min(dt_cycle, (cfl_no)*(pmb_pack->pmhd->psrc->dtnew) );
     }
   }
+  // user timestep
+  if (pmb_pack->pmesh->pgen->user_dt) {
+    dt_cycle = std::min(dt_cycle, (cfl_no)*(pmb_pack->pmesh->pgen->dtnew) );
+  }
   // Diffusion-process timestep budgets
   for (const auto &process : pmb_pack->parabolic_processes) {
     Real process_dt = (cfl_no)*(process.ExplicitDt());

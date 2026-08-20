@@ -136,6 +136,11 @@ TaskStatus Hydro::NewTimeStep(Driver *pdrive, int stage) {
     psrc->NewTimeStep(w0, peos->eos_data);
   }
 
+  // compute user defined timestep
+  if (pmy_pack->pmesh->pgen->user_dt) {
+    (pmy_pack->pmesh->pgen->user_time_step_func)(pmy_pack->pmesh);
+  }
+
   return TaskStatus::complete;
 }
 } // namespace hydro

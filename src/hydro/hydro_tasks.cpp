@@ -75,6 +75,8 @@ void Hydro::AssembleHydroTasks(std::map<std::string, std::shared_ptr<TaskList>> 
   // although RecvFlux/U functions check that all recvs complete, add ClearRecv to
   // task list anyways to catch potential bugs in MPI communication logic
   id.crecv = tl["after_stagen"]->AddTask(&Hydro::ClearRecv, this, id.csend);
+  // workinloop function updates variables after the time-integrator
+  id.workinloop = tl["after_timeintegrator"]->AddTask(&Hydro::WorkInLoop, this, none);
 
   if (has_any_sts_diffusion) {
     tl["before_parabolic_stagen"]->AddTask(&Hydro::InitRecvParabolic, this, none);
@@ -534,6 +536,17 @@ TaskStatus Hydro::ClearRecv(Driver *pdrive, int stage) {
   }
 
   return tstat;
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn TaskList Hydro::WorkInLoop
+//! \brief iWrapper task list function that updates variables after the time integrator.
+TaskStatus Hydro::WorkInLoop(Driver *pdrive, int stage) {
+  // perform user-defined WorkInLoop
+  if (pmy_pack->pmesh->pgen->user_work_in_loop) {
+    (pmy_pack->pmesh->pgen->user_work_in_loop_func)(pmy_pack->pmesh);
+  }
+  return TaskStatus::complete;
 }
 
 } // namespace hydro
