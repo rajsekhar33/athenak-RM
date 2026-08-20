@@ -78,6 +78,7 @@ struct MHDTaskIDs {
   TaskID newdt;
   TaskID csend;
   TaskID crecv;
+  TaskID workinloop;
 };
 
 namespace mhd {
@@ -218,6 +219,7 @@ class MHD {
   // ...in "after_stagen_tl" task list
   TaskStatus ClearSend(Driver *d, int stage);
   TaskStatus ClearRecv(Driver *d, int stage);  // also in Driver::Initialize
+  TaskStatus WorkInLoop(Driver *pdrive, int stage);
 
   // CalculateFluxes function templated over Riemann Solvers
   template <MHD_RSolver T>

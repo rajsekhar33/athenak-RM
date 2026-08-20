@@ -79,6 +79,8 @@ void MHD::AssembleMHDTasks(std::map<std::string, std::shared_ptr<TaskList>> tl) 
   // although RecvFlux/U/E/B functions check that all recvs complete, add ClearRecv to
   // task list anyways to catch potential bugs in MPI communication logic
   id.crecv = tl["after_stagen"]->AddTask(&MHD::ClearRecv, this, id.csend);
+  // workinloop function updates variables after the time-integrator
+  id.workinloop = tl["after_timeintegrator"]->AddTask(&MHD::WorkInLoop, this, none);
 
   if (has_any_sts_diffusion) {
     tl["before_parabolic_stagen"]->AddTask(&MHD::InitRecvParabolic, this, none);
@@ -741,6 +743,17 @@ TaskStatus MHD::RestrictB(Driver *pdrive, int stage) {
   // Only execute Mesh function with SMR/AMR
   if (pmy_pack->pmesh->multilevel) {
     pmy_pack->pmesh->pmr->RestrictFC(b0, coarse_b0);
+  }
+  return TaskStatus::complete;
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn TaskList MHD::WorkInLoop
+//! \brief iWrapper task list function that updates variables after the time integrator.
+TaskStatus MHD::WorkInLoop(Driver *pdrive, int stage) {
+  // perform user-defined WorkInLoop
+  if (pmy_pack->pmesh->pgen->user_work_in_loop) {
+    (pmy_pack->pmesh->pgen->user_work_in_loop_func)(pmy_pack->pmesh);
   }
   return TaskStatus::complete;
 }
