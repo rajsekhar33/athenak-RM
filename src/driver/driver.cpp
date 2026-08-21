@@ -612,10 +612,17 @@ void Driver::Execute(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool wdfla
         float time_32 = static_cast<float>(pmesh->time);
         float next_32 = static_cast<float>(out->out_params.last_time+out->out_params.dt);
         float tlim_32 = static_cast<float>(tlim);
+        float elapsed_time_32 = static_cast<float>(UpdateWallClock());
+        float next_wall_32 = static_cast<float>(out->out_params.last_wall_time+
+                                                 out->out_params.dt_wall);
         int &dcycle_ = out->out_params.dcycle;
 
         if (((out->out_params.dt > 0.0) && ((time_32 >= next_32) && (time_32<tlim_32))) ||
+            ((out->out_params.dt_wall > 0.0) && ((elapsed_time_32 >= next_wall_32))) ||
             ((dcycle_ > 0) && ((pmesh->ncycle)%(dcycle_) == 0)) ) {
+          // update the elapsed time
+          out->out_params.last_wall_time = (Real) elapsed_time_32;
+
           out->LoadOutputData(pmesh);
           out->WriteOutputFile(pmesh, pin);
         }

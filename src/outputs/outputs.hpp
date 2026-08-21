@@ -117,6 +117,7 @@ struct OutputParameters {
   int block_number;
   std::string block_name;
   Real last_time, dt;
+  Real last_wall_time, dt_wall; // wall-clock output trigger, seconds
   int dcycle;                 // enables outputs every 'dcycle'
   int file_number;
   std::string file_basename;

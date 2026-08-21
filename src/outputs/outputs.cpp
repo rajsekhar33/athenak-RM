@@ -20,6 +20,7 @@
 //!                  is defined at start of outputs.hpp file]
 //!   - file_type = tab,vtk,hst,bin,rst
 //!   - dt        = problem time between outputs
+//!   - dt_wall   = wall time between outputs in seconds
 //!
 //! EXAMPLE of an <output[n]> block for a TAB dump:
 //!   <output3>
@@ -75,12 +76,21 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {
       if (pin->DoesParameterExist(opar.block_name,"dcycle")) {
         opar.dcycle = pin->GetInteger(opar.block_name,"dcycle");
         opar.dt = 0.0;
-      } else {
+      } else if (pin->DoesParameterExist(opar.block_name,"dt")) {
         opar.dt = pin->GetReal(opar.block_name,"dt");
+        opar.dcycle = 0;
+      } else {
+        opar.dt = 0.0;
         opar.dcycle = 0;
       }
 
-      if (opar.dcycle == 0 && opar.dt <= 0.0) continue;  // only add output if dt>0
+      if (pin->DoesParameterExist(opar.block_name,"dt_wall")) {
+        opar.dt_wall = pin->GetReal(opar.block_name,"dt_wall");
+        opar.last_wall_time = 0.0;
+      } else {
+        opar.dt_wall=0.0;
+      }
+      if (opar.dcycle == 0 && opar.dt <= 0.0 && opar.dt_wall <= 0.0) continue;  // only add output if dt>0, dcycle>0, or dt_wall>0
 
       // set file number, basename, and format
       opar.file_number = pin->GetOrAddInteger(opar.block_name,"file_number",0);
