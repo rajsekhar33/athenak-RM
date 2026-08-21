@@ -21,7 +21,7 @@
     #error NHISTORY > NREDUCTION in outputs.hpp
 #endif
 
-#define NOUTPUT_CHOICES 154
+#define NOUTPUT_CHOICES 155
 // choices for output variables used in <ouput> blocks in input file
 // TO ADD MORE CHOICES:
 //   - add more strings to array below, change NOUTPUT_CHOICES above appropriately
@@ -100,7 +100,10 @@ static const char *var_choice[NOUTPUT_CHOICES] = {
   // Particles (151-152)
   "prtcl_all", "prtcl_d",
   // Gravity (153)
-  "grav_phi"
+  "grav_phi",
+
+  // hydro/mhd temperature, shared implementation (154)
+  "temperature"
 };
 
 
@@ -147,6 +150,20 @@ struct OutputParameters {
   bool logscale=true, logscale2=true;
   bool mass_weighted=false;
   bool single_file_per_rank=false; // DBF: parameter for single file per rank
+
+  // parameters for on-the-fly Profile output (file_type = prof)
+  std::string coord_axis;   // "x1" | "x2" | "x3" | "r"
+  std::string radial_type;  // "spherical" | "cylindrical" (only used if coord_axis == "r")
+  std::string cyl_axis;     // "x1" | "x2" | "x3": symmetry axis (only if radial_type=="cylindrical")
+  Real xc=0.0, yc=0.0, zc=0.0;  // center point for radial coordinate (naming matches
+                                // SphericalSurfaceOutput's xc/yc/zc)
+
+  // optional spatial region restriction, shared by "pdf" and "prof" output types.
+  // Each bound independently defaults to the full mesh extent (i.e. no restriction)
+  // when not specified in the input file.
+  Real x1_min, x1_max;
+  Real x2_min, x2_max;
+  Real x3_min, x3_max;
 };
 
 //----------------------------------------------------------------------------------------
@@ -339,6 +356,54 @@ class PDFOutput : public BaseTypeOutput {
   PDFOutput(ParameterInput *pin, Mesh *pm, OutputParameters oparams);
 
   PDFData pdf_data;
+
+  void LoadOutputData(Mesh *pm) override;
+  void WriteOutputFile(Mesh *pm, ParameterInput *pin) override;
+};
+
+//----------------------------------------------------------------------------------------
+//! \struct ProfileData
+//  \brief  container for on-the-fly spatial Profile data: bins cells by a coordinate
+//  (x1, x2, x3, or radius) and accumulates the weighted mean of one variable per bin.
+
+struct ProfileData {
+  int nbin;
+  Kokkos::View<Real*> bins;   // bin edges along the coordinate, size nbin+1
+  bool bins_written;
+  // if logscale is true then this is the log10 of the step size
+  Real step_size;
+  bool mass_weighted;
+  bool logscale;
+
+  // resolved once at construction time from the string input params, to avoid
+  // string comparisons inside the per-cell kernel
+  int coord_mode;      // 0=x1, 1=x2, 2=x3, 3=r (radial)
+  bool cylindrical;    // only meaningful if coord_mode == 3
+  int cyl_axis_mode;   // 0/1/2 = symmetry axis is x1/x2/x3; only meaningful if cylindrical
+  Real xc, yc, zc;      // center point for radial coordinate
+
+  // result_ has 2 rows: row 0 = sum of weight per bin, row 1 = sum of (weight*variable)
+  // per bin. The weighted mean is computed host-side in WriteOutputFile, after the
+  // MPI reduce, so this array holds pure accumulators only (like PDFData::result_).
+  DvceArray2D<Real> result_;
+  Kokkos::Experimental::ScatterView<Real **, LayoutWrapper> scatter_result;
+
+  explicit ProfileData(int nbinVal)
+    : nbin(nbinVal), bins("prof_bins", nbin + 1), bins_written(false),
+      mass_weighted(false), logscale(false),
+      coord_mode(0), cylindrical(false), cyl_axis_mode(2), xc(0.0), yc(0.0), zc(0.0) {
+  }
+};
+
+//----------------------------------------------------------------------------------------
+//! \class ProfileOutput
+//  \brief derived BaseTypeOutput class for on-the-fly spatial profile data
+
+class ProfileOutput : public BaseTypeOutput {
+ public:
+  ProfileOutput(ParameterInput *pin, Mesh *pm, OutputParameters oparams);
+
+  ProfileData profile_data;
 
   void LoadOutputData(Mesh *pm) override;
   void WriteOutputFile(Mesh *pm, ParameterInput *pin) override;

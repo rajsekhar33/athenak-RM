@@ -107,10 +107,23 @@ void BaseTypeOutput::ComputeDerivedVariable(std::string name, Mesh *pm) {
     }
     auto &w0_ = (pm->pmb_pack->phydro != nullptr) ?
       pm->pmb_pack->phydro->w0 : pm->pmb_pack->pmhd->w0;
-    par_for("temperature", DevExeSpace(), 0, (nmb-1), ks, ke, js, je, is, ie,
-    KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      dv(m,i_dv,k,j,i) = w0_(m,IEN,k,j,i) / w0_(m,IDN,k,j,i);
-    });
+    if (pm->pmb_pack->pdyngr != nullptr) {
+      // dynGR (primitive-solver) EOS: the IEN/IPR slot already stores pressure directly.
+      par_for("temperature", DevExeSpace(), 0, (nmb-1), ks, ke, js, je, is, ie,
+      KOKKOS_LAMBDA(int m, int k, int j, int i) {
+        dv(m,i_dv,k,j,i) = w0_(m,IEN,k,j,i) / w0_(m,IDN,k,j,i);
+      });
+    } else {
+      // Standard ideal-gas EOS: the IEN slot stores internal energy density,
+      // so pressure = (gamma-1)*eint.
+      Real gm1 = (pm->pmb_pack->phydro != nullptr) ?
+        pm->pmb_pack->phydro->peos->eos_data.gamma - 1.0 :
+        pm->pmb_pack->pmhd->peos->eos_data.gamma - 1.0;
+      par_for("temperature", DevExeSpace(), 0, (nmb-1), ks, ke, js, je, is, ie,
+      KOKKOS_LAMBDA(int m, int k, int j, int i) {
+        dv(m,i_dv,k,j,i) = gm1*(w0_(m,IEN,k,j,i) / w0_(m,IDN,k,j,i));
+      });
+    }
     i_dv += 1; // increment derived variable index
   }
 

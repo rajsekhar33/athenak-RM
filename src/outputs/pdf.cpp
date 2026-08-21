@@ -29,6 +29,7 @@
 
 #include "athena.hpp"
 #include "globals.hpp"
+#include "coordinates/cell_locations.hpp"
 #include "mesh/mesh.hpp"
 #include "eos/eos.hpp"
 #include "hydro/hydro.hpp"
@@ -205,8 +206,8 @@ void PDFOutput::LoadOutputData(Mesh *pm) {
 
   int nmb = pm->pmb_pack->nmb_thispack;
   int nx1 = indcs.nx1 + 2*indcs.ng;
-  int nx2 = indcs.nx2 + 2*indcs.ng;
-  int nx3 = indcs.nx3 + 2*indcs.ng;
+  int nx2 = (indcs.nx2 > 1) ? (indcs.nx2 + 2*indcs.ng) : 1;
+  int nx3 = (indcs.nx3 > 1) ? (indcs.nx3 + 2*indcs.ng) : 1;
 
   // Copy MeshBlock data from host to device
   DvceArray5D<Real> outvars_device("outvars_device", outvars.size(), nmb, nx3, nx2, nx1);
@@ -241,8 +242,29 @@ void PDFOutput::LoadOutputData(Mesh *pm) {
   bool logscale2 = pdf_data.logscale2;
   bool mass_weighted = pdf_data.mass_weighted;
 
+  // Unpack optional spatial region-restriction bounds into plain locals before the
+  // kernel: out_params (an OutputParameters, which holds std::string members) must
+  // never be captured into a KOKKOS_LAMBDA. Bounds default to the full mesh extent
+  // (see ParseRegionRestriction in outputs.cpp), so the check below is a no-op when
+  // the user did not request a restriction.
+  Real x1_min = out_params.x1_min; Real x1_max = out_params.x1_max;
+  Real x2_min = out_params.x2_min; Real x2_max = out_params.x2_max;
+  Real x3_min = out_params.x3_min; Real x3_max = out_params.x3_max;
+
   par_for("pdf", DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
+    Real x1min = size.d_view(m).x1min; Real x1max = size.d_view(m).x1max;
+    Real x2min = size.d_view(m).x2min; Real x2max = size.d_view(m).x2max;
+    Real x3min = size.d_view(m).x3min; Real x3max = size.d_view(m).x3max;
+    Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
+    Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
+    Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
+    if (x1v < x1_min || x1v > x1_max ||
+        x2v < x2_min || x2v > x2_max ||
+        x3v < x3_min || x3v > x3_max) {
+      return;
+    }
+
     auto &x_val = outvars_device(0, m, k, j, i);
     int x_bin = -1;
     // First handle edge cases explicitly
@@ -292,21 +314,54 @@ void PDFOutput::LoadOutputData(Mesh *pm) {
   // Kokkos::Experimental::contribute(result.KokkosView(), scatter);
   Kokkos::fence(); // May not be required
 
-  // Now reduce over ranks
+  // Now reduce over ranks. result is a DvceArray2D (device/GPU memory) -- MPI_Reduce
+  // must not be called directly on its pointer, since this MPI build/collective path
+  // is not reliably CUDA-aware across nodes (confirmed via crash: passing the device
+  // pointer directly segfaults deep inside the MPI collective's internal buffer
+  // handling, both with HCOLL and with OpenMPI's AVX-optimized reduction operator,
+  // since both treat it as ordinary host memory). Reduce through a host mirror
+  // instead, then copy the (root-rank-correct) result back to the device array so
+  // WriteOutputFile's own mirror+deep_copy of result_ picks up the reduced values.
 #if MPI_PARALLEL_ENABLED
+  auto result_host = Kokkos::create_mirror_view(result);
+  Kokkos::deep_copy(result_host, result);
   if (global_variable::my_rank == 0) {
-    MPI_Reduce(MPI_IN_PLACE, result.data(), result.size(),
+    MPI_Reduce(MPI_IN_PLACE, result_host.data(), result_host.size(),
                                    MPI_ATHENA_REAL, MPI_SUM, 0, MPI_COMM_WORLD);
   } else {
-    MPI_Reduce(result.data(), result.data(), result.size(),
+    MPI_Reduce(result_host.data(), result_host.data(), result_host.size(),
                                    MPI_ATHENA_REAL, MPI_SUM, 0, MPI_COMM_WORLD);
   }
+  Kokkos::deep_copy(result, result_host);
 #endif
 }
 
+namespace {
+//----------------------------------------------------------------------------------------
+//! \fn void WriteHeaderWithOffset()
+//  \brief writes an ASCII metadata block (already newline-terminated lines
+//  concatenated in `meta`), followed by a "header offset=<N>" line giving the exact
+//  byte at which the raw binary payload below it begins. Follows the same
+//  ASCII-header-plus-binary-payload convention used elsewhere in this codebase (see
+//  src/outputs/binary.cpp), so a reader just scans lines until it sees this key,
+//  seeks to that byte, and reads raw native-endian Reals from there.
+
+void WriteHeaderWithOffset(FILE *pfile, const std::string &meta) {
+  std::fwrite(meta.data(), 1, meta.size(), pfile);
+  char dummy[64];
+  int line_len = std::snprintf(dummy, sizeof(dummy), "header offset=%012ld\n", 0L);
+  long header_offset = std::ftell(pfile) + line_len;
+  std::fprintf(pfile, "header offset=%012ld\n", header_offset);
+}
+}  // namespace
+
 //----------------------------------------------------------------------------------------
 //! \fn void PDFOutput::WriteOutputFile()
-//  \brief Cycles through hist_data vector and writes history file for each component
+//  \brief writes the bin-edges header file (once, binary) and one binary PDF file per
+//  output dump. Binary (rather than ASCII) is used because a 2D PDF has O(nbin*nbin2)
+//  values per dump; formatting each as text via fprintf is a per-value cost that grows
+//  quadratically with resolution, whereas a single raw fwrite of the whole array does
+//  not.
 
 void PDFOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
   // only the master rank writes the file
@@ -327,37 +382,37 @@ void PDFOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
 
       // open file for output
       FILE *pfile;
-      if ((pfile = std::fopen(fname.c_str(),"a")) == nullptr) {
+      if ((pfile = std::fopen(fname.c_str(),"wb")) == nullptr) {
         std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
           << std::endl << "Output file '" << fname << "' could not be opened" <<std::endl;
         exit(EXIT_FAILURE);
       }
 
-      std::fprintf(pfile,"# pdf bins \n");
-      std::fprintf(pfile,"# [1]= %.20s \n", outvars[0].label.c_str());
+      std::string meta;
+      meta += "Athena pdf bins version=1.0\n";
+      meta += "size of Real=" + std::to_string(sizeof(Real)) + "\n";
+      meta += "pdf_dimension=" + std::to_string(pdf_data.pdf_dimension) + "\n";
+      meta += "variable=" + outvars[0].label + "\n";
+      meta += "nbin=" + std::to_string(pdf_data.nbin) + "\n";
+      meta += "logscale=" + std::to_string(pdf_data.logscale ? 1 : 0) + "\n";
       if (pdf_data.pdf_dimension == 2) {
-        std::fprintf(pfile,"# [2]= %.20s \n", outvars[1].label.c_str());
+        meta += "variable_2=" + outvars[1].label + "\n";
+        meta += "nbin2=" + std::to_string(pdf_data.nbin2) + "\n";
+        meta += "logscale2=" + std::to_string(pdf_data.logscale2 ? 1 : 0) + "\n";
       }
+      WriteHeaderWithOffset(pfile, meta);
 
-      // write bins
-      // Create a host mirror of the pdf_data.result_ array
+      // write bins (raw binary, native byte order, Real precision)
       auto bins_host = Kokkos::create_mirror_view(pdf_data.bins);
       Kokkos::deep_copy(bins_host, pdf_data.bins);
       Kokkos::fence();
+      std::fwrite(bins_host.data(), sizeof(Real), pdf_data.nbin+1, pfile);
 
-      for (int n=0; n<pdf_data.nbin+1; ++n) {
-        std::fprintf(pfile, out_params.data_format.c_str(), bins_host[n]);
-      }
-      std::fprintf(pfile,"\n");                              // terminate line
       if (pdf_data.pdf_dimension == 2) {
         auto bins2_host = Kokkos::create_mirror_view(pdf_data.bins2);
         Kokkos::deep_copy(bins2_host, pdf_data.bins2);
         Kokkos::fence();
-
-        for (int n=0; n<pdf_data.nbin2+1; ++n) {
-          std::fprintf(pfile, out_params.data_format.c_str(), bins2_host[n]);
-        }
-        std::fprintf(pfile,"\n");                            // terminate line
+        std::fwrite(bins2_host.data(), sizeof(Real), pdf_data.nbin2+1, pfile);
       }
       std::fclose(pfile);
       pdf_data.bins_written = true;
@@ -382,7 +437,7 @@ void PDFOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
 
     // open file for output
     FILE *pfile;
-    if ((pfile = std::fopen(fname.c_str(),"a")) == nullptr) {
+    if ((pfile = std::fopen(fname.c_str(),"wb")) == nullptr) {
       std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
         << std::endl << "Output file '" << fname << "' could not be opened" <<std::endl;
       exit(EXIT_FAILURE);
@@ -390,22 +445,23 @@ void PDFOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
 
     // Create a host mirror of the pdf_data.result_ array
     auto result_host = Kokkos::create_mirror_view(pdf_data.result_);
-
-    // Copy the data from the device to the host
     Kokkos::deep_copy(result_host, pdf_data.result_);
 
-    // write history variables
-    std::fprintf(pfile, "# time= ");
-    std::fprintf(pfile, out_params.data_format.c_str(), pm->time);
-    std::fprintf(pfile, "\n");
-    int number_n2_bins = pdf_data.pdf_dimension == 2 ? pdf_data.nbin2+2 : 1;
-    for (int n2=0; n2<number_n2_bins; ++n2) {
-      for (int n=0; n<pdf_data.nbin+2; ++n) {
-        std::fprintf(pfile, out_params.data_format.c_str(), result_host(n2, n));
-      }
-      std::fprintf(pfile,"\n"); // terminate line
+    char time_str[32];
+    std::snprintf(time_str, sizeof(time_str), "%.17g", pm->time);
+    std::string meta;
+    meta += "time=" + std::string(time_str) + "\n";
+    meta += "pdf_dimension=" + std::to_string(pdf_data.pdf_dimension) + "\n";
+    meta += "nbin=" + std::to_string(pdf_data.nbin) + "\n";
+    if (pdf_data.pdf_dimension == 2) {
+      meta += "nbin2=" + std::to_string(pdf_data.nbin2) + "\n";
     }
-    std::fprintf(pfile,"\n"); // terminate line
+    WriteHeaderWithOffset(pfile, meta);
+
+    // result_ has LayoutRight (row-major, last index fastest), so its underlying
+    // buffer is already exactly the (nbin2+2)*(nbin+2) contiguous block we want.
+    int number_n2_bins = pdf_data.pdf_dimension == 2 ? pdf_data.nbin2+2 : 1;
+    std::fwrite(result_host.data(), sizeof(Real), number_n2_bins*(pdf_data.nbin+2), pfile);
     std::fclose(pfile);
   }
 

@@ -1,0 +1,122 @@
+# AthenaK input file for testing the on-the-fly Profile ("prof") and PDF
+# ("pdf") output types, plus the "temperature" derived variable fix. 1D Sod
+# shock tube with:
+#  - output1: a 2-bin x1 profile of "temperature": bin 0 covers x1 in
+#    [-0.5,0), bin 1 covers [0,0.5) -- exactly the left/right states at
+#    cycle 0, before the shock has propagated.
+#  - output2: a 1D PDF of "temperature" (2 bins spanning [0.75,1.05), split
+#    at 0.9) -- at cycle 0 all cells are exactly T=1.0 (left) or T=0.8
+#    (right), so each bin should hold exactly half the domain's weight and
+#    underflow/overflow should be empty.
+#  - output3: a 2D PDF of "hydro_w_d" (density, 2 bins spanning [0.05,1.15),
+#    split at 0.6)
+#    vs "temperature" (2 bins spanning [0.75,1.05), split at 0.9) -- at
+#    cycle 0 only the (dens=0.125,T=0.8) and (dens=1.0,T=1.0) joint states
+#    exist, so the two diagonal bins should hold exactly half the domain's
+#    weight each and the two off-diagonal bins should be exactly zero (this
+#    also exercises that the 2D payload's row/column axis order -- variable
+#    is the fast/x axis, variable_2 the slow/y axis -- is read correctly).
+# Expected: T_left = pl/dl = 1.0, T_right = pr/dr = 0.8 (Sod's standard
+# dl=1,pl=1 / dr=0.125,pr=0.1, gamma=1.4 -- matches the validation done for
+# private commit 53cd66b2).
+
+<comment>
+problem   = Profile/temperature output test (Sod shock tube)
+
+<job>
+basename  = ProfTempTest
+
+<mesh>
+nghost    = 2
+nx1       = 256
+x1min     = -0.5
+x1max     = 0.5
+ix1_bc    = outflow
+ox1_bc    = outflow
+
+nx2       = 1
+x2min     = -0.5
+x2max     = 0.5
+ix2_bc    = periodic
+ox2_bc    = periodic
+
+nx3       = 1
+x3min     = -0.5
+x3max     = 0.5
+ix3_bc    = periodic
+ox3_bc    = periodic
+
+<meshblock>
+nx1       = 64
+nx2       = 1
+nx3       = 1
+
+<time>
+evolution  = dynamic
+integrator = rk2
+cfl_number = 0.8
+nlim       = 2
+tlim       = 0.25
+ndiag      = 1
+
+<hydro>
+eos         = ideal
+reconstruct = plm
+rsolver     = llf
+gamma       = 1.4
+
+<problem>
+pgen_name = shock_tube
+shock_dir  = 1
+xshock     = 0.0
+
+dl = 1.0
+pl = 1.0
+ul = 0.0
+vl = 0.0
+wl = 0.0
+
+dr = 0.125
+pr = 0.1
+ur = 0.0
+vr = 0.0
+wr = 0.0
+
+<output1>
+file_type     = prof
+variable      = temperature
+coord_axis    = x1
+bin_min       = -0.5
+bin_max       = 0.5
+nbin          = 2
+logscale      = false
+mass_weighted = false
+dcycle        = 1
+id            = temp_vs_x1
+
+<output2>
+file_type     = pdf
+variable      = temperature
+bin_min       = 0.75
+bin_max       = 1.05
+nbin          = 2
+logscale      = false
+mass_weighted = false
+dcycle        = 1
+id            = pdf_temp
+
+<output3>
+file_type     = pdf
+variable      = hydro_w_d
+bin_min       = 0.05
+bin_max       = 1.15
+nbin          = 2
+logscale      = false
+variable_2    = temperature
+bin2_min      = 0.75
+bin2_max      = 1.05
+nbin2         = 2
+logscale2     = false
+mass_weighted = false
+dcycle        = 1
+id            = pdf2d_dens_temp

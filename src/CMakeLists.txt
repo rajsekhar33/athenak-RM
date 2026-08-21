@@ -120,6 +120,7 @@ add_executable(
         particles/particles_pushers.cpp
         particles/particles_tasks.cpp
         outputs/pdf.cpp
+        outputs/profile.cpp
 
         pgen/pgen.cpp
         pgen/tests/advection.cpp

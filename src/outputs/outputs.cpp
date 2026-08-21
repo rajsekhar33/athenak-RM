@@ -53,6 +53,27 @@
 #include "mesh/mesh.hpp"
 #include "outputs.hpp"
 
+namespace {
+
+//----------------------------------------------------------------------------------------
+//! \fn void ParseRegionRestriction()
+//  \brief reads optional per-axis spatial region-restriction bounds (x1_min/x1_max, etc.)
+//  shared by the "pdf" and "prof" output types. Each bound independently defaults to the
+//  full mesh extent (i.e. no restriction) when not specified in the input file, so the
+//  per-cell mask check in the output kernels is always correct with no extra "enabled"
+//  flags needed.
+
+void ParseRegionRestriction(ParameterInput *pin, Mesh *pm, OutputParameters *opar) {
+  opar->x1_min = pin->GetOrAddReal(opar->block_name, "x1_min", pm->mesh_size.x1min);
+  opar->x1_max = pin->GetOrAddReal(opar->block_name, "x1_max", pm->mesh_size.x1max);
+  opar->x2_min = pin->GetOrAddReal(opar->block_name, "x2_min", pm->mesh_size.x2min);
+  opar->x2_max = pin->GetOrAddReal(opar->block_name, "x2_max", pm->mesh_size.x2max);
+  opar->x3_min = pin->GetOrAddReal(opar->block_name, "x3_min", pm->mesh_size.x3min);
+  opar->x3_max = pin->GetOrAddReal(opar->block_name, "x3_max", pm->mesh_size.x3max);
+}
+
+}  // namespace
+
 //----------------------------------------------------------------------------------------
 // Outputs constructor
 
@@ -197,15 +218,15 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {
         opar.file_id = pin->GetOrAddString(opar.block_name,"id",opar.variable);
       }
 
-      // check that pdf variables are single variables
+      // check that pdf/prof variables are single variables
       // raise error if variable = mhd_w, mhd_u, hydro_w, hydro_u
-      if (opar.file_type.compare("pdf") == 0) {
+      if (opar.file_type.compare("pdf") == 0 || opar.file_type.compare("prof") == 0) {
         if (opar.variable.compare("mhd_w") == 0 ||
             opar.variable.compare("mhd_u") == 0 ||
             opar.variable.compare("hydro_w") == 0 ||
             opar.variable.compare("hydro_u") == 0) {
           std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
-              << std::endl << "PDF output block '" << opar.block_name
+              << std::endl << "Output block '" << opar.block_name
               << "' cannot output variable '" << opar.variable << "'."
               << " The variable must be a single variable not a variable group"
               << std::endl;
@@ -279,7 +300,55 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {
           opar.nbin2 = 0;
           opar.logscale2 = true;
         }
+        ParseRegionRestriction(pin, pm, &opar);
         pnode = new PDFOutput(pin,pm,opar);
+        pout_list.insert(pout_list.begin(),pnode);
+      } else if (opar.file_type.compare("prof") == 0) {
+        opar.bin_min = pin->GetReal(opar.block_name,"bin_min");
+        opar.bin_max = pin->GetReal(opar.block_name,"bin_max");
+        opar.nbin = pin->GetInteger(opar.block_name,"nbin");
+        opar.logscale = pin->GetOrAddBoolean(opar.block_name,"logscale",true);
+        opar.mass_weighted = pin->GetOrAddBoolean(opar.block_name,"mass_weighted",false);
+
+        // coordinate to bin cells by: x1, x2, x3, or r (radial)
+        opar.coord_axis = pin->GetString(opar.block_name,"coord_axis");
+        if (opar.coord_axis.compare("x1") != 0 && opar.coord_axis.compare("x2") != 0 &&
+            opar.coord_axis.compare("x3") != 0 && opar.coord_axis.compare("r") != 0) {
+          std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+              << std::endl << "Profile output block '" << opar.block_name
+              << "' has invalid coord_axis='" << opar.coord_axis << "'."
+              << " Must be one of x1, x2, x3, r" << std::endl;
+          exit(EXIT_FAILURE);
+        }
+
+        if (opar.coord_axis.compare("r") == 0) {
+          opar.radial_type = pin->GetOrAddString(opar.block_name,"radial_type","spherical");
+          if (opar.radial_type.compare("spherical") != 0 &&
+              opar.radial_type.compare("cylindrical") != 0) {
+            std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+                << std::endl << "Profile output block '" << opar.block_name
+                << "' has invalid radial_type='" << opar.radial_type << "'."
+                << " Must be one of spherical, cylindrical" << std::endl;
+            exit(EXIT_FAILURE);
+          }
+          if (opar.radial_type.compare("cylindrical") == 0) {
+            opar.cyl_axis = pin->GetOrAddString(opar.block_name,"cyl_axis","x3");
+            if (opar.cyl_axis.compare("x1") != 0 && opar.cyl_axis.compare("x2") != 0 &&
+                opar.cyl_axis.compare("x3") != 0) {
+              std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+                  << std::endl << "Profile output block '" << opar.block_name
+                  << "' has invalid cyl_axis='" << opar.cyl_axis << "'."
+                  << " Must be one of x1, x2, x3" << std::endl;
+              exit(EXIT_FAILURE);
+            }
+          }
+          opar.xc = pin->GetOrAddReal(opar.block_name,"xc",0.0);
+          opar.yc = pin->GetOrAddReal(opar.block_name,"yc",0.0);
+          opar.zc = pin->GetOrAddReal(opar.block_name,"zc",0.0);
+        }
+
+        ParseRegionRestriction(pin, pm, &opar);
+        pnode = new ProfileOutput(pin,pm,opar);
         pout_list.insert(pout_list.begin(),pnode);
       } else if (opar.file_type.compare("bin") == 0) {
         opar.single_file_per_rank = pin->GetOrAddBoolean(opar.block_name,
