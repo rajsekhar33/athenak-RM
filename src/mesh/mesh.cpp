@@ -29,6 +29,7 @@
 #include "radiation/radiation.hpp"
 #include "particles/particles.hpp"
 #include "srcterms/srcterms.hpp"
+#include "srcterms/turb_driver.hpp"
 #include "outputs/io_wrapper.hpp"
 
 #if MPI_PARALLEL_ENABLED
@@ -620,6 +621,11 @@ void Mesh::NewTimeStep(const Real tlim) {
     if (pmb_pack->pmhd->psrc != nullptr) {
       dt_cycle = std::min(dt_cycle, (cfl_no)*(pmb_pack->pmhd->psrc->dtnew) );
     }
+  }
+  // Turbulence driver timestep (caps dt so it never overshoots the next
+  // dt_turb_update boundary), independent of hydro/mhd source terms
+  if (pmb_pack->pturb != nullptr) {
+    dt_cycle = std::min(dt_cycle, (cfl_no)*(pmb_pack->pturb->dtnew) );
   }
   // user timestep
   if (pmb_pack->pmesh->pgen->user_dt) {

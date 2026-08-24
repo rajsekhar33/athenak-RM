@@ -8,6 +8,7 @@
 //! Default constructor calls problem generator function, while  constructor for restarts
 //! reads data from restart file, as well as re-initializing problem-specific data.
 
+#include <iomanip>
 #include <iostream>
 #include <string>
 #include <utility>
@@ -144,7 +145,7 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf
   z4c::Z4c* pz4c = pm->pmb_pack->pz4c;
   radiation::Radiation* prad=pm->pmb_pack->prad;
   TurbulenceDriver* pturb=pm->pmb_pack->pturb;
-  int nrad = 0, nhydro = 0, nmhd = 0, nforce = 3, nadm = 0, nz4c = 0;
+  int nrad = 0, nhydro = 0, nmhd = 0, nforce = 6, nadm = 0, nz4c = 0;
   if (phydro != nullptr) {
     nhydro = phydro->nhydro + phydro->nscalars;
   }
@@ -197,7 +198,7 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf
     }
   }
 
-  if (pturb != nullptr) {
+  if (pturb != nullptr && pturb->restart_forcing) {
     // root process reads size the random seed
     char *rng_data = new char[sizeof(RNG_State)];
     // the master process reads the variables data
@@ -217,6 +218,35 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf
     }
 #endif
     std::memcpy(&(pturb->rstate), &(rng_data[0]), sizeof(RNG_State));
+    delete[] rng_data;
+
+    // n_turb_updates_yet must be read back as-written, not recomputed from
+    // pm->time: InitializeModes only runs once per cycle (using that
+    // cycle's pre-step time), so with CFL-limited steps the count of
+    // update-windows actually processed by the time the restart file was
+    // written can be less than floor(pm->time/dt_turb_update)+1. Restoring
+    // the exact saved value (rather than that formula) is what makes
+    // InitializeModes' replay loop below correctly resume -- replaying
+    // exactly the updates that hadn't happened yet, no more and no fewer --
+    // instead of either replaying stale history on top of the freshly
+    // restored force/rstate, or skipping updates that were actually still
+    // due.
+    int n_turb_updates_yet = 0;
+    if (global_variable::my_rank == 0 || single_file_per_rank) {
+      if (resfile.Read_bytes(&n_turb_updates_yet, 1, sizeof(int), single_file_per_rank)
+          != sizeof(int)) {
+        std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+                  << std::endl << "n_turb_updates_yet data size read from restart "
+                  << "file is incorrect, restart file is broken." << std::endl;
+        exit(EXIT_FAILURE);
+      }
+    }
+#if MPI_PARALLEL_ENABLED
+    if (!single_file_per_rank) {
+      MPI_Bcast(&n_turb_updates_yet, sizeof(int), MPI_CHAR, 0, MPI_COMM_WORLD);
+    }
+#endif
+    pturb->n_turb_updates_yet = n_turb_updates_yet;
   }
 
   // root process reads size of CC and FC data arrays from restart file
@@ -266,7 +296,7 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf
   if (prad != nullptr) {
     data_size_ += nout1*nout2*nout3*nrad*sizeof(Real);   // rad i0
   }
-  if (pturb != nullptr) {
+  if (pturb != nullptr && pturb->restart_forcing) {
     data_size_ += nout1*nout2*nout3*nforce*sizeof(Real); // forcing
   }
   if (pz4c != nullptr) {
@@ -521,7 +551,7 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf
     myoffset = offset_myrank;
   }
 
-  if (pturb != nullptr) {
+  if (pturb != nullptr && pturb->restart_forcing) {
     Kokkos::realloc(ccin, nmb, nforce, nout3, nout2, nout1);
     for (int m=0;  m<noutmbs_max; ++m) {
       // every rank has a MB to read, so read collectively
@@ -555,8 +585,23 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf
         myoffset += data_size;
       }
     }
+    // Kokkos cannot deep_copy directly between a Host view and a Cuda view
+    // when either side is a non-contiguous subview -- slicing the channel
+    // (2nd) dimension of ccin makes it non-contiguous on a GPU build, and
+    // there's no common execution space that can walk a non-contiguous
+    // layout across the Host/Cuda boundary. So pull each half into its own
+    // contiguous host buffer with a host-to-host copy first (same space,
+    // slicing is fine there), then transfer each whole buffer to the device.
+    HostArray5D<Real> force_host("force_host", nmb, 3, nout3, nout2, nout1);
+    HostArray5D<Real> force_tmp1_host("force_tmp1_host", nmb, 3, nout3, nout2, nout1);
+    Kokkos::deep_copy(force_host, Kokkos::subview(ccin, Kokkos::ALL, std::make_pair(0,3),
+                      Kokkos::ALL, Kokkos::ALL, Kokkos::ALL));
+    Kokkos::deep_copy(force_tmp1_host, Kokkos::subview(ccin, Kokkos::ALL,
+                      std::make_pair(3,6), Kokkos::ALL, Kokkos::ALL, Kokkos::ALL));
     Kokkos::deep_copy(Kokkos::subview(pturb->force, std::make_pair(0,nmb), Kokkos::ALL,
-                      Kokkos::ALL, Kokkos::ALL, Kokkos::ALL), ccin);
+                      Kokkos::ALL, Kokkos::ALL, Kokkos::ALL), force_host);
+    Kokkos::deep_copy(Kokkos::subview(pturb->force_tmp1, std::make_pair(0,nmb), Kokkos::ALL,
+                      Kokkos::ALL, Kokkos::ALL, Kokkos::ALL), force_tmp1_host);
     offset_myrank += nout1*nout2*nout3*nforce*sizeof(Real); // forcing
     myoffset = offset_myrank;
   }

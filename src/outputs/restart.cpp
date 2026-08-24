@@ -65,8 +65,8 @@ void RestartOutput::LoadOutputData(Mesh *pm) {
   adm::ADM* padm = pm->pmb_pack->padm;
   z4c::Z4c* pz4c = pm->pmb_pack->pz4c;
   radiation::Radiation* prad = pm->pmb_pack->prad;
-  TurbulenceDriver* pturb=pm->pmb_pack->pturb;
-  int nhydro=0, nmhd=0, nrad=0, nforce=3, nadm=0, nz4c=0;
+  TurbulenceDriver* pturb = pm->pmb_pack->pturb;
+  int nhydro=0, nmhd=0, nrad=0, nadm=0, nz4c=0, nforce=6;
   if (phydro != nullptr) {
     nhydro = phydro->nhydro + phydro->nscalars;
   }
@@ -108,10 +108,31 @@ void RestartOutput::LoadOutputData(Mesh *pm) {
     Kokkos::deep_copy(outarray_rad, Kokkos::subview(prad->i0, std::make_pair(0,nmb),
                       Kokkos::ALL, Kokkos::ALL, Kokkos::ALL, Kokkos::ALL));
   }
-  if (pturb != nullptr) {
+  if (pturb != nullptr && pturb->restart_forcing) {
+    // force alone is not enough: UpdateForcing overwrites force from
+    // force_tmp1 (the actual persistent OU-process state) every cycle, so
+    // force_tmp1 must be saved too or that overwrite would erase the
+    // restored force with force_tmp1's stale (zero, freshly-reallocated)
+    // value on the very first post-restart step.
     Kokkos::realloc(outarray_force, nmb, nforce, nout3, nout2, nout1);
-    Kokkos::deep_copy(outarray_force, Kokkos::subview(pturb->force, std::make_pair(0,nmb),
+    // Kokkos cannot deep_copy directly between a Cuda view and a Host view
+    // when either side is a non-contiguous subview -- slicing the channel
+    // (2nd) dimension of outarray_force makes it non-contiguous on a GPU
+    // build, and there's no common execution space that can walk a
+    // non-contiguous layout across the Cuda/Host boundary. So copy each
+    // device array whole (contiguous) to its own host buffer first, then
+    // combine with a host-to-host copy (same space, slicing is fine there).
+    HostArray5D<Real> force_host("force_host", nmb, 3, nout3, nout2, nout1);
+    HostArray5D<Real> force_tmp1_host("force_tmp1_host", nmb, 3, nout3, nout2, nout1);
+    Kokkos::deep_copy(force_host, Kokkos::subview(pturb->force, std::make_pair(0,nmb),
                       Kokkos::ALL, Kokkos::ALL, Kokkos::ALL, Kokkos::ALL));
+    Kokkos::deep_copy(force_tmp1_host, Kokkos::subview(pturb->force_tmp1,
+                      std::make_pair(0,nmb), Kokkos::ALL, Kokkos::ALL, Kokkos::ALL,
+                      Kokkos::ALL));
+    Kokkos::deep_copy(Kokkos::subview(outarray_force, Kokkos::ALL, std::make_pair(0,3),
+                      Kokkos::ALL, Kokkos::ALL, Kokkos::ALL), force_host);
+    Kokkos::deep_copy(Kokkos::subview(outarray_force, Kokkos::ALL, std::make_pair(3,6),
+                      Kokkos::ALL, Kokkos::ALL, Kokkos::ALL), force_tmp1_host);
   }
   if (pz4c != nullptr) {
     Kokkos::realloc(outarray_z4c, nmb, nz4c, nout3, nout2, nout1);
@@ -145,10 +166,10 @@ void RestartOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
   hydro::Hydro* phydro = pm->pmb_pack->phydro;
   mhd::MHD* pmhd = pm->pmb_pack->pmhd;
   radiation::Radiation* prad = pm->pmb_pack->prad;
-  TurbulenceDriver* pturb=pm->pmb_pack->pturb;
   z4c::Z4c* pz4c = pm->pmb_pack->pz4c;
   adm::ADM* padm = pm->pmb_pack->padm;
-  int nhydro=0, nmhd=0, nrad=0, nforce=3, nz4c=0, nadm=0, nco=0;
+  TurbulenceDriver* pturb = pm->pmb_pack->pturb;
+  int nhydro=0, nmhd=0, nrad=0, nz4c=0, nadm=0, nco=0, nforce=6;
   if (phydro != nullptr) {
     nhydro = phydro->nhydro + phydro->nscalars;
   }
@@ -257,9 +278,18 @@ void RestartOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
                                single_file_per_rank);
       }
     }
-    // turbulence driver internal RNG
-    if (pturb != nullptr) {
+    // turbulence driver internal RNG, so a restart can continue the same
+    // pseudorandom sequence rather than only re-deriving it from t=0
+    if (pturb != nullptr && pturb->restart_forcing) {
       resfile.Write_any_type(&(pturb->rstate), sizeof(RNG_State), "byte",
+                             single_file_per_rank);
+      // n_turb_updates_yet must be saved as-is, not recomputed from the
+      // restart time: InitializeModes only runs once per cycle (using that
+      // cycle's pre-step time), so a CFL-limited run can reach a given
+      // simulation time having processed fewer update-windows than
+      // floor(time/dt_turb_update)+1 would suggest. Persist the exact
+      // in-memory value instead of re-deriving a wrong one.
+      resfile.Write_any_type(&(pturb->n_turb_updates_yet), sizeof(int), "byte",
                              single_file_per_rank);
     }
   }
@@ -282,7 +312,7 @@ void RestartOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
   if (prad != nullptr) {
     data_size += nout1*nout2*nout3*nrad*sizeof(Real);   // radiation i0
   }
-  if (pturb != nullptr) {
+  if (pturb != nullptr && pturb->restart_forcing) {
     data_size += nout1*nout2*nout3*nforce*sizeof(Real); // forcing
   }
   if (pz4c != nullptr) {
@@ -302,7 +332,9 @@ void RestartOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
 
   IOWrapperSizeT step3size = 3*nco*sizeof(Real);
   if (pz4c != nullptr) step3size += sizeof(Real);
-  if (pturb != nullptr) step3size += sizeof(RNG_State);
+  if (pturb != nullptr && pturb->restart_forcing) {
+    step3size += sizeof(RNG_State) + sizeof(int);
+  }
 
   // write cell-centered variables in parallel
   IOWrapperSizeT offset_myrank = (step1size + step2size + step3size
@@ -514,7 +546,7 @@ void RestartOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
     myoffset = offset_myrank;
   }
 
-  if (pturb != nullptr) {
+  if (pturb != nullptr && pturb->restart_forcing) {
     for (int m=0;  m<noutmbs_max; ++m) {
       // every rank has a MB to write, so write collectively
       if (m < noutmbs_min) {

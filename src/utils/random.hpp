@@ -147,23 +147,26 @@ static Real Ran2(int64_t *idum) {
 
 KOKKOS_INLINE_FUNCTION
 static Real RanGaussianSt(RNG_State *state) {
-  static int iset = 0;
-  static double gset;
+  // The Box-Muller cache (iset/gset) must live in *state*, not in function-
+  // local statics: RNG_State is what gets saved to and restored from
+  // restart files, so a local static here would silently reset this phase
+  // to 0 on every new process (restart or not), regardless of what phase a
+  // truly continuous run would have been in at that point.
   double fac, rsq, v1, v2;
-  if (state->idum < 0) iset = 0;
-  if (iset == 0) {
+  if (state->idum < 0) state->iset = 0;
+  if (state->iset == 0) {
     do {
       v1 = 2.0 * RanSt(state) - 1.0;
       v2 = 2.0 * RanSt(state) - 1.0;
       rsq = v1 * v1 + v2 * v2;
     } while (rsq >=1.0 || rsq == 0.0);
     fac = sqrt(-2.0*log(rsq)/rsq);
-    gset = v1*fac;
-    iset = 1;
+    state->gset = v1*fac;
+    state->iset = 1;
     return v2*fac;
   } else {
-    iset = 0;
-    return gset;
+    state->iset = 0;
+    return state->gset;
   }
 }
 

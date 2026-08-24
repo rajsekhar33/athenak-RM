@@ -258,10 +258,21 @@ void TurbulentHistory(HistoryData *pdata, Mesh *pm) {
   pdata->label[9] = "U^2";
   pdata->label[10] = "dU";
 
+  mhd::MHD* pmhd = pm->pmb_pack->pmhd;
+  if (pmhd == nullptr) {
+    // These are all MHD-specific (B-field) statistics; for a hydro-only
+    // turbulence run there is no b0/bcc0 to read, so report zeros instead
+    // of dereferencing a null pmhd.
+    for (int n = 0; n < pdata->nhist; ++n) {
+      pdata->hdata[n] = 0.0;
+    }
+    return;
+  }
+
   // capture class variabels for kernel
-  auto &bcc = pm->pmb_pack->pmhd->bcc0;
-  auto &b = pm->pmb_pack->pmhd->b0;
-  auto &w0_ = pm->pmb_pack->pmhd->w0;
+  auto &bcc = pmhd->bcc0;
+  auto &b = pmhd->b0;
+  auto &w0_ = pmhd->w0;
   auto &size = pm->pmb_pack->pmb->mb_size;
   int &nhist_ = pdata->nhist;
 
@@ -291,9 +302,9 @@ void TurbulentHistory(HistoryData *pdata, Mesh *pm) {
     array_sum::GlobalSum hvars;
 
     // calculate mean B
-    hvars.the_array[0] = bcc(m,IBX,k,j,i);
-    hvars.the_array[1] = bcc(m,IBY,k,j,i);
-    hvars.the_array[2] = bcc(m,IBZ,k,j,i);
+    hvars.the_array[0] = bcc(m,IBX,k,j,i)*vol;
+    hvars.the_array[1] = bcc(m,IBY,k,j,i)*vol;
+    hvars.the_array[2] = bcc(m,IBZ,k,j,i)*vol;
 
     // 0 = < B^2 >
     Real B_mag_sq = bcc(m,IBX,k,j,i)*bcc(m,IBX,k,j,i)
