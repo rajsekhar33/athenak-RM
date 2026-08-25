@@ -12,8 +12,14 @@
 #include <memory>
 #include <vector>
 
+#include "athena.hpp"
 #include "geodesic-grid/spherical_grid.hpp"
 #include "parameter_input.hpp"
+
+// forward declarations for the particle-restart helper below
+struct RegionSize;
+struct RegionIndcs;
+enum class BoundaryFlag;
 
 using ProblemFinalizeFnPtr = void (*)(ParameterInput *pin, Mesh *pm);
 using UserBoundaryFnPtr = void (*)(Mesh* pm);
@@ -32,7 +38,7 @@ class ProblemGenerator {
   ProblemGenerator(ParameterInput *pin, Mesh *pmesh);
   // constructor for restarts
   ProblemGenerator(ParameterInput *pin, Mesh *pmesh, IOWrapper resfile,
-                   bool single_file_per_rank=false);
+                   bool single_file_per_rank=false, IOWrapper *prestartfile=nullptr);
   ~ProblemGenerator() = default;
 
   // true if user BCs are specified on any face
@@ -98,6 +104,28 @@ class ProblemGenerator {
 
   // template for user-specified problem generator
   void UserProblem(ParameterInput *pin, const bool restart);
+
+  // Restores particles read from a particle restart file into prtcl_rdata/idata,
+  // matching each by PGID to the MeshBlock now owning it on this rank
+  void InitializeParticlesFromRestart(
+      int64_t nparticles_thispack,
+      const DualArray2D<Real>& part_data,
+      DvceArray2D<Real>& pr,
+      DvceArray2D<int>& pi,
+      bool snap_to_cell_center,
+      bool multi_d,
+      bool three_d,
+      const DvceArray1D<RegionSize>& mbsize,
+      const DvceArray1D<int>& mblev,
+      int gids,
+      int nmb,
+      const RegionIndcs& indcs,
+      const DvceArray2D<BoundaryFlag>& mb_bcs,
+      Real min_rad);
+
+  // Reusable fresh-run Lagrangian tracer particle initializer (mass- or volume-
+  // weighted); see InitializeLagrangianParticles() in pgen.cpp for pgen usage
+  void InitializeLagrangianParticles(ParameterInput *pin, const DvceArray5D<Real>& u0);
 
  private:
   bool single_file_per_rank; // for restart file naming

@@ -45,6 +45,7 @@ struct HydroTaskIDs {
   TaskID recvf;
   TaskID rkupdt;
   TaskID srctrms;
+  TaskID savef;
   TaskID sendu_oa;
   TaskID recvu_oa;
   TaskID restu;
@@ -105,6 +106,11 @@ class Hydro {
   DvceFaceFld5D<Real> uflx;   // fluxes of conserved quantities on cell faces
   Real dtnew;
 
+  // following used to save step-to-step IDN flux values (consumed by mass-conserving
+  // particle pushers); allocated lazily via SetSaveUFlxIdn() only when needed
+  bool uflxidn_saved = false;
+  DvceFaceFld4D<Real> uflxidnsaved;
+
   bool has_explicit_viscosity = false;
   bool has_explicit_conduction = false;
   bool has_sts_viscosity = false;
@@ -133,6 +139,7 @@ class Hydro {
   HydroTaskIDs id;
 
   // functions...
+  void SetSaveUFlxIdn();
   void AssembleHydroTasks(std::map<std::string, std::shared_ptr<TaskList>> tl);
   // ...in "before_stagen_tl" list
   TaskStatus InitRecv(Driver *d, int stage);
@@ -144,6 +151,7 @@ class Hydro {
   TaskStatus RecvFlux(Driver *d, int stage);
   TaskStatus RKUpdate(Driver *d, int stage);
   TaskStatus HydroSrcTerms(Driver *d, int stage);
+  TaskStatus SaveFlux(Driver *d, int stage);
   TaskStatus SendU_OA(Driver *d, int stage);
   TaskStatus RecvU_OA(Driver *d, int stage);
   TaskStatus RestrictU(Driver *d, int stage);

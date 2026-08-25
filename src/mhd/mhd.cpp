@@ -59,6 +59,7 @@ MHD::MHD(MeshBlockPack *ppack, ParameterInput *pin) :
     br3d("br3d",1,1,1,1,1),
     wsaved("wsaved",1,1,1,1,1),
     bccsaved("bccsaved",1,1,1,1,1),
+    uflxidnsaved("uflxidnsaved",1,1,1,1),
     fofc("fofc",1,1,1,1),
     fofc_scal("fofc_scal",1,1,1,1,1),
     utest("utest",1,1,1,1,1),
@@ -477,6 +478,25 @@ void MHD::SetSaveWBcc() {
   Kokkos::realloc(bccsaved, nmb, 3,               ncells3, ncells2, ncells1);
 
   wbcc_saved = true;
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn void MHD::SetSaveUFlxIdn()
+//! \brief lazily allocates uflxidnsaved and enables SaveFlux(); called by a mass-
+//! conserving Particles pusher (lagrangian_mc/ito_2) when constructed
+
+void MHD::SetSaveUFlxIdn() {
+  int nmb = std::max((pmy_pack->nmb_thispack), (pmy_pack->pmesh->nmb_maxperrank));
+  auto &indcs = pmy_pack->pmesh->mb_indcs;
+  int ncells1 = indcs.nx1 + 2*(indcs.ng);
+  int ncells2 = (indcs.nx2 > 1)? (indcs.nx2 + 2*(indcs.ng)) : 1;
+  int ncells3 = (indcs.nx3 > 1)? (indcs.nx3 + 2*(indcs.ng)) : 1;
+
+  Kokkos::realloc(uflxidnsaved.x1f, nmb, ncells3, ncells2, ncells1+1);
+  Kokkos::realloc(uflxidnsaved.x2f, nmb, ncells3, ncells2+1, ncells1);
+  Kokkos::realloc(uflxidnsaved.x3f, nmb, ncells3+1, ncells2, ncells1);
+
+  uflxidn_saved = true;
 }
 
 } // namespace mhd

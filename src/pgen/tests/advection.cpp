@@ -255,5 +255,10 @@ void ProblemGenerator::Advection(ParameterInput *pin, const bool restart) {
     });
   }  // End initialization of MHD variables
 
+  if (pmbp->ppart != nullptr) {
+    auto &u0_ = (pmbp->phydro != nullptr) ? pmbp->phydro->u0 : pmbp->pmhd->u0;
+    InitializeLagrangianParticles(pin, u0_);
+  }
+
   return;
 }

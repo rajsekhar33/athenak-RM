@@ -115,6 +115,8 @@ add_executable(
         outputs/track_prtcl.cpp
         outputs/vtk_mesh.cpp
         outputs/vtk_prtcl.cpp
+        outputs/res_prtcl.cpp
+        outputs/bin_prtcl.cpp
 
         particles/particles.cpp
         particles/particles_pushers.cpp

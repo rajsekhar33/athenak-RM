@@ -436,6 +436,45 @@ class ParticleVTKOutput : public BaseTypeOutput {
 };
 
 //----------------------------------------------------------------------------------------
+//! \class ParticleRestartOutput
+//  \brief derived BaseTypeOutput class for particle restart data in binary format
+
+class ParticleRestartOutput : public BaseTypeOutput {
+ public:
+  ParticleRestartOutput(ParameterInput *pin, Mesh *pm, OutputParameters oparams);
+  void LoadOutputData(Mesh *pm) override;
+  void WriteOutputFile(Mesh *pm, ParameterInput *pin) override;
+ protected:
+  int npout_thisrank;
+  int npout_total;
+  HostArray2D<Real> outpart_rdata;
+  HostArray2D<int>  outpart_idata;
+};
+
+//----------------------------------------------------------------------------------------
+//! \class ParticleBinaryOutput
+//  \brief derived BaseTypeOutput class for particle data with grid quantities in
+//  binary format
+
+class ParticleBinaryOutput : public BaseTypeOutput {
+ public:
+  ParticleBinaryOutput(ParameterInput *pin, Mesh *pm, OutputParameters oparams);
+  void LoadOutputData(Mesh *pm) override;
+  void WriteOutputFile(Mesh *pm, ParameterInput *pin) override;
+ protected:
+  int npout_thisrank;
+  int npout_total;
+  HostArray2D<Real> outpart_rdata;
+  HostArray2D<int>  outpart_idata;
+  HostArray2D<Real> outpart_griddata;  // grid data at particle locations
+  int ngriddata;  // number of grid data fields per particle
+  std::vector<std::string> var_names;  // names of grid variables
+
+ private:
+  void ParseVariableSpec(ParameterInput *pin, Mesh *pm);
+};
+
+//----------------------------------------------------------------------------------------
 //! \class MeshBinaryOutput
 //  \brief derived BaseTypeOutput class for binary mesh data (nbf format in pegasus++)
 class MeshBinaryOutput : public BaseTypeOutput {

@@ -59,7 +59,7 @@
 //! \brief Athena main program
 
 int main(int argc, char *argv[]) {
-  std::string input_file, restart_file, run_dir;
+  std::string input_file, restart_file, prestart_file, run_dir;
   bool iarg_flag = false;  // set to true if -i <file> argument is on cmdline
   bool marg_flag = false;  // set to true if -m        argument is on cmdline
   bool narg_flag = false;  // set to true if -n        argument is on cmdline
@@ -67,6 +67,7 @@ int main(int argc, char *argv[]) {
   bool  res_flag = false;  // set to true if -r <file> argument is on cmdline
   bool wdog_flag = false;  // set to true if -w ss     argument is on cmdline
   int wdog_timeout = 0;
+  bool pres_flag = false;  // set to true if -p <file> argument is on cmdline
   Real wtlim = 0;
 
   //--- Step 1. --------------------------------------------------------------------------
@@ -164,6 +165,10 @@ int main(int argc, char *argv[]) {
           restart_file.assign(argv[++i]);
           res_flag = true;
           break;
+        case 'p':                      // -p <particle_restart_file>
+          prestart_file.assign(argv[++i]);
+          pres_flag = true;
+          break;
         case 'd':                      // -d <run_directory>
           run_dir.assign(argv[++i]);
           break;
@@ -202,6 +207,7 @@ int main(int argc, char *argv[]) {
             std::cout << "Options:" << std::endl;
             std::cout << "  -i <file>       specify input file [athinput]\n";
             std::cout << "  -r <file>       restart with this file\n";
+            std::cout << "  -p <file>       specify particle restart file\n";
             std::cout << "  -d <directory>  specify run dir [current dir]\n";
             std::cout << "  -n              parse input file and quit\n";
             std::cout << "  -c              show configuration and quit\n";
@@ -352,13 +358,42 @@ int main(int argc, char *argv[]) {
     // set ICs using ProblemGenerator constructor for new runs
     pmesh->pgen = std::make_unique<ProblemGenerator>(pinput, pmesh);
   } else {
+    // Particles (if enabled) are restored from a separate particle restart file, not
+    // from the main fluid restart file -- open it now if -p was given.
+    IOWrapper prestartfile;
+    if (pres_flag) {
+      // match the requested particle restart file to this rank, the same way the main
+      // restart file's path is resolved when single_file_per_rank is set
+      if (single_file_per_rank) {
+        size_t prank_pos = prestart_file.find("/rank_");
+        size_t last_slash = prestart_file.rfind('/');
+        std::string file_name = prestart_file.substr(last_slash + 1);
+        std::string base_dir = prestart_file.substr(0,
+            (prank_pos == std::string::npos) ? last_slash : prank_pos);
+        char rank_dir[20];
+        std::snprintf(rank_dir, sizeof(rank_dir), "rank_%08d", global_variable::my_rank);
+        prestart_file = base_dir + "/" + rank_dir + "/" + file_name;
+      }
+
+      prestartfile.Open(prestart_file.c_str(), IOWrapper::FileMode::read,
+                        single_file_per_rank);
+      if (global_variable::my_rank == 0) {
+        std::cout << "Loading particle restart: " << prestart_file << std::endl;
+      }
+    }
+
     // read ICs from restart file using ProblemGenerator constructor for restarts
     pmesh->pgen = std::make_unique<ProblemGenerator>(pinput,
                                                      pmesh,
                                                      restartfile,
-                                                     single_file_per_rank);
+                                                     single_file_per_rank,
+                                                     pres_flag ? &prestartfile : nullptr);
     restartfile.Close(single_file_per_rank);
+    if (pres_flag) {
+      prestartfile.Close(single_file_per_rank);
+    }
   }
+  pmesh->FinalizeParticleDataStructures(pinput, pres_flag);
 
   // Construct MeshRefinement object only after physics modules have been added because
   // size of buffers for load balancing, refinement criteria, etc. depend on physics

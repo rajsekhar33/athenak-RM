@@ -9,11 +9,14 @@
 #include <iostream>
 #include <string>
 #include <algorithm>
+#include <limits>
 
 #include "athena.hpp"
 #include "globals.hpp"
 #include "parameter_input.hpp"
 #include "mesh/mesh.hpp"
+#include "hydro/hydro.hpp"
+#include "mhd/mhd.hpp"
 #include "bvals/bvals.hpp"
 #include "particles.hpp"
 
@@ -30,6 +33,22 @@ Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :
     std::exit(EXIT_FAILURE);
   }
 
+  // base seed for deterministic per-particle random draws. Deliberately a FIXED
+  // constant, not rank/gids-dependent: LagrangianMCUniform01/StatelessUniform01
+  // already hash in the particle's own (globally unique) tag, so a rank-varying
+  // base seed adds no real decorrelation value. A rank-varying default (e.g.
+  // -1-gids, tried initially) breaks restart-exactness: restart files embed the
+  // resolved ParameterInput block, and on restart every rank's GetOrAddInteger()
+  // call below finds "particles/random_seed" already present (typically from
+  // whichever rank's block got embedded) and reuses THAT single resolved value
+  // instead of recomputing its own per-rank default -- so continuous (each rank
+  // computing gids-based -1-gids fresh) and a restarted run (every rank reusing
+  // one embedded rank's value) silently use different seeds on most ranks. A
+  // fixed constant sidesteps this entirely: every rank always resolves to the
+  // same value, whether freshly defaulted or inherited from another rank's
+  // embedded parameter block.
+  random_seed = pin->GetOrAddInteger("particles","random_seed",-1);
+
   // read number of particles per cell, and calculate number of particles this pack
   Real ppc = pin->GetOrAddReal("particles","ppc",1.0);
 
@@ -45,6 +64,10 @@ Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :
     std::string ptype = pin->GetString("particles","particle_type");
     if (ptype.compare("cosmic_ray") == 0) {
       particle_type = ParticleType::cosmic_ray;
+    } else if (ptype.compare("lagrangian_tracer") == 0 ||
+               ptype.compare("mass_tracer") == 0 ||
+               ptype.compare("lagrangian_mc") == 0) {
+      particle_type = ParticleType::lagrangian_tracer;
     } else {
       std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
                 << std::endl << "Particle type = '" << ptype << "' not recognized"
@@ -58,6 +81,46 @@ Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :
     std::string ppush = pin->GetString("particles","pusher");
     if (ppush.compare("drift") == 0) {
       pusher = ParticlesPusher::drift;
+      if (particle_type == ParticleType::lagrangian_tracer) {
+        std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+                  << std::endl << "Particle pusher 'drift' not allowed for lagrangian_mc"
+                  << std::endl;
+        std::exit(EXIT_FAILURE);
+      }
+    } else if (ppush.compare("lagrangian_mc") == 0 ||
+               ppush.compare("ito_2") == 0 ||
+               ppush.compare("ito2") == 0 ||
+               ppush.compare("ito") == 0 ||
+               ppush.compare("lagrangian_tracer") == 0 ||
+               ppush.compare("classical_lagrangian") == 0 ||
+               ppush.compare("classical") == 0) {
+      if (particle_type != ParticleType::lagrangian_tracer) {
+        std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+                  << std::endl << "Particle pusher '" << ppush
+                  << "' requires particle_type = lagrangian_tracer"
+                  << std::endl;
+        std::exit(EXIT_FAILURE);
+      }
+      // driver inherits its timestep from the fluid; particle dt never binds
+      dtnew = std::numeric_limits<float>::max();
+      if (ppush.compare("lagrangian_mc") == 0) {
+        pusher = ParticlesPusher::lagrangian_mc;
+      } else if (ppush.compare("ito_2") == 0 ||
+                 ppush.compare("ito2") == 0 ||
+                 ppush.compare("ito") == 0) {
+        pusher = ParticlesPusher::ito_2;
+      } else {
+        pusher = ParticlesPusher::lagrangian_tracer;
+      }
+      // lagrangian_mc/ito_2 move particles using the fluid's saved density flux;
+      // classical (CIC velocity interpolation) doesn't need it
+      if (pusher == ParticlesPusher::lagrangian_mc || pusher == ParticlesPusher::ito_2) {
+        if (ppack->pmhd != nullptr) {
+          ppack->pmhd->SetSaveUFlxIdn();
+        } else if (ppack->phydro != nullptr) {
+          ppack->phydro->SetSaveUFlxIdn();
+        }
+      }
     } else {
       std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
                 << std::endl << "Particle pusher must be specified in <particles> block"
@@ -75,10 +138,21 @@ Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :
   switch (particle_type) {
     case ParticleType::cosmic_ray:
       {
-        int ndim=4;
-        if (pmy_pack->pmesh->three_d) {ndim+=2;}
-        nrdata = ndim;
+        // save particle position then velocity for compiler optimizations even though
+        // 2d runs will not require all six real entries
+        nrdata = 6;
         nidata = 2;
+        break;
+      }
+    case ParticleType::lagrangian_tracer:
+      {
+        nrdata = 3;
+        nidata = 4;  // gid, ptag, lastmove, lastlevel (rseed computed on-the-fly)
+        // lastmove:
+        //  if >= 0 => encodes current-zone parity (i_isodd,j_isodd,k_isodd) * 8, plus
+        //             the MC-pusher's last-crossed-face code
+        //  if -1   => freeze particle and perform no updates or position checks
+        //  if -2   => remove from domain at next chance (not yet implemented)
         break;
       }
     default:
@@ -87,7 +161,10 @@ Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :
   Kokkos::realloc(prtcl_rdata, nrdata, nprtcl_thispack);
   Kokkos::realloc(prtcl_idata, nidata, nprtcl_thispack);
 
+  rand_pool64 = Kokkos::Random_XorShift64_Pool<>(random_seed);
+
   // allocate boundary object
+  min_radius = -1;
   pbval_part = new ParticlesBoundaryValues(this, pin);
 }
 
@@ -95,6 +172,19 @@ Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :
 // destructor
 
 Particles::~Particles() {
+}
+
+//----------------------------------------------------------------------------------------
+// ReallocateParticles()
+// Update particle arrays and particle-count bookkeeping for a new number of particles
+// in this pack. Does NOT preserve any existing particle data -- callers (e.g. a fresh-run
+// pgen initializer or the restart reader) are responsible for filling prtcl_rdata/idata
+// afterward.
+
+void Particles::ReallocateParticles(int new_nprtcl_thispack) {
+  nprtcl_thispack = new_nprtcl_thispack;
+  Kokkos::realloc(prtcl_rdata, nrdata, nprtcl_thispack);
+  Kokkos::realloc(prtcl_idata, nidata, nprtcl_thispack);
 }
 
 //----------------------------------------------------------------------------------------

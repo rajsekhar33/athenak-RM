@@ -37,6 +37,7 @@ Hydro::Hydro(MeshBlockPack *ppack, ParameterInput *pin) :
     u_sts2("u_sts2",1,1,1,1,1),
     u_sts_rhs("u_sts_rhs",1,1,1,1,1),
     uflx("uflx",1,1,1,1,1),
+    uflxidnsaved("uflxidnsaved",1,1,1,1),
     wl3d("wl3d",1,1,1,1,1),
     wr3d("wr3d",1,1,1,1,1),
     fofc("fofc",1,1,1,1),
@@ -344,6 +345,25 @@ Hydro::~Hydro() {
   if (pcond != nullptr) {delete pcond;}
   if (pvisc != nullptr) {delete pvisc;}
   delete peos;
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn void Hydro::SetSaveUFlxIdn()
+//! \brief lazily allocates uflxidnsaved and enables SaveFlux(); called by a mass-
+//! conserving Particles pusher (lagrangian_mc/ito_2) when constructed
+
+void Hydro::SetSaveUFlxIdn() {
+  int nmb = std::max((pmy_pack->nmb_thispack), (pmy_pack->pmesh->nmb_maxperrank));
+  auto &indcs = pmy_pack->pmesh->mb_indcs;
+  int ncells1 = indcs.nx1 + 2*(indcs.ng);
+  int ncells2 = (indcs.nx2 > 1)? (indcs.nx2 + 2*(indcs.ng)) : 1;
+  int ncells3 = (indcs.nx3 > 1)? (indcs.nx3 + 2*(indcs.ng)) : 1;
+
+  Kokkos::realloc(uflxidnsaved.x1f, nmb, ncells3, ncells2, ncells1+1);
+  Kokkos::realloc(uflxidnsaved.x2f, nmb, ncells3, ncells2+1, ncells1);
+  Kokkos::realloc(uflxidnsaved.x3f, nmb, ncells3+1, ncells2, ncells1);
+
+  uflxidn_saved = true;
 }
 
 } // namespace hydro

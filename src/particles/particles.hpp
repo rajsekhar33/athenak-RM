@@ -17,13 +17,15 @@
 #include "tasklist/task_list.hpp"
 #include "bvals/bvals.hpp"
 
+#include <Kokkos_Random.hpp>
+
 // forward declarations
 
 // constants that enumerate ParticlesPusher options
-enum class ParticlesPusher {drift, leap_frog, lagrangian_tracer, lagrangian_mc};
+enum class ParticlesPusher {drift, leap_frog, lagrangian_tracer, lagrangian_mc, ito_2};
 
 // constants that enumerate ParticleTypes
-enum class ParticleType {cosmic_ray};
+enum class ParticleType {cosmic_ray, lagrangian_tracer};
 
 //----------------------------------------------------------------------------------------
 //! \struct ParticlesTaskIDs
@@ -38,6 +40,7 @@ struct ParticlesTaskIDs {
   TaskID recvp;
   TaskID csend;
   TaskID crecv;
+  TaskID mradj;
 };
 
 namespace particles {
@@ -62,6 +65,13 @@ class Particles {
   DvceArray2D<int>  prtcl_idata;   // integer properties each particle (gid, tag, etc.)
   Real dtnew;
 
+  // excise zone (used by some pgens): particles within this radius of the origin are
+  // not updated. -1 disables the excision entirely.
+  Real min_radius;
+  // base seed for deterministic per-particle random draws; defaults (in the
+  // constructor) to a value that varies by MeshBlockPack GID
+  int64_t random_seed;
+
   ParticlesPusher pusher;
 
   // Boundary communication buffers and functions for particles
@@ -71,6 +81,7 @@ class Particles {
   ParticlesTaskIDs id;
 
   // functions...
+  void ReallocateParticles(int new_nprtcl_thispack);
   void CreateParticleTags(ParameterInput *pin);
   void AssembleTasks(std::map<std::string, std::shared_ptr<TaskList>> tl);
   TaskStatus Push(Driver *pdriver, int stage);
@@ -81,9 +92,17 @@ class Particles {
   TaskStatus RecvP(Driver *pdriver, int stage);
   TaskStatus ClearSend(Driver *pdriver, int stage);
   TaskStatus ClearRecv(Driver *pdriver, int stage);
+  TaskStatus AdjustMeshRefinement(Driver *pdriver, int stage);
+
+  // per-pusher update functions, called from Push()
+  void PushDrift();
+  void PushLagrangianTracer();
+  void PushLagrangianMC();
+  void PushIto2();
 
  private:
   MeshBlockPack* pmy_pack;  // ptr to MeshBlockPack containing this Particles
+  Kokkos::Random_XorShift64_Pool<> rand_pool64;
 };
 
 } // namespace particles

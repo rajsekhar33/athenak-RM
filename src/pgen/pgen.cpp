@@ -14,6 +14,7 @@
 #include <utility>
 #include <algorithm>
 #include <cstdio>
+#include <cmath>
 
 #include "athena.hpp"
 #include "geodesic-grid/geodesic_grid.hpp"
@@ -28,7 +29,30 @@
 #include "z4c/z4c.hpp"
 #include "radiation/radiation.hpp"
 #include "srcterms/turb_driver.hpp"
+#include "particles/particles.hpp"
+#include "coordinates/cell_locations.hpp"
 #include "pgen.hpp"
+
+namespace {
+// Deterministic hashed draw (splitmix64-derived) used by InitializeLagrangianParticles()
+// for fresh-run particle placement, so the initial particle count/positions per zone are
+// reproducible given the same pos_init_seed -- not used for exact-restart continuity,
+// which comes from the particle restart file instead (see InitializeParticlesFromRestart).
+KOKKOS_INLINE_FUNCTION
+Real PGenUniform01(const int64_t base_seed, const int gid, const int zone_index,
+                   const int particle_index, const int stream) {
+  uint64_t z = static_cast<uint64_t>(base_seed);
+  z += static_cast<uint64_t>(gid) * 0x9e3779b97f4a7c15ULL;
+  z += static_cast<uint64_t>(zone_index) * 0xbf58476d1ce4e5b9ULL;
+  z += static_cast<uint64_t>(particle_index + 1) * 0x94d049bb133111ebULL;
+  z += static_cast<uint64_t>(stream) * 0x4f1bbcdcBfa540abULL;
+  z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ULL;
+  z = (z ^ (z >> 27)) * 0x94d049bb133111ebULL;
+  z = z ^ (z >> 31);
+  return static_cast<Real>(z >> 11) *
+         static_cast<Real>(1.0 / 9007199254740992.0);
+}
+} // namespace
 
 
 //----------------------------------------------------------------------------------------
@@ -116,7 +140,7 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm) :
 // and any data necessary for restart runs to continue correctly.
 
 ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resfile,
-                                   bool single_file_per_rank) :
+                                   bool single_file_per_rank, IOWrapper *prestartfile) :
     user_bcs(false),
     user_srcs(false),
     user_hist(false),
@@ -691,6 +715,153 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf
   // second argument true since this IS a restart
   CallProblemGenerator(pin, true);
 
+  // Particles are restored from a separate particle restart file (-p <file>), not from
+  // resfile above -- this keeps the fluid and particle restart formats independent.
+  if (pm->pmb_pack->ppart != nullptr) {
+    if (prestartfile == nullptr) {
+      std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+                << std::endl << "Particles are enabled but no particle restart file "
+                << "is specified." << std::endl
+                << "Use -p <file> command line option." << std::endl;
+      exit(EXIT_FAILURE);
+    }
+
+    if (global_variable::my_rank == 0) {
+      std::cout << "Starting particle restart... " << std::endl;
+    }
+
+    // header is 2 x int64_t: a magic number (42) and the total particle count
+    char *headerdata = new char[8];
+    int64_t magic_number = 0;
+    int64_t number_particles = 0;
+
+    if (prestartfile->Read_bytes_at(headerdata, 8, 1, 0, single_file_per_rank) != 1) {
+      std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+                << std::endl
+                << "Cannot read header byte from particle restart file" << std::endl;
+      exit(EXIT_FAILURE);
+    }
+    std::memcpy(&magic_number, headerdata, 8);
+    if (magic_number != 42) {
+      std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+                << std::endl
+                << "Particle restart file magic number is not 42, got "
+                << magic_number << std::endl;
+      exit(EXIT_FAILURE);
+    }
+
+    if (prestartfile->Read_bytes_at(headerdata, 8, 1, 8, single_file_per_rank) != 1) {
+      std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+                << std::endl
+                << "Cannot read number of particles from particle restart file"
+                << std::endl;
+      exit(EXIT_FAILURE);
+    }
+    std::memcpy(&number_particles, headerdata, 8);
+    if (global_variable::my_rank == 0) {
+      std::cout << "Found " << number_particles << " particles in restart file"
+                << std::endl;
+    }
+    delete[] headerdata;
+
+    // read the data - gid, tag, plastmove, x, y, z (all as Real/double)
+    Real *gid_data = new Real[number_particles];
+    Real *tag_data = new Real[number_particles];
+    Real *plastmove_data = new Real[number_particles];
+    Real *X_data = new Real[number_particles];
+    Real *Y_data = new Real[number_particles];
+    Real *Z_data = new Real[number_particles];
+
+    std::size_t data_offset = 2 * sizeof(int64_t);  // after the 2 int64_t header fields
+
+    if (
+      (prestartfile->Read_Reals_at(gid_data, number_particles, data_offset,
+                                    single_file_per_rank) != number_particles) ||
+      (prestartfile->Read_Reals_at(tag_data, number_particles,
+                                    data_offset + number_particles*sizeof(Real),
+                                    single_file_per_rank) != number_particles) ||
+      (prestartfile->Read_Reals_at(plastmove_data, number_particles,
+                                    data_offset + 2*number_particles*sizeof(Real),
+                                    single_file_per_rank) != number_particles) ||
+      (prestartfile->Read_Reals_at(X_data, number_particles,
+                                    data_offset + 3*number_particles*sizeof(Real),
+                                    single_file_per_rank) != number_particles) ||
+      (prestartfile->Read_Reals_at(Y_data, number_particles,
+                                    data_offset + 4*number_particles*sizeof(Real),
+                                    single_file_per_rank) != number_particles) ||
+      (prestartfile->Read_Reals_at(Z_data, number_particles,
+                                    data_offset + 5*number_particles*sizeof(Real),
+                                    single_file_per_rank) != number_particles)
+     ) {
+      std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+                << std::endl
+                << "Cannot read particle data from particle restart file" << std::endl;
+      exit(EXIT_FAILURE);
+    }
+
+    // figure out how many particles belong to this rank (matched by PGID)
+    int64_t nparticles_thispack = 0;
+    for (int64_t i=0; i<number_particles; i++) {
+      int gid = static_cast<int>(gid_data[i]);
+      for (int m=0; m<pm->pmb_pack->nmb_thispack; ++m) {
+        if (pm->pmb_pack->pmb->mb_gid.h_view(m) == gid) {
+          nparticles_thispack += 1;
+        }
+      }
+    }
+
+    pm->pmb_pack->ppart->ReallocateParticles(nparticles_thispack);
+
+    // populate dual array to add particles to device; order: gid, tag, plastmove, x, y, z
+    DualArray2D<Real> part_data("particle_syncdata", nparticles_thispack, 6);
+    int pidx = 0;
+    for (int64_t i=0; i<number_particles; i++) {
+      int gid = static_cast<int>(gid_data[i]);
+      for (int m=0; m<pm->pmb_pack->nmb_thispack; ++m) {
+        if (pm->pmb_pack->pmb->mb_gid.h_view(m) == gid) {
+          part_data.h_view(pidx,0) = gid_data[i];
+          part_data.h_view(pidx,1) = tag_data[i];
+          part_data.h_view(pidx,2) = plastmove_data[i];  // preserve frozen/deleted status
+          part_data.h_view(pidx,3) = X_data[i];
+          part_data.h_view(pidx,4) = Y_data[i];
+          part_data.h_view(pidx,5) = Z_data[i];
+          pidx += 1;
+        }
+      }
+    }
+    delete[] gid_data;
+    delete[] tag_data;
+    delete[] plastmove_data;
+    delete[] X_data;
+    delete[] Y_data;
+    delete[] Z_data;
+
+    part_data.template modify<HostMemSpace>();
+    part_data.template sync<DevExeSpace>();
+
+    auto &pr = pm->pmb_pack->ppart->prtcl_rdata;
+    auto &pi = pm->pmb_pack->ppart->prtcl_idata;
+    bool snap_to_cell_center =
+      (pm->pmb_pack->ppart->pusher == ParticlesPusher::lagrangian_mc);
+
+    InitializeParticlesFromRestart(
+        nparticles_thispack,
+        part_data,
+        pr,
+        pi,
+        snap_to_cell_center,
+        pm->pmb_pack->pmesh->multi_d,
+        pm->pmb_pack->pmesh->three_d,
+        pm->pmb_pack->pmb->mb_size.d_view,
+        pm->pmb_pack->pmb->mb_lev.d_view,
+        pm->pmb_pack->gids,
+        pm->pmb_pack->nmb_thispack,
+        pm->pmb_pack->pmesh->mb_indcs,
+        pm->pmb_pack->pmb->mb_bcs.d_view,
+        pm->pmb_pack->ppart->min_radius
+    );
+  } // end if restart for particles
+
   // Check that user defined BCs were enrolled if needed
   if (user_bcs) {
     if (user_bcs_func == nullptr) {
@@ -1047,4 +1218,253 @@ void ProblemGenerator::CallProblemGenerator(ParameterInput *pin, bool is_restart
   }
 #endif
   return;
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn void ProblemGenerator::InitializeLagrangianParticles()
+//! \brief Mass- or volume-weighted fresh-run particle placement for Lagrangian tracer
+//! pgens. Not used on restart -- particles are restored from the particle restart file
+//! instead (see InitializeParticlesFromRestart() below).
+
+void ProblemGenerator::InitializeLagrangianParticles(ParameterInput *pin,
+                                                     const DvceArray5D<Real>& u0) {
+  MeshBlockPack *pmbp = pmy_mesh_->pmb_pack;
+  if (pmbp->ppart == nullptr) {
+    return;
+  }
+
+  auto &indcs = pmy_mesh_->mb_indcs;
+  auto &mbsize = pmbp->pmb->mb_size;
+  auto &mblev = pmbp->pmb->mb_lev;
+  auto gids = pmbp->gids;
+  int is = indcs.is;
+  int js = indcs.js;
+  int ks = indcs.ks;
+  int nx1 = indcs.nx1;
+  int nx2 = indcs.nx2;
+  int nx3 = indcs.nx3;
+  const int nmkji = (pmbp->nmb_thispack)*nx3*nx2*nx1;
+  const int nkji = nx3*nx2*nx1;
+  const int nji  = nx2*nx1;
+
+  bool uniform_by_volume = pin->GetOrAddBoolean("particles","uniform_by_volume",false);
+  bool random_positions = pin->GetOrAddBoolean("particles","random_positions",true);
+  int64_t pos_init_seed = pin->GetOrAddInteger("particles","pos_init_seed",280496);
+
+  Real total_weight = 0.0;
+  Kokkos::parallel_reduce("pgen_lagrangian_particle_weight",
+  Kokkos::RangePolicy<>(DevExeSpace(), 0, nmkji),
+  KOKKOS_LAMBDA(const int &idx, Real &weight_sum) {
+    int m = (idx)/nkji;
+    int k = (idx - m*nkji)/nji;
+    int j = (idx - m*nkji - k*nji)/nx1;
+    int i = (idx - m*nkji - k*nji - j*nx1) + is;
+    k += ks;
+    j += js;
+
+    Real vol = mbsize.d_view(m).dx1*mbsize.d_view(m).dx2*mbsize.d_view(m).dx3;
+    Real zone_weight = uniform_by_volume ? vol : u0(m,IDN,k,j,i)*vol;
+    weight_sum += zone_weight;
+  }, total_weight);
+
+  Real total_weight_thispack = total_weight;
+#if MPI_PARALLEL_ENABLED
+  MPI_Allreduce(MPI_IN_PLACE, &total_weight, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+#endif
+
+  if (total_weight <= 0.0) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+              << std::endl << "Cannot initialize Lagrangian particles with "
+              << "non-positive total weight." << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+
+  Real target_nparticles = pin->GetOrAddReal("particles","target_count",100000.0);
+  Real weight_per_particle = total_weight / target_nparticles;
+
+  DualArray2D<int> nparticles_per_zone("partperzone", nmkji,2);
+  par_for("lagrangian_particle_count", DevExeSpace(), 0,nmkji-1,
+  KOKKOS_LAMBDA(int idx) {
+    int m = (idx)/nkji;
+    int k = (idx - m*nkji)/nji;
+    int j = (idx - m*nkji - k*nji)/nx1;
+    int i = (idx - m*nkji - k*nji - j*nx1) + is;
+    k += ks;
+    j += js;
+
+    Real vol = mbsize.d_view(m).dx1*mbsize.d_view(m).dx2*mbsize.d_view(m).dx3;
+    Real zone_weight = uniform_by_volume ? vol : u0(m,IDN,k,j,i)*vol;
+    Real nppc = zone_weight / weight_per_particle;
+    int nparticles = static_cast<int>(nppc);
+    Real frac = nppc - static_cast<Real>(nparticles);
+    if (PGenUniform01(pos_init_seed, gids + m, idx, 0, 0) < frac) {
+      nparticles += 1;
+    }
+    nparticles_per_zone.d_view(idx,0) = nparticles;
+  });
+
+  nparticles_per_zone.template modify<DevExeSpace>();
+  nparticles_per_zone.template sync<HostMemSpace>();
+  int nparticles_thispack = 0;
+  for (int i=0; i<nmkji; ++i) {
+    nparticles_per_zone.h_view(i,1) = nparticles_thispack;
+    nparticles_thispack += nparticles_per_zone.h_view(i,0);
+  }
+  nparticles_per_zone.template modify<HostMemSpace>();
+  nparticles_per_zone.template sync<DevMemSpace>();
+
+  if (global_variable::my_rank == 0) {
+    std::cout << "total particle initialization weight across domain: " << total_weight
+              <<  ", total weight in pack: " << total_weight_thispack
+              << ", target nparticles: " << target_nparticles
+              << ", nparticles in pack: " << nparticles_thispack << std::endl;
+  }
+
+  pmbp->ppart->ReallocateParticles(nparticles_thispack);
+  auto &pr = pmbp->ppart->prtcl_rdata;
+  auto &pi = pmbp->ppart->prtcl_idata;
+
+  // lagrangian_mc jumps are pure +-dx displacements between cell centers, so its
+  // particles must start exactly at a cell center -- restart snaps them back to
+  // the cell center too (see InitializeParticlesFromRestart), and initial
+  // placement has to match that invariant or the sub-cell offset acquired here
+  // would be silently discarded on the first restart, diverging from a
+  // continuous run.
+  bool snap_to_cell_center = (pmbp->ppart->pusher == ParticlesPusher::lagrangian_mc);
+
+  par_for("lagrangian_part_init", DevExeSpace(), 0,nmkji-1,
+  KOKKOS_LAMBDA(int idx) {
+    int m = (idx)/nkji;
+    int k = (idx - m*nkji)/nji;
+    int j = (idx - m*nkji - k*nji)/nx1;
+    int i = (idx - m*nkji - k*nji - j*nx1) + is;
+    k += ks;
+    j += js;
+
+    int nparticles_in_zone = nparticles_per_zone.d_view(idx,0);
+    int starting_index = nparticles_per_zone.d_view(idx,1);
+
+    for (int p=0; p<nparticles_in_zone; ++p) {
+      int pidx = p + starting_index;
+      bool draw_random = random_positions && !snap_to_cell_center;
+      Real rx = draw_random ? PGenUniform01(pos_init_seed, gids + m, idx, p, 1) - 0.5
+                             : 0.0;
+      Real ry = draw_random ? PGenUniform01(pos_init_seed, gids + m, idx, p, 2) - 0.5
+                             : 0.0;
+      Real rz = draw_random ? PGenUniform01(pos_init_seed, gids + m, idx, p, 3) - 0.5
+                             : 0.0;
+
+      pi(PGID,pidx) = gids + m;
+      pi(PLASTMOVE,pidx) = 0;
+      pi(PLASTLEVEL,pidx) = mblev.d_view(m);
+      pr(IPX,pidx) = CellCenterX(i-is, nx1, mbsize.d_view(m).x1min,
+                                 mbsize.d_view(m).x1max) + rx*mbsize.d_view(m).dx1;
+      pr(IPY,pidx) = CellCenterX(j-js, nx2, mbsize.d_view(m).x2min,
+                                 mbsize.d_view(m).x2max) + ry*mbsize.d_view(m).dx2;
+      pr(IPZ,pidx) = CellCenterX(k-ks, nx3, mbsize.d_view(m).x3min,
+                                 mbsize.d_view(m).x3max) + rz*mbsize.d_view(m).dx3;
+    }
+  });
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn void ProblemGenerator::InitializeParticlesFromRestart()
+//! \brief Restores particles read from a particle restart file into prtcl_rdata/idata,
+//! matching each by PGID to the MeshBlock now owning it on this rank. Kept as its own
+//! (non-member-lambda) function since a Kokkos device lambda directly inside the restart
+//! constructor otherwise implicitly captures 'this'.
+
+void ProblemGenerator::InitializeParticlesFromRestart(
+    int64_t nparticles_thispack,
+    const DualArray2D<Real>& part_data,
+    DvceArray2D<Real>& pr,
+    DvceArray2D<int>& pi,
+    bool snap_to_cell_center,
+    bool multi_d,
+    bool three_d,
+    const DvceArray1D<RegionSize>& mbsize,
+    const DvceArray1D<int>& mblev,
+    int gids,
+    int nmb,
+    const RegionIndcs& indcs,
+    const DvceArray2D<BoundaryFlag>& mb_bcs,
+    Real min_rad) {
+  int is = indcs.is;
+  int js = indcs.js;
+  int ks = indcs.ks;
+  int nx1 = indcs.nx1;
+  int nx2 = indcs.nx2;
+  int nx3 = indcs.nx3;
+
+  const bool snap_positions = snap_to_cell_center;
+
+  par_for("part_init", DevExeSpace(), 0, nparticles_thispack-1,
+  KOKKOS_LAMBDA(int idx) {
+    // part_data order: gid(0), tag(1), plastmove(2), x(3), y(4), z(5)
+    int pgid = static_cast<int>(part_data.d_view(idx,0));
+    int m = pgid - gids;
+
+    pi(PGID,idx) = pgid;
+    pi(PTAG,idx) = static_cast<int>(part_data.d_view(idx,1));
+    pi(PLASTMOVE,idx) = static_cast<int>(part_data.d_view(idx,2));  // frozen/deleted status
+
+    // particle's PGID doesn't belong to this rank -- shouldn't happen (the caller only
+    // includes particles matched to a local MeshBlock), but guard against it anyway
+    if (m < 0 || m >= nmb) {
+      pi(PLASTMOVE,idx) = -1;
+      return;
+    }
+
+    pi(PLASTLEVEL,idx) = mblev(m);
+
+    Real x = part_data.d_view(idx,3);
+    Real y = part_data.d_view(idx,4);
+    Real z = part_data.d_view(idx,5);
+
+    // length of MeshBlock in each direction
+    Real lx = (mbsize(m).x1max - mbsize(m).x1min);
+    Real ly = (mbsize(m).x2max - mbsize(m).x2min);
+    Real lz = (mbsize(m).x3max - mbsize(m).x3min);
+
+    // integer offset of particle relative to center of MeshBlock (-1,0,+1)
+    int ix = static_cast<int>((x - mbsize(m).x1min + lx)/lx) - 1;
+    int iy = static_cast<int>((y - mbsize(m).x2min + ly)/ly) - 1;
+    int iz = static_cast<int>((z - mbsize(m).x3min + lz)/lz) - 1;
+
+    bool check_boundary = (
+        mb_bcs(m, BoundaryFace::inner_x3) == BoundaryFlag::user && iz < 0)
+    || ( mb_bcs(m, BoundaryFace::outer_x3) == BoundaryFlag::user && iz > 0)
+    || ( mb_bcs(m, BoundaryFace::inner_x2) == BoundaryFlag::user && iy < 0)
+    || ( mb_bcs(m, BoundaryFace::outer_x2) == BoundaryFlag::user && iy > 0)
+    || ( mb_bcs(m, BoundaryFace::inner_x1) == BoundaryFlag::user && ix < 0)
+    || ( mb_bcs(m, BoundaryFace::outer_x1) == BoundaryFlag::user && ix > 0)
+    || ( sqrt(SQR(x) + SQR(y) + SQR(z)) < min_rad);
+
+    int ip = (x - mbsize(m).x1min)/mbsize(m).dx1 + is;
+    int jp = js;
+    int kp = ks;
+    if (multi_d) {
+      jp = (y - mbsize(m).x2min)/mbsize(m).dx2 + js;
+    }
+    if (three_d) {
+      kp = (z - mbsize(m).x3min)/mbsize(m).dx3 + ks;
+    }
+    if (check_boundary
+        || ip < is || ip >= (nx1+is)
+        || jp < js || jp >= (nx2+js)
+        || kp < ks || kp >= (nx3+ks)) {
+      pi(PLASTMOVE,idx) = -1;
+      pr(IPX,idx) = x;
+      pr(IPY,idx) = y;
+      pr(IPZ,idx) = z;
+    } else if (snap_positions) {
+      pr(IPX,idx) = CellCenterX(ip-is, nx1, mbsize(m).x1min, mbsize(m).x1max);
+      pr(IPY,idx) = CellCenterX(jp-js, nx2, mbsize(m).x2min, mbsize(m).x2max);
+      pr(IPZ,idx) = CellCenterX(kp-ks, nx3, mbsize(m).x3min, mbsize(m).x3max);
+    } else {
+      pr(IPX,idx) = x;
+      pr(IPY,idx) = y;
+      pr(IPZ,idx) = z;
+    }
+  });
 }

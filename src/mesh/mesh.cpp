@@ -712,8 +712,18 @@ void Mesh::AddCoordinatesAndPhysics(ParameterInput *pinput) {
     pmb_pack->AddCoordinates(pinput);
     pmb_pack->AddPhysics(pinput);
   }
+}
 
-  // Determine total number of particles across all ranks
+//----------------------------------------------------------------------------------------
+// \fn Mesh::FinalizeParticleDataStructures
+// Computes global particle bookkeeping (nprtcl_thisrank/eachrank/total) and assigns
+// particle tags. Must run AFTER the ProblemGenerator constructor (fresh or restart),
+// not from AddCoordinatesAndPhysics -- a pgen's InitializeLagrangianParticles() or
+// restart's InitializeParticlesFromRestart() only sets the real particle count once
+// pgen construction runs, so computing this any earlier would use a stale (pre-pgen)
+// count.
+
+void Mesh::FinalizeParticleDataStructures(ParameterInput *pinput, bool is_restart) {
   particles::Particles *ppart = pmb_pack->ppart;
   if (ppart != nullptr) {
     nprtcl_thisrank = 0;
@@ -729,9 +739,17 @@ void Mesh::AddCoordinatesAndPhysics(ParameterInput *pinput) {
     for (int n=0; n<global_variable::nranks; ++n) {
       nprtcl_total += nprtcl_eachrank[n];
     }
-    // Assign particle IDs
-    if (pmb_pack->ppart != nullptr) {
-      pmb_pack->ppart->CreateParticleTags(pinput);
+    // Assign particle IDs -- but NOT on restart: InitializeParticlesFromRestart()
+    // already restored the real tags from the particle restart file moments ago.
+    // Tags are assigned here from tagstart+local_array_index (see
+    // Particles::CreateParticleTags), which depends on each rank's CURRENT particle
+    // count and each particle's CURRENT local array slot -- both of which have
+    // already been reshuffled by mid-run migration/compaction by the time a restart
+    // reloads them, so recomputing tags here would silently reassign different
+    // (sometimes colliding/swapped) tag values than what was actually saved,
+    // breaking restart-exactness for whichever particles' local index shifted.
+    if (!is_restart) {
+      ppart->CreateParticleTags(pinput);
     }
   }
 }

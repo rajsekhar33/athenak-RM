@@ -18,7 +18,7 @@
 //! Required parameters that must be specified in an <output[n]> block are:
 //!   - variable  = [list of currently implemented strings for specifing output variables
 //!                  is defined at start of outputs.hpp file]
-//!   - file_type = tab,vtk,hst,bin,rst
+//!   - file_type = tab,vtk,hst,bin,rst,prst,pbin
 //!   - dt        = problem time between outputs
 //!   - dt_wall   = wall time between outputs in seconds
 //!
@@ -122,8 +122,17 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {
       // but only for those output types that use them
       if (opar.file_type.compare("hst") != 0 &&
           opar.file_type.compare("rst") != 0 &&
+          opar.file_type.compare("prst") != 0 &&
+          opar.file_type.compare("pbin") != 0 &&
           opar.file_type.compare("log") != 0 &&
           opar.file_type.compare("trk") != 0) {
+        opar.variable = pin->GetString(opar.block_name, "variable");
+        opar.file_id = pin->GetOrAddString(opar.block_name,"id",opar.variable);
+      }
+      // pbin's variable is optional -- it falls back to its own particle-output
+      // default field set when omitted (see bin_prtcl.cpp)
+      if (opar.file_type.compare("pbin") == 0 &&
+          pin->DoesParameterExist(opar.block_name, "variable")) {
         opar.variable = pin->GetString(opar.block_name, "variable");
         opar.file_id = pin->GetOrAddString(opar.block_name,"id",opar.variable);
       }
@@ -213,6 +222,8 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {
       // set output variable and optional file id (default is output variable name)
       if (opar.file_type.compare("hst") != 0 &&
           opar.file_type.compare("rst") != 0 &&
+          opar.file_type.compare("prst") != 0 &&
+          opar.file_type.compare("pbin") != 0 &&
           opar.file_type.compare("log") != 0) {
         opar.variable = pin->GetString(opar.block_name, "variable");
         opar.file_id = pin->GetOrAddString(opar.block_name,"id",opar.variable);
@@ -268,6 +279,14 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {
         pout_list.insert(pout_list.begin(),pnode);
       } else if (opar.file_type.compare("pvtk") == 0) {
         pnode = new ParticleVTKOutput(pin,pm,opar);
+        pout_list.insert(pout_list.begin(),pnode);
+      } else if (opar.file_type.compare("prst") == 0) {
+        opar.single_file_per_rank = pin->GetOrAddBoolean(opar.block_name,
+          "single_file_per_rank", false);
+        pnode = new ParticleRestartOutput(pin,pm,opar);
+        pout_list.insert(pout_list.begin(),pnode);
+      } else if (opar.file_type.compare("pbin") == 0) {
+        pnode = new ParticleBinaryOutput(pin,pm,opar);
         pout_list.insert(pout_list.begin(),pnode);
       } else if (opar.file_type.compare("trk") == 0) {
         pnode = new TrackedParticleOutput(pin,pm,opar);

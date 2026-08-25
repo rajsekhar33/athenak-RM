@@ -135,7 +135,7 @@ class Mesh {
   // following 2x arrays allocated with length [nranks] in BuildTreeFromXXXX()
   int *gids_eachrank;      // starting global ID of MeshBlocks in each rank
   int *nmb_eachrank;       // number of MeshBlocks on each rank
-  // following 1x arrays allocated with length [nranks] in AddCoordinatesAndPhysics()
+  // following 1x arrays allocated with length [nranks] in FinalizeParticleDataStructures()
   int *nprtcl_eachrank;    // number of particles on each rank
 
   Real time, dt, dtold, dt_last_completed, dt_parabolic_sts, sts_max_dt_ratio, cfl_no;
@@ -157,6 +157,11 @@ class Mesh {
   void NewTimeStep(const Real tlim);
   void RefreshSTSParabolicTimeStep();
   void AddCoordinatesAndPhysics(ParameterInput *pinput);
+  // must be called after ProblemGenerator construction, not from
+  // AddCoordinatesAndPhysics() -- see definition in mesh.cpp. is_restart must be
+  // true whenever particles were just restored from a particle restart file, so
+  // CreateParticleTags() does not clobber the tags that were just read back in.
+  void FinalizeParticleDataStructures(ParameterInput *pinput, bool is_restart);
   BoundaryFlag GetBoundaryFlag(const std::string& input_string);
   std::string GetBoundaryString(BoundaryFlag input_flag);
 
