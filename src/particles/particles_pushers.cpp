@@ -34,8 +34,9 @@ Real StatelessUniform01(const int tag, const int ncycle, const int64_t base_seed
 }
 
 KOKKOS_INLINE_FUNCTION
-Real LagrangianMCUniform01(const int tag, const int ncycle, const int64_t base_seed) {
-  int64_t det_seed = tag * 7919 + ncycle * 104729 + base_seed;
+Real LagrangianMCUniform01(const int tag, const int ncycle, const int64_t base_seed,
+                           const int sub = 0) {
+  int64_t det_seed = tag * 7919 + ncycle * 104729 + base_seed + sub * 1299709;
   uint64_t z = static_cast<uint64_t>(det_seed);
   z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ULL;
   z = (z ^ (z >> 27)) * 0x94d049bb133111ebULL;
@@ -44,13 +45,19 @@ Real LagrangianMCUniform01(const int tag, const int ncycle, const int64_t base_s
 }
 
 KOKKOS_INLINE_FUNCTION
+Real Ito2DisplacementFromMoments(const Real cminus, const Real variance, const Real dx,
+                                 const Real xi) {
+  Real var = variance < 0.0 ? 0.0 : variance;
+  return dx*(cminus + sqrt(var)*xi);
+}
+
+KOKKOS_INLINE_FUNCTION
 Real Ito2Displacement(const Real pleft, const Real pright, const Real dx,
                       const Real xi) {
   Real cplus = pleft + pright;
   Real cminus = pright - pleft;
   Real variance = cplus - cminus*cminus;
-  variance = variance < 0.0 ? 0.0 : variance;
-  return dx*(cminus + sqrt(variance)*xi);
+  return Ito2DisplacementFromMoments(cminus, variance, dx, xi);
 }
 } // namespace
 
@@ -314,30 +321,29 @@ void Particles::PushLagrangianMC() {
 
       // get normalized fluxes based on local density
       Real mass = u1_(m,IDN,kp,jp,ip);
+      if (mass <= 0.0) {
+        // near-vacuum or unphysical donor cell -- skip this timestep rather than
+        // divide by a non-positive mass (matches the equivalent check in PushIto2)
+        return;
+      }
 
-      // by convention, these values will be positive when there is outflow
-      // with respect to the current particle's cell
-      Real flx1_left = -flx1_(m,kp,jp,ip) / mass;
-      Real flx1_right = flx1_(m,kp,jp,ip+1) / mass;
-      Real flx2_left = (multi_d) ? -flx2_(m,kp,jp,ip) / mass : 0.;
-      Real flx2_right = (multi_d) ? flx2_(m,kp,jp+1,ip) / mass : 0.;
-      Real flx3_left = (three_d) ? -flx3_(m,kp,jp,ip) / mass : 0.;
-      Real flx3_right = (three_d) ? flx3_(m,kp+1,jp,ip) / mass : 0.;
-
-      // Clamp both negative values and sub-epsilon positive residuals to exactly
-      // zero, as basic numerical hygiene for a Monte Carlo jump probability
-      // (confirmed via instrumentation that flx2/flx3 are exactly zero for this
-      // flow_dir=1-only test, so this clamp is not itself the fix for the
-      // multi-rank restart divergence -- see bvals_part.cpp investigation).
-      const Real flx_eps = 1.0e-12;
-      flx1_left = flx1_left < flx_eps ? 0 : flx1_left;
-      flx1_right = flx1_right < flx_eps ? 0 : flx1_right;
-      flx2_left = flx2_left < flx_eps ? 0 : flx2_left;
-      flx2_right = flx2_right < flx_eps ? 0 : flx2_right;
-      flx3_left = flx3_left < flx_eps ? 0 : flx3_left;
-      flx3_right = flx3_right < flx_eps ? 0 : flx3_right;
-
-      Real rand = LagrangianMCUniform01(pi(PTAG,p), ncycle, rseed);
+      // Raw (unnormalized) outflow mass flux through each face, clamped to
+      // exclude inflow (negative) and sub-epsilon residuals. By convention
+      // these are positive when there is outflow with respect to the
+      // particle's current cell.
+      const Real flx_eps = 1.0e-12 * mass;
+      Real raw1L = fmax(-flx1_(m,kp,jp,ip), 0.0);
+      Real raw1R = fmax(flx1_(m,kp,jp,ip+1), 0.0);
+      Real raw2L = (multi_d) ? fmax(-flx2_(m,kp,jp,ip), 0.0) : 0.0;
+      Real raw2R = (multi_d) ? fmax(flx2_(m,kp,jp+1,ip), 0.0) : 0.0;
+      Real raw3L = (three_d) ? fmax(-flx3_(m,kp,jp,ip), 0.0) : 0.0;
+      Real raw3R = (three_d) ? fmax(flx3_(m,kp+1,jp,ip), 0.0) : 0.0;
+      raw1L = raw1L < flx_eps ? 0.0 : raw1L;
+      raw1R = raw1R < flx_eps ? 0.0 : raw1R;
+      raw2L = raw2L < flx_eps ? 0.0 : raw2L;
+      raw2R = raw2R < flx_eps ? 0.0 : raw2R;
+      raw3L = raw3L < flx_eps ? 0.0 : raw3L;
+      raw3R = raw3R < flx_eps ? 0.0 : raw3R;
 
       // save refinement level of current zone
       pi(PLASTLEVEL,p) = mblev.d_view(m);
@@ -345,24 +351,56 @@ void Particles::PushLagrangianMC() {
       // save parity of current zone stored as (i_isodd,j_isodd,k_isodd) * 8
       pi(PLASTMOVE,p) = 32 * (ip % 2) + 16 * (jp % 2) + 8 * (kp % 2);
 
-      if (rand < flx1_left) {
+      // Genel+2013 Sec 2.2 "Monte Carlo tracers": each face is checked in
+      // sequence against a reduced mass mtilde that starts at the cell's mass
+      // and has each already-checked face's outflow subtracted before the
+      // NEXT face's probability is computed. p_j = raw_j / mtilde is then a
+      // conditional probability (escape via face j, given the particle didn't
+      // already escape via an earlier face), which is naturally bounded to
+      // <=1 as long as the cumulative outflow checked so far never exceeds the
+      // cell's own mass -- unlike computing all six probabilities independently
+      // from the SAME initial mass and summing them (this file's original
+      // approach, and also the earlier sub-cycling patch built on top of it),
+      // which has no such guarantee and can see a combined probability above 1
+      // whenever a near-vacuum donor cell sits next to a fast, dense neighbor.
+      // If mtilde is driven to exactly zero by earlier faces (cumulative
+      // outflow checked so far already accounts for the cell's entire mass),
+      // any remaining face's escape probability saturates at 1, mirroring
+      // Genel+2013's explicit handling of forcing the last neighbor's
+      // probability to 1 to dispose of any residual mass/round-off.
+      Real raws[6] = {raw1L, raw1R, raw2L, raw2R, raw3L, raw3R};
+      bool axis_active[6] = {true, true, multi_d, multi_d, three_d, three_d};
+      Real mtilde = mass;
+      int move_dir = 0;
+      for (int f = 0; f < 6; ++f) {
+        if (!axis_active[f] || raws[f] <= 0.0) {
+          continue;
+        }
+        Real rand_f = LagrangianMCUniform01(pi(PTAG,p), ncycle, rseed, f);
+        Real p_f = (mtilde > 0.0) ? fmin(raws[f] / mtilde, 1.0) : 1.0;
+        if (rand_f < p_f) {
+          move_dir = f + 1;
+          break;
+        }
+        mtilde = fmax(mtilde - raws[f], 0.0);
+      }
+
+      if (move_dir == 1) {
         pr(IPX,p) -= mbsize.d_view(m).dx1;
         pi(PLASTMOVE,p) += 1;
-      } else if (rand < flx1_left + flx1_right) {
+      } else if (move_dir == 2) {
         pr(IPX,p) += mbsize.d_view(m).dx1;
         pi(PLASTMOVE,p) += 2;
-      } else if (multi_d && rand < flx1_left + flx1_right + flx2_left) {
+      } else if (move_dir == 3) {
         pr(IPY,p) -= mbsize.d_view(m).dx2;
         pi(PLASTMOVE,p) += 3;
-      } else if (multi_d && rand < flx1_left + flx1_right + flx2_left + flx2_right) {
+      } else if (move_dir == 4) {
         pr(IPY,p) += mbsize.d_view(m).dx2;
         pi(PLASTMOVE,p) += 4;
-      } else if (three_d && rand < flx1_left + flx1_right + flx2_left + flx2_right
-                                + flx3_left) {
+      } else if (move_dir == 5) {
         pr(IPZ,p) -= mbsize.d_view(m).dx3;
         pi(PLASTMOVE,p) += 5;
-      } else if (three_d && rand < flx1_left + flx1_right + flx2_left + flx2_right
-                                + flx3_left + flx3_right) {
+      } else if (move_dir == 6) {
         pr(IPZ,p) += mbsize.d_view(m).dx3;
         pi(PLASTMOVE,p) += 6;
       }
@@ -448,18 +486,84 @@ void Particles::PushIto2() {
     p3_left = p3_left < 0.0 ? 0.0 : p3_left;
     p3_right = p3_right < 0.0 ? 0.0 : p3_right;
 
-    constexpr Real sqrt3 = 1.7320508075688772935;
-    Real xi1 = sqrt3*(2.0*StatelessUniform01(pi(PTAG,p), ncycle, rseed, 1) - 1.0);
-    pr(IPX,p) += Ito2Displacement(p1_left, p1_right, mbsize.d_view(m).dx1, xi1);
+    // Tracer-specific CFL, mirroring PushLagrangianMC: the hydro CFL condition
+    // only bounds the net six-face flux divergence, not any single face's
+    // flux/mass ratio in isolation, so a near-vacuum donor cell can leave
+    // p_left/p_right well above the [0,1] range Ito2Displacement's variance
+    // term assumes, producing an unbounded single-step displacement that can
+    // push a particle's position to a value whose downstream cell-index
+    // computation (see cell_locations.hpp CellCenterIndex) is undefined
+    // behavior.
+    //
+    // Sub-cycle by splitting the TOTAL first/second moments (cminus, variance)
+    // -- computed once from the original, unscaled probabilities -- into nsub
+    // equal shares (cminus/nsub, variance/nsub), rather than rescaling
+    // p_left/p_right and recomputing moments from the rescaled pair each
+    // sub-step. The latter (tried first, see conversation) exactly preserves
+    // the summed mean but systematically inflates the summed variance to
+    // dx^2*(cplus - cminus^2/nsub) instead of the correct dx^2*(cplus -
+    // cminus^2) once nsub>1 -- since Var[xi]=1 is exact by construction,
+    // splitting the moments directly instead makes both
+    // E[sum of nsub draws] = dx*cminus and Var[sum] = dx^2*variance hold
+    // exactly, for any nsub, matching the un-split single-step formula's
+    // moments regardless of how many sub-steps the crash-avoidance splitting
+    // requires.
+    Real cminus1 = p1_right - p1_left;
+    Real cminus2 = p2_right - p2_left;
+    Real cminus3 = p3_right - p3_left;
+    Real cplus1 = p1_left + p1_right;
+    Real cplus2 = p2_left + p2_right;
+    Real cplus3 = p3_left + p3_right;
+    Real variance1 = fmax(cplus1 - cminus1*cminus1, 0.0);
+    Real variance2 = fmax(cplus2 - cminus2*cminus2, 0.0);
+    Real variance3 = fmax(cplus3 - cminus3*cminus3, 0.0);
 
-    if (multi_d) {
-      Real xi2 = sqrt3*(2.0*StatelessUniform01(pi(PTAG,p), ncycle, rseed, 2) - 1.0);
-      pr(IPY,p) += Ito2Displacement(p2_left, p2_right, mbsize.d_view(m).dx2, xi2);
+    Real max_cplus = fmax(cplus1, fmax(cplus2, cplus3));
+    const int max_nsub = 1000;
+    int nsub = 1;
+    if (max_cplus > 1.0) {
+      nsub = static_cast<int>(ceil(max_cplus));
+      nsub = (nsub > max_nsub) ? max_nsub : nsub;
+    }
+    Real inv_nsub = 1.0 / static_cast<Real>(nsub);
+    Real cminus1_sub = cminus1 * inv_nsub;
+    Real cminus2_sub = cminus2 * inv_nsub;
+    Real cminus3_sub = cminus3 * inv_nsub;
+    Real variance1_sub = variance1 * inv_nsub;
+    Real variance2_sub = variance2 * inv_nsub;
+    Real variance3_sub = variance3 * inv_nsub;
+
+    constexpr Real sqrt3 = 1.7320508075688772935;
+    Real disp1_total = 0.0;
+    Real disp2_total = 0.0;
+    Real disp3_total = 0.0;
+    for (int isub = 0; isub < nsub; ++isub) {
+      Real xi1 = sqrt3*(2.0*StatelessUniform01(pi(PTAG,p), ncycle, rseed,
+                                                1*10000 + isub) - 1.0);
+      disp1_total += Ito2DisplacementFromMoments(cminus1_sub, variance1_sub,
+                                                  mbsize.d_view(m).dx1, xi1);
+
+      if (multi_d) {
+        Real xi2 = sqrt3*(2.0*StatelessUniform01(pi(PTAG,p), ncycle, rseed,
+                                                  2*10000 + isub) - 1.0);
+        disp2_total += Ito2DisplacementFromMoments(cminus2_sub, variance2_sub,
+                                                    mbsize.d_view(m).dx2, xi2);
+      }
+
+      if (three_d) {
+        Real xi3 = sqrt3*(2.0*StatelessUniform01(pi(PTAG,p), ncycle, rseed,
+                                                  3*10000 + isub) - 1.0);
+        disp3_total += Ito2DisplacementFromMoments(cminus3_sub, variance3_sub,
+                                                    mbsize.d_view(m).dx3, xi3);
+      }
     }
 
+    pr(IPX,p) += disp1_total;
+    if (multi_d) {
+      pr(IPY,p) += disp2_total;
+    }
     if (three_d) {
-      Real xi3 = sqrt3*(2.0*StatelessUniform01(pi(PTAG,p), ncycle, rseed, 3) - 1.0);
-      pr(IPZ,p) += Ito2Displacement(p3_left, p3_right, mbsize.d_view(m).dx3, xi3);
+      pr(IPZ,p) += disp3_total;
     }
 
     pi(PLASTLEVEL,p) = mblev.d_view(m);
@@ -581,6 +685,24 @@ TaskStatus Particles::AdjustMeshRefinement(Driver *pdriver, int stage) {
 
         if (three_d) {
           kp = (pr(IPZ,p) - mbsize.d_view(m).x3min)/mbsize.d_view(m).dx3 + ks;
+        }
+
+        // Bounds check: unlike PushLagrangianMC/PushIto2 (which both check this
+        // before indexing the flux arrays), this refinement-level-increase
+        // branch below reads flx1_/flx2_/flx3_ at ip+1/jp+1/kp+1 with NO
+        // preceding bounds check at all -- found while investigating (but
+        // ultimately not the cause of) the turb64_iso lagrangian_mc-only
+        // crash, whose actual root cause was an unconditional w0(m,IEN,...)
+        // read for isothermal EOS in outputs/bin_prtcl.cpp (isothermal has no
+        // energy slot in w0 at all). Still a genuine, independent gap worth
+        // fixing defensively: flux arrays extend one element beyond the
+        // active zone, so the valid range for the +1 access is [is, ie-1]
+        // etc; skip if not in range rather than read OOB.
+        int ie_arm = is + indcs.nx1 - 1;
+        int je_arm = js + indcs.nx2 - 1;
+        int ke_arm = ks + indcs.nx3 - 1;
+        if (ip < is || ip > ie_arm || jp < js || jp > je_arm || kp < ks || kp > ke_arm) {
+          return;
         }
 
         // get fluxes into the four zones that the particle could have ended up in

@@ -185,6 +185,21 @@ void ParticleBinaryOutput::LoadOutputData(Mesh *pm) {
     w0 = pm->pmb_pack->phydro->w0;
   }
 
+  // Isothermal EOS has no energy/pressure slot in w0 at all (nhydro=4, not 5 --
+  // see Hydro::Hydro/Mhd::Mhd's nhydro assignment) so w0(m,IEN,...) below is an
+  // out-of-bounds read whenever is_ideal is false, undefined behavior that can
+  // read past the array's actual allocation (confirmed as the root cause of
+  // the turb64_iso segfault investigation -- an intermittent, heap-layout-
+  // dependent crash that had nothing to do with particle positions/pushers).
+  // For isothermal EOS, pressure = iso_cs^2 * density (see
+  // EquationOfState::IdealMHDFastSpeed's identical asq formula for the same
+  // relation) -- compute it that way instead of reading a slot that doesn't
+  // exist.
+  bool is_ideal = is_mhd ? pm->pmb_pack->pmhd->peos->eos_data.is_ideal
+                          : pm->pmb_pack->phydro->peos->eos_data.is_ideal;
+  Real iso_cs = is_mhd ? pm->pmb_pack->pmhd->peos->eos_data.iso_cs
+                        : pm->pmb_pack->phydro->peos->eos_data.iso_cs;
+
   int is = indcs.is;
   int js = indcs.js;
   int ks = indcs.ks;
@@ -255,10 +270,24 @@ void ParticleBinaryOutput::LoadOutputData(Mesh *pm) {
       Real &x3min = mbsize.d_view(m).x3min;
       Real &x3max = mbsize.d_view(m).x3max;
 
+      // Safety net: a particle position that went numerically unstable (or NaN)
+      // upstream would otherwise reach CellCenterIndex's unguarded
+      // static_cast<int>, which is undefined behavior for an out-of-int-range
+      // or NaN input and can yield a garbage index into w0/bcc0 below. Clamp
+      // the position actually used for indexing to this MeshBlock's bounds
+      // here, at this specific call site, rather than inside CellCenterIndex
+      // itself (which other callers rely on to return guard-cell-range indices
+      // for legitimately out-of-[xmin,xmax] inputs).
+      // fmin/fmax have IEEE-754-guaranteed NaN handling (return the non-NaN
+      // argument), so this also safely clamps a NaN position to x*min.
+      Real xi1 = fmin(fmax(x1, x1min), x1max);
+      Real xi2 = fmin(fmax(x2, x2min), x2max);
+      Real xi3 = fmin(fmax(x3, x3min), x3max);
+
       // Find cell indices containing particle
-      int i = CellCenterIndex(x1, indcs.nx1, x1min, x1max) + is;
-      int j = CellCenterIndex(x2, indcs.nx2, x2min, x2max) + js;
-      int k = CellCenterIndex(x3, indcs.nx3, x3min, x3max) + ks;
+      int i = CellCenterIndex(xi1, indcs.nx1, x1min, x1max) + is;
+      int j = CellCenterIndex(xi2, indcs.nx2, x2min, x2max) + js;
+      int k = CellCenterIndex(xi3, indcs.nx3, x3min, x3max) + ks;
 
       // Clamp indices to valid range
       i = (i < is) ? is : ((i >= is+indcs.nx1) ? is+indcs.nx1-1 : i);
@@ -267,7 +296,7 @@ void ParticleBinaryOutput::LoadOutputData(Mesh *pm) {
 
       // Get commonly needed grid values
       Real density = w0(m, IDN, k, j, i);
-      Real pressure = w0(m, IEN, k, j, i);
+      Real pressure = is_ideal ? w0(m, IEN, k, j, i) : iso_cs*iso_cs*density;
 
       // Compute each requested variable
       for (int v=0; v<n_vars; ++v) {
