@@ -231,6 +231,11 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     });
   }
 
+  if (pmbp->ppart != nullptr) {
+    auto &u0_particles = (pmbp->phydro != nullptr) ? pmbp->phydro->u0 : pmbp->pmhd->u0;
+    InitializeLagrangianParticles(pin, u0_particles);
+  }
+
   return;
 }
 
