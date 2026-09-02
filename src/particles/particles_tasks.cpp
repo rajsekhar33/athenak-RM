@@ -78,6 +78,11 @@ void Particles::AssembleTasks(std::map<std::string, std::shared_ptr<TaskList>> t
           id.mradj = tl["after_timeintegrator"]->AddTask(&Particles::AdjustMeshRefinement,
                                                          this, id.csend);
         }
+        // NewTimeStep is a no-op unless pusher==ito_2 and ito2_enforce_locality_dt is
+        // set (see Particles::NewTimeStep); always registered so dtnew always reflects
+        // the current flag/pusher rather than a stale value from construction.
+        id.newdt = tl["after_timeintegrator"]->AddTask(&Particles::NewTimeStep,
+                                                       this, id.csend);
         break;
       }
 

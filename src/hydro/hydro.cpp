@@ -38,6 +38,7 @@ Hydro::Hydro(MeshBlockPack *ppack, ParameterInput *pin) :
     u_sts_rhs("u_sts_rhs",1,1,1,1,1),
     uflx("uflx",1,1,1,1,1),
     uflxidnsaved("uflxidnsaved",1,1,1,1),
+    u0idnsaved("u0idnsaved",1,1,1,1),
     wl3d("wl3d",1,1,1,1,1),
     wr3d("wr3d",1,1,1,1,1),
     fofc("fofc",1,1,1,1),
@@ -362,6 +363,7 @@ void Hydro::SetSaveUFlxIdn() {
   Kokkos::realloc(uflxidnsaved.x1f, nmb, ncells3, ncells2, ncells1+1);
   Kokkos::realloc(uflxidnsaved.x2f, nmb, ncells3, ncells2+1, ncells1);
   Kokkos::realloc(uflxidnsaved.x3f, nmb, ncells3+1, ncells2, ncells1);
+  Kokkos::realloc(u0idnsaved, nmb, ncells3, ncells2, ncells1);
 
   uflxidn_saved = true;
 }

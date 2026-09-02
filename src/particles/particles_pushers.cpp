@@ -6,6 +6,8 @@
 //! \file particle_pushers.cpp
 //  \brief
 
+#include <limits>
+
 #include "athena.hpp"
 #include "mesh/mesh.hpp"
 #include "hydro/hydro.hpp"
@@ -49,15 +51,6 @@ Real Ito2DisplacementFromMoments(const Real cminus, const Real variance, const R
                                  const Real xi) {
   Real var = variance < 0.0 ? 0.0 : variance;
   return dx*(cminus + sqrt(var)*xi);
-}
-
-KOKKOS_INLINE_FUNCTION
-Real Ito2Displacement(const Real pleft, const Real pright, const Real dx,
-                      const Real xi) {
-  Real cplus = pleft + pright;
-  Real cminus = pright - pleft;
-  Real variance = cplus - cminus*cminus;
-  return Ito2DisplacementFromMoments(cminus, variance, dx, xi);
 }
 } // namespace
 
@@ -268,7 +261,8 @@ void Particles::PushLagrangianMC() {
   auto &gids = pmy_pack->gids;
   auto &mblev = pmy_pack->pmb->mb_lev;
 
-  auto &u1_ = (pmy_pack->phydro != nullptr)?pmy_pack->phydro->u1:pmy_pack->pmhd->u1;
+  auto &u0idnsaved_ = (pmy_pack->phydro != nullptr)?
+                       pmy_pack->phydro->u0idnsaved:pmy_pack->pmhd->u0idnsaved;
   auto &uflxidn_ = (pmy_pack->phydro != nullptr)?
                     pmy_pack->phydro->uflxidnsaved:pmy_pack->pmhd->uflxidnsaved;
   auto &flx1_ = uflxidn_.x1f;
@@ -320,7 +314,7 @@ void Particles::PushLagrangianMC() {
       }
 
       // get normalized fluxes based on local density
-      Real mass = u1_(m,IDN,kp,jp,ip);
+      Real mass = u0idnsaved_(m,kp,jp,ip);
       if (mass <= 0.0) {
         // near-vacuum or unphysical donor cell -- skip this timestep rather than
         // divide by a non-positive mass (matches the equivalent check in PushIto2)
@@ -410,7 +404,14 @@ void Particles::PushLagrangianMC() {
 
 //----------------------------------------------------------------------------------------
 //! \fn void Particles::PushIto2
-//! \brief Continuous Ito-2 tracer using moments of the MC transition kernel.
+//! \brief Continuous Ito-2 tracer using moments of the MC transition kernel,
+//! cloud-in-cell (CIC) interpolated onto the particle's actual position. Moseley,
+//! Teyssier & Abel 2026 (arXiv:2604.23041), Sec 3.1, "Particle interpolation method":
+//! the per-cell drift/diffusion coefficients (their Eqs 28-29) should be CIC-interpolated
+//! onto the particle position, the same way PushLagrangianTracer CIC-interpolates
+//! velocity -- nearest-grid-point (their term) is "much noisier by nature". Unlike MC
+//! (correctly cell-attached, not interpolated, by the definition of that method), Ito-2
+//! is a continuous-position tracer and needs this.
 
 void Particles::PushIto2() {
   auto &indcs = pmy_pack->pmesh->mb_indcs;
@@ -425,7 +426,8 @@ void Particles::PushIto2() {
   auto &gids = pmy_pack->gids;
   auto &mblev = pmy_pack->pmb->mb_lev;
 
-  auto &u1_ = (pmy_pack->phydro != nullptr)?pmy_pack->phydro->u1:pmy_pack->pmhd->u1;
+  auto &u0idnsaved_ = (pmy_pack->phydro != nullptr)?
+                       pmy_pack->phydro->u0idnsaved:pmy_pack->pmhd->u0idnsaved;
   auto &uflxidn_ = (pmy_pack->phydro != nullptr)?
                     pmy_pack->phydro->uflxidnsaved:pmy_pack->pmhd->uflxidnsaved;
   auto &flx1_ = uflxidn_.x1f;
@@ -448,52 +450,131 @@ void Particles::PushIto2() {
       return;
     }
 
-    int ip = (pr(IPX,p) - mbsize.d_view(m).x1min)/mbsize.d_view(m).dx1 + is;
-    int jp = js;
-    int kp = ks;
+    int ie = is + indcs.nx1 - 1;
+    int je = js + indcs.nx2 - 1;
+    int ke = ks + indcs.nx3 - 1;
 
+    // CIC weights relative to cell centers, exactly as PushLagrangianTracer computes
+    // them for velocity. Unlike velocity, the per-cell moments below are derived from
+    // face fluxes (uflxidnsaved) that are only guaranteed valid on the active zone's
+    // own faces (is..ie+1) -- not one cell further into the ghost zone the way
+    // cell-centered hydro primitives are. So clamp the LOWER corner to [is, ie-1]
+    // (one cell tighter than PushLagrangianTracer's [is-1, ie]) to guarantee both
+    // corners, and both faces each corner needs, stay inside the active zone.
+    Real xidx = (pr(IPX,p) - mbsize.d_view(m).x1min)/mbsize.d_view(m).dx1 +
+                static_cast<Real>(is) - 0.5;
+    int i0 = static_cast<int>(xidx);
+    Real wx = xidx - static_cast<Real>(i0);
+    if (i0 < is) {
+      i0 = is;
+      wx = 0.0;
+    } else if (i0 > ie - 1) {
+      i0 = ie - 1;
+      wx = 1.0;
+    }
+
+    int j0 = js;
+    Real wy = 0.0;
     if (multi_d) {
-      jp = (pr(IPY,p) - mbsize.d_view(m).x2min)/mbsize.d_view(m).dx2 + js;
+      Real yidx = (pr(IPY,p) - mbsize.d_view(m).x2min)/mbsize.d_view(m).dx2 +
+                  static_cast<Real>(js) - 0.5;
+      j0 = static_cast<int>(yidx);
+      wy = yidx - static_cast<Real>(j0);
+      if (j0 < js) {
+        j0 = js;
+        wy = 0.0;
+      } else if (j0 > je - 1) {
+        j0 = je - 1;
+        wy = 1.0;
+      }
     }
 
+    int k0 = ks;
+    Real wz = 0.0;
     if (three_d) {
-      kp = (pr(IPZ,p) - mbsize.d_view(m).x3min)/mbsize.d_view(m).dx3 + ks;
+      Real zidx = (pr(IPZ,p) - mbsize.d_view(m).x3min)/mbsize.d_view(m).dx3 +
+                  static_cast<Real>(ks) - 0.5;
+      k0 = static_cast<int>(zidx);
+      wz = zidx - static_cast<Real>(k0);
+      if (k0 < ks) {
+        k0 = ks;
+        wz = 0.0;
+      } else if (k0 > ke - 1) {
+        k0 = ke - 1;
+        wz = 1.0;
+      }
     }
 
-    int ie = is + indcs.nx1;
-    int je = js + indcs.nx2;
-    int ke = ks + indcs.nx3;
-    if (ip < is || ip >= ie || jp < js || jp >= je || kp < ks || kp >= ke) {
+    // Per Moseley+2026 Sec 3.1: compute the per-cell moments (their Eqs 28-29) once
+    // per corner cell, then CIC-interpolate those already-derived quantities onto the
+    // particle position -- not the raw face probabilities or fluxes.
+    Real cminus1 = 0.0, cminus2 = 0.0, cminus3 = 0.0;
+    Real cplus1 = 0.0, cplus2 = 0.0, cplus3 = 0.0;
+    Real variance1 = 0.0, variance2 = 0.0, variance3 = 0.0;
+    bool any_valid_corner = false;
+    int nj = multi_d ? 2 : 1;
+    int nk = three_d ? 2 : 1;
+    for (int kk=0; kk<nk; ++kk) {
+      Real wk = (kk == 0) ? (1.0 - wz) : wz;
+      int kc = k0 + kk;
+      for (int jj=0; jj<nj; ++jj) {
+        Real wj = (jj == 0) ? (1.0 - wy) : wy;
+        int jc = j0 + jj;
+        for (int ii=0; ii<2; ++ii) {
+          Real wi = (ii == 0) ? (1.0 - wx) : wx;
+          int ic = i0 + ii;
+          Real wght = wi*wj*wk;
+          if (wght <= 0.0) {
+            continue;
+          }
+
+          Real corner_mass = u0idnsaved_(m,kc,jc,ic);
+          if (corner_mass <= 0.0) {
+            continue;
+          }
+          any_valid_corner = true;
+
+          Real cp1_left = fmax(-flx1_(m,kc,jc,ic) / corner_mass, 0.0);
+          Real cp1_right = fmax(flx1_(m,kc,jc,ic+1) / corner_mass, 0.0);
+          Real cp2_left = (multi_d) ? fmax(-flx2_(m,kc,jc,ic) / corner_mass, 0.0) : 0.0;
+          Real cp2_right = (multi_d) ? fmax(flx2_(m,kc,jc+1,ic) / corner_mass, 0.0) : 0.0;
+          Real cp3_left = (three_d) ? fmax(-flx3_(m,kc,jc,ic) / corner_mass, 0.0) : 0.0;
+          Real cp3_right = (three_d) ? fmax(flx3_(m,kc+1,jc,ic) / corner_mass, 0.0) : 0.0;
+
+          Real corner_cminus1 = cp1_right - cp1_left;
+          Real corner_cminus2 = cp2_right - cp2_left;
+          Real corner_cminus3 = cp3_right - cp3_left;
+          Real corner_cplus1 = cp1_left + cp1_right;
+          Real corner_cplus2 = cp2_left + cp2_right;
+          Real corner_cplus3 = cp3_left + cp3_right;
+          Real corner_variance1 = fmax(corner_cplus1 - corner_cminus1*corner_cminus1, 0.0);
+          Real corner_variance2 = fmax(corner_cplus2 - corner_cminus2*corner_cminus2, 0.0);
+          Real corner_variance3 = fmax(corner_cplus3 - corner_cminus3*corner_cminus3, 0.0);
+
+          cminus1 += wght*corner_cminus1;
+          cminus2 += wght*corner_cminus2;
+          cminus3 += wght*corner_cminus3;
+          cplus1 += wght*corner_cplus1;
+          cplus2 += wght*corner_cplus2;
+          cplus3 += wght*corner_cplus3;
+          variance1 += wght*corner_variance1;
+          variance2 += wght*corner_variance2;
+          variance3 += wght*corner_variance3;
+        }
+      }
+    }
+    if (!any_valid_corner) {
       return;
     }
-
-    Real mass = u1_(m,IDN,kp,jp,ip);
-    if (mass <= 0.0) {
-      return;
-    }
-
-    Real p1_left = -flx1_(m,kp,jp,ip) / mass;
-    Real p1_right = flx1_(m,kp,jp,ip+1) / mass;
-    Real p2_left = (multi_d) ? -flx2_(m,kp,jp,ip) / mass : 0.0;
-    Real p2_right = (multi_d) ? flx2_(m,kp,jp+1,ip) / mass : 0.0;
-    Real p3_left = (three_d) ? -flx3_(m,kp,jp,ip) / mass : 0.0;
-    Real p3_right = (three_d) ? flx3_(m,kp+1,jp,ip) / mass : 0.0;
-
-    p1_left = p1_left < 0.0 ? 0.0 : p1_left;
-    p1_right = p1_right < 0.0 ? 0.0 : p1_right;
-    p2_left = p2_left < 0.0 ? 0.0 : p2_left;
-    p2_right = p2_right < 0.0 ? 0.0 : p2_right;
-    p3_left = p3_left < 0.0 ? 0.0 : p3_left;
-    p3_right = p3_right < 0.0 ? 0.0 : p3_right;
 
     // Tracer-specific CFL, mirroring PushLagrangianMC: the hydro CFL condition
     // only bounds the net six-face flux divergence, not any single face's
     // flux/mass ratio in isolation, so a near-vacuum donor cell can leave
-    // p_left/p_right well above the [0,1] range Ito2Displacement's variance
-    // term assumes, producing an unbounded single-step displacement that can
-    // push a particle's position to a value whose downstream cell-index
-    // computation (see cell_locations.hpp CellCenterIndex) is undefined
-    // behavior.
+    // p_left/p_right well above the [0,1] range the variance term
+    // (Ito2DisplacementFromMoments) assumes, producing an unbounded single-step
+    // displacement that can push a particle's position to a value whose
+    // downstream cell-index computation (see cell_locations.hpp
+    // CellCenterIndex) is undefined behavior.
     //
     // Sub-cycle by splitting the TOTAL first/second moments (cminus, variance)
     // -- computed once from the original, unscaled probabilities -- into nsub
@@ -508,15 +589,6 @@ void Particles::PushIto2() {
     // exactly, for any nsub, matching the un-split single-step formula's
     // moments regardless of how many sub-steps the crash-avoidance splitting
     // requires.
-    Real cminus1 = p1_right - p1_left;
-    Real cminus2 = p2_right - p2_left;
-    Real cminus3 = p3_right - p3_left;
-    Real cplus1 = p1_left + p1_right;
-    Real cplus2 = p2_left + p2_right;
-    Real cplus3 = p3_left + p3_right;
-    Real variance1 = fmax(cplus1 - cminus1*cminus1, 0.0);
-    Real variance2 = fmax(cplus2 - cminus2*cminus2, 0.0);
-    Real variance3 = fmax(cplus3 - cminus3*cminus3, 0.0);
 
     Real max_cplus = fmax(cplus1, fmax(cplus2, cplus3));
     const int max_nsub = 1000;
@@ -862,6 +934,85 @@ TaskStatus Particles::AdjustMeshRefinement(Driver *pdriver, int stage) {
     }
   });
 
+  return TaskStatus::complete;
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn TaskStatus Particles::NewTimeStep
+//! \brief Moseley, Teyssier & Abel 2026 (arXiv:2604.23041) Eq 63: |u_i|*dt/h < 1/4 for
+//! the Ito-2 tracer's drift, a stronger *accuracy* bound than the Cplus>1 *stability*
+//! guard PushIto2 already enforces. Off unless ito2_enforce_locality_dt is set (paper:
+//! "we have found that it makes little difference to the results"); no-op for any
+//! other pusher. u_i = (h/dt)*C_-,i (Eq 28), so the bound is dt_new < dt/(4*|C_-,i|)
+//! -- evaluated here from the same per-cell saved fluxes PushIto2 itself reads, using
+//! the un-interpolated (host-cell) C_-,i since this sets a single scalar dt for the
+//! whole domain and is deliberately conservative rather than CIC-smoothed.
+
+TaskStatus Particles::NewTimeStep(Driver *pdrive, int stage) {
+  dtnew = std::numeric_limits<float>::max();
+  if (pusher != ParticlesPusher::ito_2 || !ito2_enforce_locality_dt) {
+    return TaskStatus::complete;
+  }
+  // No stage check here: this task is registered in "after_timeintegrator" (see
+  // particles_tasks.cpp), which the driver always invokes with a fixed stage=1
+  // sentinel (driver.cpp: ExecuteTaskList(pmesh,"after_timeintegrator",1)) *after*
+  // the full per-stage "stagen" loop -- and thus SaveFlux -- has already completed
+  // for every stage. A stage==nexp_stages guard (correct for tasks registered in
+  // "stagen" itself, e.g. Hydro::NewTimeStep) is meaningless here and made this
+  // function an unconditional no-op for any nexp_stages>1 -- caught by the total
+  // absence of any dt reduction across three separate test cases before this fix.
+
+  auto &indcs = pmy_pack->pmesh->mb_indcs;
+  int is = indcs.is, ie = indcs.ie;
+  int js = indcs.js, je = indcs.je;
+  int ks = indcs.ks, ke = indcs.ke;
+  bool &multi_d = pmy_pack->pmesh->multi_d;
+  bool &three_d = pmy_pack->pmesh->three_d;
+  int nmb = pmy_pack->nmb_thispack;
+
+  auto &u0idnsaved_ = (pmy_pack->phydro != nullptr)?
+                       pmy_pack->phydro->u0idnsaved:pmy_pack->pmhd->u0idnsaved;
+  auto &uflxidn_ = (pmy_pack->phydro != nullptr)?
+                    pmy_pack->phydro->uflxidnsaved:pmy_pack->pmhd->uflxidnsaved;
+  auto &flx1_ = uflxidn_.x1f;
+  auto &flx2_ = uflxidn_.x2f;
+  auto &flx3_ = uflxidn_.x3f;
+
+  Real dt_current = pmy_pack->pmesh->dt;
+  const int nmkji = nmb*(ke-ks+1)*(je-js+1)*(ie-is+1);
+  const int nkji = (ke-ks+1)*(je-js+1)*(ie-is+1);
+  const int nji = (je-js+1)*(ie-is+1);
+  const int nx1 = ie-is+1;
+
+  Real max_abs_cminus = 0.0;
+  Kokkos::parallel_reduce("part_ito2_newdt", Kokkos::RangePolicy<>(DevExeSpace(),0,nmkji),
+  KOKKOS_LAMBDA(const int &idx, Real &max_val) {
+    int m = idx/nkji;
+    int k = (idx - m*nkji)/nji;
+    int j = (idx - m*nkji - k*nji)/nx1;
+    int i = (idx - m*nkji - k*nji - j*nx1) + is;
+    k += ks;
+    j += js;
+
+    Real mass = u0idnsaved_(m,k,j,i);
+    if (mass <= 0.0) {
+      return;
+    }
+    Real cminus1 = fabs((fmax(flx1_(m,k,j,i+1),0.0) - fmax(-flx1_(m,k,j,i),0.0)) / mass);
+    max_val = fmax(max_val, cminus1);
+    if (multi_d) {
+      Real cminus2 = fabs((fmax(flx2_(m,k,j+1,i),0.0)-fmax(-flx2_(m,k,j,i),0.0))/mass);
+      max_val = fmax(max_val, cminus2);
+    }
+    if (three_d) {
+      Real cminus3 = fabs((fmax(flx3_(m,k+1,j,i),0.0)-fmax(-flx3_(m,k,j,i),0.0))/mass);
+      max_val = fmax(max_val, cminus3);
+    }
+  }, Kokkos::Max<Real>(max_abs_cminus));
+
+  if (max_abs_cminus > 0.0) {
+    dtnew = dt_current / (4.0*max_abs_cminus);
+  }
   return TaskStatus::complete;
 }
 

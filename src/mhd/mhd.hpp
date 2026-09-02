@@ -157,6 +157,7 @@ class MHD {
   // particle pushers); allocated lazily via SetSaveUFlxIdn() only when needed
   bool uflxidn_saved = false;
   DvceFaceFld4D<Real> uflxidnsaved;
+  DvceArray4D<Real> u0idnsaved;
 
   // following used for FOFC algorithm
   DvceArray4D<bool> fofc;  // flag for each cell to indicate if FOFC is needed

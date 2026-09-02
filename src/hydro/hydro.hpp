@@ -110,6 +110,7 @@ class Hydro {
   // particle pushers); allocated lazily via SetSaveUFlxIdn() only when needed
   bool uflxidn_saved = false;
   DvceFaceFld4D<Real> uflxidnsaved;
+  DvceArray4D<Real> u0idnsaved;
 
   bool has_explicit_viscosity = false;
   bool has_explicit_conduction = false;

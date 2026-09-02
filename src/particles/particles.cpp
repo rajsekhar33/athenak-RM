@@ -26,6 +26,15 @@ namespace particles {
 
 Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :
     pmy_pack(ppack) {
+  // Default: this particle set never constrains the driver's timestep. Set
+  // unconditionally here (not just in the lagrangian_mc/ito_2/lagrangian_tracer
+  // pusher branch below) so every particle_type/pusher combination -- including
+  // cosmic_ray/drift, which never overwrites this -- leaves dtnew well-defined.
+  // Mesh::NewTimeStep now reads ppart->dtnew unconditionally for any Particles
+  // instance, so this must never be left uninitialized.
+  dtnew = std::numeric_limits<float>::max();
+  ito2_enforce_locality_dt = false;
+
   // check this is at least a 2D problem
   if (pmy_pack->pmesh->one_d) {
     std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
@@ -121,6 +130,11 @@ Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :
           ppack->phydro->SetSaveUFlxIdn();
         }
       }
+      // Moseley+2026 Eq 63 locality bound |u_i|*dt/h < 1/4, ito_2 only; off by
+      // default, see the member declaration in particles.hpp for the rationale.
+      ito2_enforce_locality_dt = pin->GetOrAddBoolean("particles",
+                                                        "ito2_enforce_locality_dt",
+                                                        false);
     } else {
       std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
                 << std::endl << "Particle pusher must be specified in <particles> block"

@@ -41,6 +41,7 @@ struct ParticlesTaskIDs {
   TaskID csend;
   TaskID crecv;
   TaskID mradj;
+  TaskID newdt;
 };
 
 namespace particles {
@@ -74,6 +75,15 @@ class Particles {
 
   ParticlesPusher pusher;
 
+  // Moseley, Teyssier & Abel 2026 (arXiv:2604.23041) Eq 63: a stronger, accuracy-
+  // motivated (not stability-motivated) locality bound |u_i|*dt/h < 1/4 for the
+  // Ito-2 tracer's drift, in addition to the existing Cplus>1 stability guard in
+  // PushIto2. Off by default (matches prior behavior; the paper itself notes
+  // enforcing it "makes little difference to the results"); enabled via
+  // <particles>/ito2_enforce_locality_dt = true. No effect for any pusher other
+  // than ito_2.
+  bool ito2_enforce_locality_dt;
+
   // Boundary communication buffers and functions for particles
   ParticlesBoundaryValues *pbval_part;
 
@@ -93,6 +103,7 @@ class Particles {
   TaskStatus ClearSend(Driver *pdriver, int stage);
   TaskStatus ClearRecv(Driver *pdriver, int stage);
   TaskStatus AdjustMeshRefinement(Driver *pdriver, int stage);
+  TaskStatus NewTimeStep(Driver *pdriver, int stage);
 
   // per-pusher update functions, called from Push()
   void PushDrift();

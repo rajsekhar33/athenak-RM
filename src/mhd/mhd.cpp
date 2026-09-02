@@ -60,6 +60,7 @@ MHD::MHD(MeshBlockPack *ppack, ParameterInput *pin) :
     wsaved("wsaved",1,1,1,1,1),
     bccsaved("bccsaved",1,1,1,1,1),
     uflxidnsaved("uflxidnsaved",1,1,1,1),
+    u0idnsaved("u0idnsaved",1,1,1,1),
     fofc("fofc",1,1,1,1),
     fofc_scal("fofc_scal",1,1,1,1,1),
     utest("utest",1,1,1,1,1),
@@ -495,6 +496,7 @@ void MHD::SetSaveUFlxIdn() {
   Kokkos::realloc(uflxidnsaved.x1f, nmb, ncells3, ncells2, ncells1+1);
   Kokkos::realloc(uflxidnsaved.x2f, nmb, ncells3, ncells2+1, ncells1);
   Kokkos::realloc(uflxidnsaved.x3f, nmb, ncells3+1, ncells2, ncells1);
+  Kokkos::realloc(u0idnsaved, nmb, ncells3, ncells2, ncells1);
 
   uflxidn_saved = true;
 }

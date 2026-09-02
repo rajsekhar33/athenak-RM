@@ -296,11 +296,37 @@ TaskStatus MHD::SaveFlux(Driver *pdrive, int stage) {
     auto flxidn1 = uflxidnsaved.x1f;
     auto flxidn2 = uflxidnsaved.x2f;
     auto flxidn3 = uflxidnsaved.x3f;
+    auto idnsaved = u0idnsaved;
+    auto u1_ = u1;
     auto &mbsize = pmy_pack->pmb->mb_size;
 
-    // this assumes a 2-stage RK integrator (dt/2 per stage); revisit if used with a
-    // differently-staged integrator
-    Real dtfactor = dt / 2.0;
+    // Exact full-step quadrature weight of this stage's density flux.  RK1--RK3
+    // retain the initial state in u1, while RK4(4)[2S] updates u1 with delta*u0
+    // before its later stages.  Propagate unit flux contributions through the same
+    // register recurrence used by RKUpdate rather than assuming u1 is fixed.
+    Real u0_weight[4] = {0.0, 0.0, 0.0, 0.0};
+    Real u1_weight[4] = {0.0, 0.0, 0.0, 0.0};
+    for (int s = 0; s < pdrive->nexp_stages; ++s) {
+      if (s == 0) {
+        for (int n = 0; n < pdrive->nexp_stages; ++n) {
+          u1_weight[n] = u0_weight[n];
+        }
+      } else if (pdrive->integrator == "rk4") {
+        for (int n = 0; n < pdrive->nexp_stages; ++n) {
+          u1_weight[n] += pdrive->delta[s]*u0_weight[n];
+        }
+      }
+      Real next_u0_weight[4] = {0.0, 0.0, 0.0, 0.0};
+      for (int n = 0; n < pdrive->nexp_stages; ++n) {
+        next_u0_weight[n] = pdrive->gam0[s]*u0_weight[n]
+                          + pdrive->gam1[s]*u1_weight[n];
+      }
+      next_u0_weight[s] += pdrive->beta[s];
+      for (int n = 0; n < pdrive->nexp_stages; ++n) {
+        u0_weight[n] = next_u0_weight[n];
+      }
+    }
+    Real dtfactor = dt*u0_weight[stage-1];
 
     par_for("flux_save",DevExeSpace(),0,nmb1,ks,ke+1,js,je+1,is,ie+1,
     KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
@@ -311,6 +337,12 @@ TaskStatus MHD::SaveFlux(Driver *pdrive, int stage) {
         } else {
           flxidn1(m,k,j,i) += flx1(m,IDN,k,j,i) / mbsize.d_view(m).dx1 * dtfactor;
         }
+      }
+
+      // u1 is repurposed as the RK4(4)[2S] accumulator after stage 1.  Preserve
+      // the stage-1 density for mass-conserving particle-pusher normalization.
+      if (stage == 1 && i <= ie && j <= je && k <= ke) {
+        idnsaved(m,k,j,i) = u1_(m,IDN,k,j,i);
       }
 
       // save dF2/dx2
