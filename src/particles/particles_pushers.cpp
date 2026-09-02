@@ -353,10 +353,9 @@ void Particles::PushLagrangianMC() {
       // already escape via an earlier face), which is naturally bounded to
       // <=1 as long as the cumulative outflow checked so far never exceeds the
       // cell's own mass -- unlike computing all six probabilities independently
-      // from the SAME initial mass and summing them (this file's original
-      // approach, and also the earlier sub-cycling patch built on top of it),
-      // which has no such guarantee and can see a combined probability above 1
-      // whenever a near-vacuum donor cell sits next to a fast, dense neighbor.
+      // from the SAME initial mass and summing them, which has no such
+      // guarantee and can see a combined probability above 1 whenever a
+      // near-vacuum donor cell sits next to a fast, dense neighbor.
       // If mtilde is driven to exactly zero by earlier faces (cumulative
       // outflow checked so far already accounts for the cell's entire mass),
       // any remaining face's escape probability saturates at 1, mirroring
@@ -580,8 +579,8 @@ void Particles::PushIto2() {
     // -- computed once from the original, unscaled probabilities -- into nsub
     // equal shares (cminus/nsub, variance/nsub), rather than rescaling
     // p_left/p_right and recomputing moments from the rescaled pair each
-    // sub-step. The latter (tried first, see conversation) exactly preserves
-    // the summed mean but systematically inflates the summed variance to
+    // sub-step. The latter exactly preserves the summed mean but
+    // systematically inflates the summed variance to
     // dx^2*(cplus - cminus^2/nsub) instead of the correct dx^2*(cplus -
     // cminus^2) once nsub>1 -- since Var[xi]=1 is exact by construction,
     // splitting the moments directly instead makes both

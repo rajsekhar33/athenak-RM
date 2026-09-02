@@ -46,16 +46,16 @@ Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :
   // constant, not rank/gids-dependent: LagrangianMCUniform01/StatelessUniform01
   // already hash in the particle's own (globally unique) tag, so a rank-varying
   // base seed adds no real decorrelation value. A rank-varying default (e.g.
-  // -1-gids, tried initially) breaks restart-exactness: restart files embed the
-  // resolved ParameterInput block, and on restart every rank's GetOrAddInteger()
-  // call below finds "particles/random_seed" already present (typically from
+  // -1-gids) would break restart-exactness: restart files embed the resolved
+  // ParameterInput block, and on restart every rank's GetOrAddInteger() call
+  // below finds "particles/random_seed" already present (typically from
   // whichever rank's block got embedded) and reuses THAT single resolved value
-  // instead of recomputing its own per-rank default -- so continuous (each rank
-  // computing gids-based -1-gids fresh) and a restarted run (every rank reusing
-  // one embedded rank's value) silently use different seeds on most ranks. A
-  // fixed constant sidesteps this entirely: every rank always resolves to the
-  // same value, whether freshly defaulted or inherited from another rank's
-  // embedded parameter block.
+  // instead of recomputing its own per-rank default -- so a continuous run
+  // (each rank computing its own gids-based value fresh) and a restarted run
+  // (every rank reusing one embedded rank's value) would silently use
+  // different seeds on most ranks. A fixed constant sidesteps this entirely:
+  // every rank always resolves to the same value, whether freshly defaulted or
+  // inherited from another rank's embedded parameter block.
   random_seed = pin->GetOrAddInteger("particles","random_seed",-1);
 
   // read number of particles per cell, and calculate number of particles this pack
