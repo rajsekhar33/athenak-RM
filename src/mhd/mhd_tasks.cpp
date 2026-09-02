@@ -220,7 +220,8 @@ TaskStatus MHD::InitRecvParabolic(Driver *pdrive, int stage) {
 
 //----------------------------------------------------------------------------------------
 //! \fn TaskStatus MHD::CopyCons
-//! \brief Simple task list function that copies u0 --> u1, and b0 --> b1 in first stage
+//! \brief Copies the MHD registers at the first stage and maintains the RK4 2S
+//! accumulator at later stages.
 
 TaskStatus MHD::CopyCons(Driver *pdrive, int stage) {
   if (stage == 1) {
@@ -228,6 +229,43 @@ TaskStatus MHD::CopyCons(Driver *pdrive, int stage) {
     Kokkos::deep_copy(DevExeSpace(), b1.x1f, b0.x1f);
     Kokkos::deep_copy(DevExeSpace(), b1.x2f, b0.x2f);
     Kokkos::deep_copy(DevExeSpace(), b1.x3f, b0.x3f);
+  } else if (pdrive->integrator == "rk4") {
+    // RK4(4)[2S] uses u1/b1 as an accumulated second register.  Hydro performs
+    // the corresponding u1 update here; MHD must update both its conserved and
+    // face-centered-field registers before RKUpdate/CT form the gamma-weighted
+    // next stage.
+    auto &indcs = pmy_pack->pmesh->mb_indcs;
+    int is = indcs.is, ie = indcs.ie;
+    int js = indcs.js, je = indcs.je;
+    int ks = indcs.ks, ke = indcs.ke;
+    int nmb1 = pmy_pack->nmb_thispack - 1;
+    int nvar = nmhd + nscalars;
+    Real delta = pdrive->delta[stage-1];
+    auto u0_ = u0;
+    auto u1_ = u1;
+    auto b0_1 = b0.x1f;
+    auto b0_2 = b0.x2f;
+    auto b0_3 = b0.x3f;
+    auto b1_1 = b1.x1f;
+    auto b1_2 = b1.x2f;
+    auto b1_3 = b1.x3f;
+
+    par_for("rk4_copy_mhd_cons", DevExeSpace(),0,nmb1,0,nvar-1,ks,ke,js,je,is,ie,
+    KOKKOS_LAMBDA(int m, int n, int k, int j, int i) {
+      u1_(m,n,k,j,i) += delta*u0_(m,n,k,j,i);
+    });
+    par_for("rk4_copy_mhd_b1", DevExeSpace(),0,nmb1,ks,ke,js,je,is,ie+1,
+    KOKKOS_LAMBDA(int m, int k, int j, int i) {
+      b1_1(m,k,j,i) += delta*b0_1(m,k,j,i);
+    });
+    par_for("rk4_copy_mhd_b2", DevExeSpace(),0,nmb1,ks,ke,js,je+1,is,ie,
+    KOKKOS_LAMBDA(int m, int k, int j, int i) {
+      b1_2(m,k,j,i) += delta*b0_2(m,k,j,i);
+    });
+    par_for("rk4_copy_mhd_b3", DevExeSpace(),0,nmb1,ks,ke+1,js,je,is,ie,
+    KOKKOS_LAMBDA(int m, int k, int j, int i) {
+      b1_3(m,k,j,i) += delta*b0_3(m,k,j,i);
+    });
   }
   return TaskStatus::complete;
 }
