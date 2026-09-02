@@ -34,6 +34,8 @@ endif()
 option(Athena_SINGLE_PRECISION "Compile for single precision" OFF)
 option(Athena_ENABLE_MPI "Compile with MPI parallelism enabled" OFF)
 option(Athena_ENABLE_OPENMP "Compile with OpenMP parallelism enabled" OFF)
+option(Athena_BUILD_MARCHING_CUBES_TEST
+       "Build the standalone marching-cubes utility test" OFF)
 set(PROBLEM built_in_pgens CACHE STRING "Name of problem generator function")
 
 #------ set macros exported to config.hpp ------------------------------------------------
@@ -245,6 +247,14 @@ if (${PROBLEM} MATCHES "dyn_grmhd/lorene/*")
       GSL::gsl ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
 endif()
 
+if (Athena_BUILD_MARCHING_CUBES_TEST)
+  add_executable(marching_cubes_test tst/unit_tests/marching_cubes.cpp)
+  target_include_directories(marching_cubes_test PRIVATE
+      ${CMAKE_SOURCE_DIR}/src
+      ${CMAKE_BINARY_DIR})
+  target_link_libraries(marching_cubes_test PRIVATE Kokkos::kokkos)
+endif()
+
 # enable include of header files created in build directories
 target_include_directories(athena PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}
@@ -254,4 +264,3 @@ target_include_directories(athena PUBLIC
 configure_file(config.hpp.in config.hpp)
 
 install( TARGETS athena DESTINATION bin )
-
