@@ -7,8 +7,10 @@
 //! \brief Lookup tables for the topologically correct Marching Cubes 33 algorithm.
 //!
 //! The tables are adapted from LookUpTable.h by Thomas Lewiner (2002), imported
-//! through scikit-image v0.23.2.  scikit-image is Copyright 2009-2022 the
-//! scikit-image team and is distributed under the BSD 3-Clause License:
+//! through scikit-image v0.23.2.  Copied into AthenaK by Lachlan Lancaster from
+//! that file's copy in scikit-image's metadata (tools/precompute/mc_meta/
+//! LookUpTable.h).  scikit-image is Copyright 2009-2022 the scikit-image team
+//! and is distributed under the BSD 3-Clause License:
 //!
 //! Redistribution and use in source and binary forms, with or without
 //! modification, are permitted provided that the following conditions are met:

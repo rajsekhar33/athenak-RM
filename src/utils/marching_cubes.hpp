@@ -8,6 +8,12 @@
 //! \file marching_cubes.hpp
 //! \brief Device-callable, topologically correct marching-cubes area calculation.
 //!
+//! Originally implemented in AthenaK by Lachlan Lancaster, working off of the
+//! Cython implementation in the scikit-image library (skimage/measure/
+//! _marching_cubes_lewiner.py, v0.23.2), which itself is based on the
+//! Lewiner et al. (2003) implementation
+//! (http://thomas.lewiner.org/pdfs/marching_cubes_jgt.pdf).
+//!
 //! The algorithm follows Lewiner et al. (2003), using the lookup tables documented
 //! in mc_luts.hpp.  Each Cube value is the sampled scalar minus the requested
 //! isovalue; values strictly below zero are inside the surface.  Exact isovalue
