@@ -57,6 +57,10 @@ cases with topological guarantees"), via the BSD-3-Clause-licensed copy in
 scikit-image v0.23.2. The required scikit-image copyright/license text is
 retained verbatim at the top of `mc_luts.hpp`.
 
+This utility's original implementation in AthenaK is credited to Lachlan
+Lancaster; this port brings that implementation into the public fork as a
+generic, mesh-agnostic utility.
+
 ## Regression Pgen
 
 `pgen_name = marching_cubes` builds a temperature field
