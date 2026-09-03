@@ -331,6 +331,12 @@ Hydro::Hydro(MeshBlockPack *ppack, ParameterInput *pin) :
       // cell range (including ghost zones) in every dimension.
       Kokkos::realloc(wl3d, nmb, (nhydro+nscalars), ncells3, ncells2, ncells1);
       Kokkos::realloc(wr3d, nmb, (nhydro+nscalars), ncells3, ncells2, ncells1);
+
+      // allocate arrays used by first-order flux correction
+      if (use_fofc) {
+        Kokkos::realloc(fofc,  nmb, ncells3, ncells2, ncells1);
+        Kokkos::realloc(utest, nmb, nhydro, ncells3, ncells2, ncells1);
+      }
     }
   }
 }

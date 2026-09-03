@@ -394,8 +394,12 @@ void TurbulentHistory(HistoryData *pdata, Mesh *pm) {
            *(w0_(m,IVZ,k,j+1,i)-w0_(m,IVZ,k,j-1,i))))
      / dx_squared)*vol;
 
-    // fill rest of the_array with zeros, if nhist < NHISTORY_VARIABLES
-    for (int n=nhist_; n<NHISTORY_VARIABLES; ++n) {
+    // fill rest of the_array with zeros, if nhist < NREDUCTION_VARIABLES. Bound
+    // by NREDUCTION_VARIABLES, not NHISTORY_VARIABLES: hvars.the_array itself is
+    // only NREDUCTION_VARIABLES elements (array_sum::GlobalSum's fixed size), so
+    // looping up to NHISTORY_VARIABLES writes past the end of the array whenever
+    // NHISTORY_VARIABLES > NREDUCTION_VARIABLES.
+    for (int n=nhist_; n<NREDUCTION_VARIABLES; ++n) {
       hvars.the_array[n] = 0.0;
     }
 
