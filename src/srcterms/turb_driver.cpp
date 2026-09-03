@@ -1133,18 +1133,23 @@ TaskStatus TurbulenceDriver::AddForcing(Driver *pdrive, int stage) {
 }
 
 //----------------------------------------------------------------------------------------
-//! \fn TurbulenceDriver::NewTimeStep()
-//! \brief Caps the timestep so it never overshoots the next dt_turb_update
-//! boundary by more than dt_turb_thresh. Called unconditionally by
-//! Driver::Execute whenever a TurbulenceDriver exists (the same way
-//! Hydro/MHD/Radiation/Z4c each contribute their own dtnew), so this
-//! constraint is always active -- it does not depend on <hydro_srcterms> or
-//! <mhd_srcterms> existing.
+//! \fn TurbulenceDriver::UpdateTimeStepConstraint()
+//! \brief Refreshes the cap that keeps the next full timestep from overshooting
+//! the next dt_turb_update boundary by more than dt_turb_thresh. Mesh::NewTimeStep()
+//! invokes this immediately before combining all module timestep constraints.
 
-TaskStatus TurbulenceDriver::NewTimeStep(Driver *pdrive, int stage) {
+void TurbulenceDriver::UpdateTimeStepConstraint() {
   Real current_time = pmy_pack->pmesh->time;
   int64_t n_turb_updates_reqd = static_cast<int64_t>(current_time/dt_turb_update);
   Real next_update_time = dt_turb_update*static_cast<Real>(n_turb_updates_reqd+1);
   dtnew = fmax(dt_turb_thresh, fmin(dt_turb_update, next_update_time-current_time));
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn TurbulenceDriver::NewTimeStep()
+//! \brief Compatibility task entry point used during Driver initialization.
+
+TaskStatus TurbulenceDriver::NewTimeStep(Driver *pdrive, int stage) {
+  UpdateTimeStepConstraint();
   return TaskStatus::complete;
 }

@@ -71,6 +71,7 @@ class TurbulenceDriver {
   TaskStatus UpdateForcing(Driver *pdrive, int stage);
   TaskStatus AddForcing(Driver *pdrive, int stage);
   TaskStatus NewTimeStep(Driver *pdrive, int stage);
+  void UpdateTimeStepConstraint();
   void Initialize();
 
  private:
