@@ -205,6 +205,16 @@ add_executable(
         z4c/driftcontrol/driftcontrol.cpp
 )
 
+# These pgens are available by name in built_in_pgens builds. Their source files
+# retain a UserProblem() compatibility wrapper for -D PROBLEM=... builds, so a
+# custom build must compile only its explicitly selected source file below.
+if (${PROBLEM} STREQUAL "built_in_pgens")
+  target_sources(athena PRIVATE
+      pgen/tests/hook_test.cpp
+      pgen/fluids/turb.cpp
+  )
+endif()
+
 # custom problem generator to be included in compile
 # specify on command line using '-D PROBLEM=file' where 'file' is name of file in
 # pgen/ directory (not including .cpp extension)

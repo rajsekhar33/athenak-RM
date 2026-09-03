@@ -23,10 +23,10 @@ void TurbulentHistory(HistoryData *pdata, Mesh *pm);
 
 
 //----------------------------------------------------------------------------------------
-//! \fn void MeshBlock::Turb_()
+//! \fn void ProblemGenerator::Turbulence()
 //  \brief Problem Generator for turbulence
 
-void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
+void ProblemGenerator::Turbulence(ParameterInput *pin, const bool restart) {
   if (restart) return;
   MeshBlockPack *pmbp = pmy_mesh_->pmb_pack;
   auto &indcs = pmy_mesh_->mb_indcs;
@@ -238,6 +238,13 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
   return;
 }
+
+#if USER_PROBLEM_ENABLED
+// Preserve the custom-pgen entry point for existing -D PROBLEM=fluids/turb builds.
+void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
+  Turbulence(pin, restart);
+}
+#endif
 
 
 //----------------------------------------------------------------------------------------

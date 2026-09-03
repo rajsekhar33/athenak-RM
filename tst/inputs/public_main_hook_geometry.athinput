@@ -1,0 +1,96 @@
+# Regression input for public-main hooks and profile/PDF geometry outputs.
+
+<job>
+basename = PublicHookGeometry
+
+<mesh>
+nghost = 2
+nx1 = 8
+x1min = -1.0
+x1max = 1.0
+ix1_bc = periodic
+ox1_bc = periodic
+nx2 = 8
+x2min = -1.0
+x2max = 1.0
+ix2_bc = periodic
+ox2_bc = periodic
+nx3 = 1
+x3min = -0.5
+x3max = 0.5
+ix3_bc = periodic
+ox3_bc = periodic
+
+<meshblock>
+nx1 = 4
+nx2 = 4
+nx3 = 1
+
+<time>
+evolution = dynamic
+integrator = rk2
+cfl_number = 0.4
+nlim = 4
+tlim = 1.0
+ndiag = 1
+
+<hydro>
+eos = ideal
+reconstruct = plm
+rsolver = llf
+gamma = 1.4
+
+<problem>
+pgen_name = hook_test
+user_dt = true
+user_work_in_loop = true
+user_hist = true
+test_dt = 0.01
+dens = 2.0
+pres = 4.0
+
+<output1>
+file_type = hst
+user_hist_only = true
+dcycle = 1
+
+<output2>
+file_type = prof
+variable = hydro_w_d
+coord_axis = x1
+bin_min = -1.0
+bin_max = 1.0
+nbin = 4
+logscale = false
+mass_weighted = false
+dcycle = 1
+id = dens_x1
+
+<output3>
+file_type = prof
+variable = hydro_w_d
+coord_axis = r
+radial_type = cylindrical
+cyl_axis = x3
+xc = 0.0
+yc = 0.0
+bin_min = 0.0
+bin_max = 1.5
+nbin = 3
+logscale = false
+mass_weighted = false
+dcycle = 1
+id = dens_cylr
+
+<output4>
+file_type = pdf
+variable = hydro_w_d
+bin_min = 1.0
+bin_max = 3.0
+nbin = 2
+logscale = false
+mass_weighted = true
+x1_min = -1.0
+x1_max = 0.0
+dcycle = 1
+id = dens_slab
