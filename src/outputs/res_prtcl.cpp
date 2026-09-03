@@ -343,11 +343,7 @@ void ParticleRestartOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
   // Write Z position data (real)
   {
     for (int p=0; p<npout_thisrank; ++p) {
-      if (pm->three_d) {
-        rdata[p] = static_cast<double>(outpart_rdata(IPZ,p));
-      } else {
-        rdata[p] = pm->mesh_size.x3min;
-      }
+      rdata[p] = static_cast<double>(outpart_rdata(IPZ,p));
     }
 
     std::size_t myoffset = header_offset +
