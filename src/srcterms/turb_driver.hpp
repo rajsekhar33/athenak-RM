@@ -9,7 +9,9 @@
 //  \brief defines turbulence driver class, which implements data and functions for
 //  randomly forced turbulence which evolves via an Ornstein-Uhlenbeck stochastic process
 
+#include <array>
 #include <memory>
+#include <vector>
 
 #include "athena.hpp"
 #include "mesh/mesh.hpp"
@@ -76,6 +78,11 @@ class TurbulenceDriver {
 
  private:
   MeshBlockPack *pmy_pack;  // ptr to MeshBlockPack containing this TurbulenceDriver
+
+  // Integer wavevector triplets (nkx,nky,nkz) driven by the turbulence forcing, built by
+  // BuildModeList(). mode_count == mode_list_.size().
+  std::vector<std::array<int,3>> mode_list_;
+  void BuildModeList();
 };
 
 #endif  // SRCTERMS_TURB_DRIVER_HPP_
