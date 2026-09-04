@@ -1,0 +1,181 @@
+# AthenaXXX input file for mhd turbulence
+# MHD variant matching the reference run at
+# /scratch/gpfs/QUATAERT/rmohapatra/turb_ti_build/rundir/data_from_Delta/n3e-3/MHD/sol_128_T1e6_n0_003_L1_dens_perturb_B_rand_only
+
+<comment>
+problem   = turbulence
+
+<job>
+basename  = Turb       # problem ID: basename of output filenames
+
+<mesh>
+nghost    = 4         # Number of ghost cells
+nx1       = 128        # Number of zones in X1-direction
+x1min     = -0.5      # minimum value of X1
+x1max     = 0.5       # maximum value of X1
+ix1_bc    = periodic  # Inner-X1 boundary condition flag
+ox1_bc    = periodic  # Outer-X1 boundary condition flag
+
+nx2       = 128        # Number of zones in X2-direction
+x2min     = -0.5      # minimum value of X2
+x2max     = 0.5       # maximum value of X2
+ix2_bc    = periodic  # Inner-X2 boundary condition flag
+ox2_bc    = periodic  # Outer-X2 boundary condition flag
+
+nx3       = 128        # Number of zones in X3-direction
+x3min     = -0.5      # minimum value of X3
+x3max     = 0.5       # maximum value of X3
+ix3_bc    = periodic  # Inner-X3 boundary condition flag
+ox3_bc    = periodic  # Outer-X3 boundary condition flag
+
+<meshblock>
+nx1       = 128        # Number of cells in each MeshBlock, X1-dir
+nx2       = 128        # Number of cells in each MeshBlock, X2-dir
+nx3       = 128        # Number of cells in each MeshBlock, X3-dir
+
+<time>
+evolution  = dynamic  # dynamic/kinematic/static
+integrator = rk3      # time integration algorithm
+cfl_number = 0.3      # The Courant, Friedrichs, & Lewy (CFL) Number
+nlim       = -1       # cycle limit (no limit if <0)
+tlim       = 2.0     # time limit
+ndiag      = 1       # cycles between diagostic output
+
+<mhd>
+eos         = ideal   # EOS type
+reconstruct = ppm4    # spatial reconstruction method
+rsolver     = hlld    # Riemann-solver to be used
+gamma       = 1.66666666667   # gamma = C_p/C_v
+nscalars    = 0       # number of passive scalars in hydro/mhd
+ism_cooling = false   # turn on ism cooling
+hrate       = 0.      # ism heating rate
+alpha_iso = 0.0  # isotropic thermal conductivity (renamed from 'conductivity' by 3c9a6400), 9.68e4 in cgs
+fofc       = true       # first-order flux correction
+
+dfloor      = 1e-6    # density floor
+pfloor      = 1e-8    # pressure floor
+tfloor      = 2.28e-3    # temperature floor in code units, = 10^1.2 K, scales with v0_cgs**2 - for 1.0 kpc and 100 Myr
+
+# for gravity
+const_accel       = false
+
+<units>
+length_cgs  = 3.0856775809623245e+21 # kpc
+mass_cgs    = 3.036951775493658e+39  # number density 0.1 cm^-3 when box size is 1 kpc
+time_cgs    = 3.15576e+15            # 100 Myr
+mu          = 0.6000317               # mean molecular weight
+
+<turb_driving>
+type = mhd
+tcorr = 0.0473          # ~ L / 2 pi urms
+dedt  = 0.15          # ~ urms^3 / 2 L
+nlow = 1
+nhigh = 3
+kpeak = 6.283185307179586 # (2*Pi/L)
+driving_type = 0 # 0 for 3D isotropic, 1 for xy plane
+spect_form = 1   # 1 for parabola, 2 for power-law
+dt_turb_update = 0.001
+dt_turb_thresh = 1e-5
+sol_fraction = 1.0
+tdriv_start = 0.0 # time to start the OU driving
+
+# <turb_init>
+# type  = mhd
+# tcorr = 0.0           # ~ L / 2 pi urms
+# dedt  = 100.0          # ~ urms^3 / 2 L
+# nlow  = 1
+# nhigh = 3
+# expo  = 0.0
+# n0    = 1             # normalization of wave number
+# turb_flag   = 1       # 1 for decaying
+# turb_count  = 1       # times of turbulence driving
+# seed  = 280496        # seed for generating random perturbations
+
+<dens_init>
+nlow = 1              # low wave number
+nhigh = 3             # high wave number
+expo = 1.66           # exponent of power-law
+spect_form = 2        # 1 for parabola, 2 for power-law
+amp = 0.5             # amplitude of logarithmic density perturbations
+
+# To generate initial turbulent magnetic fields
+<mag_init>
+inv_beta = 1e-2          # inverse plasma beta
+nlow  = 4
+nhigh = 12
+expo  = -1.66
+spect_form = 2      # 1 for parabolic, 2 for power-law
+mag_flag   = 2      # 2 for turbulent magnetic field, 0 for toroidal, 1 for poloidal
+amin = 0.0        # minimum radius of perturbation relative to r_in
+
+<problem>
+temp        = 1e6          # initial temperature in Kelvin
+temp_cold   = 15848.93192  # temperature of cold gas, 10^4.2K
+temp_hot    = 316227.76601 # temperature of hot gas, 1e5.5K
+temp_floor_cool = 1584.893 # temperature floor of the cooling function = 10^3.2 K
+use_temp_floor_cool = true # toggle the temperature floor on the cooling function
+use_temp_ceiling = true    # switch on use of a ceiling for temperature
+temp_ceiling  = 1e8        # value of temperature ceiling
+n0          = 3e-3         # initial density of ambient gas in particles per cc
+# hc_ratio    = 1.00       # ratio between inital heating and cooling rate
+hrate       = 0.0          # density dependent heating rate due to EUV
+cool_subc   = true         # turn on cooling with subcycling
+cool_subfac = 1.0          # ratio between cooling time and dt used for time stepping
+user_srcs   = true         # turn on user source terms
+ndiag       = 10           # diagnostic information
+user_hist   = true         # user history output
+user_dt     = true         # use user-defined time-step function (in this case it accounts for turbulence forcing updates)
+use_dens_ceiling_cool = true # switch on using density ceiling for the cooling function
+n0_ceiling_cool = 100.0    # value of n0 in particles per cc, above which we set cooling to zero
+seed_perturb = 280496      # random number seed for density fluctuations
+sigma_perturb = 0.00       # amplitude of initial relative density fluctuations
+use_equ_heating = true     # switch on/off equilibrium heating, which balances the radial cooling rate at every few cycles
+equ_heat_cycle  = 1        # equilibrium heating rate updated every ncycles
+equ_thot_only  = false     # Equilibrium heating will only balance gas above threshold temperature in Kelvin
+heat_weight    = 1         # 2 for emission-weighted heating, 1 for density-weighted heating, 0 for volume heating
+heat_fraction  = 1.0       # fraction of cooling rate to be balanced by equilibrium heating
+use_equ_heat_ceiling = false# Ceiling on maximum heating rate due to equilibrium heating
+equ_ceiling_factor = 1000.0# Ratio between maximum equlibrium heating rate and initial cooling rate
+const_ratio_equ_heating = false # Sets equ_heating to cooling*(1-hc_ratio) after each update
+user_work_in_loop = true   # turn on user work in loop - use diagnostics is called within user_work_in_loop
+# plasma_beta_uni = 200.0    # plasma beta
+
+<output1>
+file_type   = hst        # history data dump
+data_format = %12.15e     # Optional data format string
+dcycle      = 1          # cycle increment between outputs
+
+<output2>
+file_type   = log        # diagnostic data
+dcycle      = 1         # cycle increment between outputs
+
+<output3>
+file_type   = rst        # restart data dump
+dcycle      = 50000      # cycle increment between outputs
+dt_wall     = 3000       # wall-clock time interval between outputs
+
+<output4>
+file_type   = bin        # restart data dump
+variable    = mhd_w_bcc  # variables to be output
+dt          = 0.01       # time increment between outputs
+
+<output5>
+file_type  = bin            # Binary data dump
+slice_x1   = 0.0            # slice in X1 plane
+id         = slice_x1       # output id tag
+variable   = mhd_w_bcc        # variables to be output
+dt         = 0.002          # time increment between outputs
+
+<output6>
+file_type  = bin            # Binary data dump
+slice_x2   = 0.0            # slice in X2 plane
+id         = slice_x2       # output id tag
+variable   = mhd_w_bcc        # variables to be output
+dt         = 0.002          # time increment between outputs
+
+<output7>
+file_type  = bin            # Binary data dump
+slice_x3   = 0.0            # slice in X3 plane
+id         = slice_x3       # output id tag
+variable   = mhd_w_bcc        # variables to be output
+dt         = 0.002          # time increment between outputs
