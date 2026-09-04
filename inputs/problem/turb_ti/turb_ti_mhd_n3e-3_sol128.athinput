@@ -78,6 +78,7 @@ dt_turb_update = 0.001
 dt_turb_thresh = 1e-5
 sol_fraction = 1.0
 tdriv_start = 0.0 # time to start the OU driving
+restart_forcing = false # recompute the forcing array from the seed on restart, rather than storing/restoring it
 
 # <turb_init>
 # type  = mhd
