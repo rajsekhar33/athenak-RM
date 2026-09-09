@@ -148,6 +148,7 @@ add_executable(
 
         pgen/unit_tests/eos_compose.cpp
         pgen/unit_tests/gauss_legendre.cpp
+        pgen/unit_tests/marching_cubes.cpp
 
         radiation/radiation.cpp
         radiation/radiation_fluxes.cpp
@@ -201,7 +202,18 @@ add_executable(
         z4c/z4c_wave_extr.cpp
         z4c/z4c_amr.cpp
         z4c/cce/cce.cpp
+        z4c/driftcontrol/driftcontrol.cpp
 )
+
+# These pgens are available by name in built_in_pgens builds. Their source files
+# retain a UserProblem() compatibility wrapper for -D PROBLEM=... builds, so a
+# custom build must compile only its explicitly selected source file below.
+if (${PROBLEM} STREQUAL "built_in_pgens")
+  target_sources(athena PRIVATE
+      pgen/tests/hook_test.cpp
+      pgen/fluids/turb.cpp
+  )
+endif()
 
 # custom problem generator to be included in compile
 # specify on command line using '-D PROBLEM=file' where 'file' is name of file in

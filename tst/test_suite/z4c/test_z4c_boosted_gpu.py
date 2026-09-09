@@ -47,7 +47,7 @@ def test_run():
         mxnorm = data["Mx-norm2"][3]
         mynorm = data["My-norm2"][3]
         mznorm = data["Mz-norm2"][3]
-        tnorm = data["Theta-norm"][3]
+        tnorm = data["Theta-norm2"][3]
         hrms = horizon["hrms"][-1]
         if cnorm > maxerrors["C-norm"]:
             pytest.fail(

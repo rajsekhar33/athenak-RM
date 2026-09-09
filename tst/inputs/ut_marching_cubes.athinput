@@ -1,0 +1,50 @@
+# AthenaK input file for the marching-cubes temperature-isosurface functional test.
+# The T=1 surface is the x1=0 plane.  It has analytic physical area Lx2*Lx3=15.
+
+<job>
+basename = marching_cubes_temperature_test
+
+<mesh>
+nghost = 2
+nx1 = 8
+x1min = -1.0
+x1max = 1.0
+ix1_bc = outflow
+ox1_bc = outflow
+
+nx2 = 32
+x2min = -1.5
+x2max = 1.5
+ix2_bc = periodic
+ox2_bc = periodic
+
+nx3 = 32
+x3min = -2.5
+x3max = 2.5
+ix3_bc = periodic
+ox3_bc = periodic
+
+<meshblock>
+# Keep x1 in one MeshBlock; x2/x3 create 8*8=64 blocks for MPI ownership coverage.
+nx1 = 8
+nx2 = 4
+nx3 = 4
+
+<time>
+# Hydro's LLF solver requires dynamic evolution.  nlim=0 still performs no
+# timestep: it constructs the Hydro state, runs the functional pgen once, and exits.
+evolution = dynamic
+integrator = rk2
+cfl_number = 0.4
+nlim = 0
+tlim = 0.0
+ndiag = 1
+
+<hydro>
+eos = ideal
+reconstruct = plm
+rsolver = llf
+gamma = 1.6666666666666667
+
+<problem>
+pgen_name = marching_cubes

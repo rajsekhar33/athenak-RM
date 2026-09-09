@@ -5,11 +5,11 @@
 //========================================================================================
 //! \file hook_test.cpp
 //! \brief minimal validation pgen for the UserWorkInLoop/user_dt hook mechanism.
-//! Uniform hydro medium at rest; UserTimeStep clamps dt to a fixed input value,
-//! UserWorkInLoop counts how many times it is called per rank. Both are exposed
+//! Uniform hydro medium at rest; UserTimeStep provides a fixed raw timestep cap
+//! (to which the global CFL factor is subsequently applied), and UserWorkInLoop
+//! counts how many times it is called per rank. Both are exposed
 //! via a custom history output so a completed run's .hst file can confirm the
 //! hooks actually fired every cycle and the timestep was actually clamped.
-//! Not a permanent regression test; intended for one-off validation runs.
 
 #include <limits>
 
@@ -34,10 +34,10 @@ void UserHistOutput(HistoryData *pdata, Mesh *pm);
 } // namespace
 
 //----------------------------------------------------------------------------------------
-//! \fn void ProblemGenerator::UserProblem()
+//! \fn void ProblemGenerator::HookTest()
 //! \brief Minimal problem for validating UserWorkInLoop/user_dt hooks.
 
-void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
+void ProblemGenerator::HookTest(ParameterInput *pin, const bool restart) {
   phook = new pgen_hook_test();
   phook->test_dt = pin->GetOrAddReal("problem", "test_dt", 1.0e-3);
   phook->workinloop_calls = 0;
@@ -93,11 +93,18 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   return;
 }
 
+#if USER_PROBLEM_ENABLED
+// Preserve the custom-pgen entry point for existing -D PROBLEM=tests/hook_test builds.
+void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
+  HookTest(pin, restart);
+}
+#endif
+
 namespace {
 //----------------------------------------------------------------------------------------
 //! \fn void UserTimeStep()
-//! \brief clamps the timestep to a fixed input value, deliberately smaller than the
-//! CFL-limited hydro/mhd dt, so a working user_dt clamp is directly observable.
+//! \brief provides a raw timestep cap deliberately below the hydro/mhd limit;
+//! Mesh::NewTimeStep applies the configured CFL factor to it.
 void UserTimeStep(Mesh *pm) {
   pm->pgen->dtnew = phook->test_dt;
   return;

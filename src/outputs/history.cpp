@@ -151,8 +151,12 @@ void HistoryOutput::LoadHydroHistoryData(HistoryData *pdata, Mesh *pm) {
       hvars.the_array[nhydro_+3+s] = vol*u0_(m,nhydro_+s,k,j,i);
     }
 
-    // fill rest of the_array with zeros, if nhist < NHISTORY_VARIABLES
-    for (int n=nhist_; n<NHISTORY_VARIABLES; ++n) {
+    // fill rest of the_array with zeros, if nhist < NREDUCTION_VARIABLES. Bound
+    // by NREDUCTION_VARIABLES, not NHISTORY_VARIABLES: hvars.the_array itself is
+    // only NREDUCTION_VARIABLES elements (array_sum::GlobalSum's fixed size), so
+    // looping up to NHISTORY_VARIABLES writes past the end of the array whenever
+    // NHISTORY_VARIABLES > NREDUCTION_VARIABLES.
+    for (int n=nhist_; n<NREDUCTION_VARIABLES; ++n) {
       hvars.the_array[n] = 0.0;
     }
 
@@ -247,8 +251,12 @@ void HistoryOutput::LoadZ4cHistoryData(HistoryData *pdata, Mesh *pm) {
       hvars.the_array[8] = 0;
     }
 
-    // fill rest of the_array with zeros, if nhist < NHISTORY_VARIABLES
-    for (int n=nhist_; n<NHISTORY_VARIABLES; ++n) {
+    // fill rest of the_array with zeros, if nhist < NREDUCTION_VARIABLES. Bound
+    // by NREDUCTION_VARIABLES, not NHISTORY_VARIABLES: hvars.the_array itself is
+    // only NREDUCTION_VARIABLES elements (array_sum::GlobalSum's fixed size), so
+    // looping up to NHISTORY_VARIABLES writes past the end of the array whenever
+    // NHISTORY_VARIABLES > NREDUCTION_VARIABLES.
+    for (int n=nhist_; n<NREDUCTION_VARIABLES; ++n) {
       hvars.the_array[n] = 0.0;
     }
 
@@ -357,8 +365,12 @@ void HistoryOutput::LoadMHDHistoryData(HistoryData *pdata, Mesh *pm) {
       hvars.the_array[nmhd_+6+s] = vol*u0_(m,nmhd_+s,k,j,i);
     }
 
-    // fill rest of the_array with zeros, if nhist < NHISTORY_VARIABLES
-    for (int n=nhist_; n<NHISTORY_VARIABLES; ++n) {
+    // fill rest of the_array with zeros, if nhist < NREDUCTION_VARIABLES. Bound
+    // by NREDUCTION_VARIABLES, not NHISTORY_VARIABLES: hvars.the_array itself is
+    // only NREDUCTION_VARIABLES elements (array_sum::GlobalSum's fixed size), so
+    // looping up to NHISTORY_VARIABLES writes past the end of the array whenever
+    // NHISTORY_VARIABLES > NREDUCTION_VARIABLES.
+    for (int n=nhist_; n<NREDUCTION_VARIABLES; ++n) {
       hvars.the_array[n] = 0.0;
     }
 
@@ -430,7 +442,7 @@ void HistoryOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
         std::fprintf(pfile,"#  [%d]=time      ", iout++);
         std::fprintf(pfile,"[%d]=dt       ", iout++);
         for (int n=0; n<data.nhist; ++n) {
-          std::fprintf(pfile,"[%d]=%.10s    ", iout++, data.label[n].c_str());
+          std::fprintf(pfile,"[%d]=%.20s    ", iout++, data.label[n].c_str());
         }
         std::fprintf(pfile,"\n");                              // terminate line
         data.header_written = true;

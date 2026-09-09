@@ -1,0 +1,71 @@
+# 2D periodic advection exercises classical, MC, and Ito-2 mass tracers.
+
+<job>
+basename = PublicParticles
+
+<mesh>
+nghost = 2
+nx1 = 8
+x1min = 0.0
+x1max = 1.0
+ix1_bc = periodic
+ox1_bc = periodic
+nx2 = 8
+x2min = 0.0
+x2max = 1.0
+ix2_bc = periodic
+ox2_bc = periodic
+nx3 = 1
+x3min = -0.5
+x3max = 0.5
+ix3_bc = periodic
+ox3_bc = periodic
+
+<meshblock>
+nx1 = 4
+nx2 = 4
+nx3 = 1
+
+<time>
+evolution = dynamic
+integrator = rk2
+cfl_number = 0.2
+nlim = 4
+tlim = 1.0
+ndiag = 1
+
+<hydro>
+eos = isothermal
+iso_sound_speed = 0.1
+reconstruct = plm
+rsolver = llf
+
+<problem>
+pgen_name = advection
+flow_dir = 1
+iproblem = 1
+velocity = 0.1
+advect_dens = false
+
+<particles>
+particle_type = mass_tracer
+pusher = classical
+ppc = 32.0
+target_count = 1024
+uniform_by_volume = true
+random_positions = false
+pos_init_seed = 1729
+random_seed = 314159
+
+<output1>
+file_type = pbin
+variable = prtcl_dens_temp
+dcycle = 2
+
+<output2>
+file_type = rst
+dcycle = 2
+
+<output3>
+file_type = prst
+dcycle = 2

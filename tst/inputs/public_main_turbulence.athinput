@@ -1,0 +1,67 @@
+# Small driven-turbulence restart regression.  Deliberately no hydro_srcterms block:
+# TurbulenceDriver owns its update-time cap independently.
+
+<job>
+basename = PublicTurbulence
+
+<mesh>
+nghost = 2
+nx1 = 8
+x1min = 0.0
+x1max = 1.0
+ix1_bc = periodic
+ox1_bc = periodic
+nx2 = 8
+x2min = 0.0
+x2max = 1.0
+ix2_bc = periodic
+ox2_bc = periodic
+nx3 = 8
+x3min = 0.0
+x3max = 1.0
+ix3_bc = periodic
+ox3_bc = periodic
+
+<meshblock>
+nx1 = 4
+nx2 = 4
+nx3 = 4
+
+<time>
+evolution = dynamic
+integrator = rk2
+cfl_number = 0.3
+nlim = 8
+tlim = 0.2
+ndiag = 1
+
+<hydro>
+eos = ideal
+reconstruct = plm
+rsolver = llf
+gamma = 1.6666666666666667
+
+<problem>
+pgen_name = turbulence
+d_n = 1.0
+
+<turb_driving>
+nlow = 1
+nhigh = 2
+driving_type = 0
+random_seed = 271828
+dedt = 0.02
+tcorr = 0.05
+dt_turb_update = 0.01
+dt_turb_thresh = 0.0001
+sol_fraction = 1.0
+turb_flag = 2
+restart_forcing = true
+
+<output1>
+file_type = hst
+dcycle = 1
+
+<output2>
+file_type = rst
+dcycle = 2
