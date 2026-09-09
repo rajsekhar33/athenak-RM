@@ -1,0 +1,69 @@
+# Driven-turbulence isotropy regression: dumps the raw force field after the first two
+# cycles so the forcing (not the fluid response) can be checked directly for spurious
+# cross-component correlation. Uses a [4,7] mode shell (584 modes), not
+# public_main_turbulence.athinput's [1,2] shell: with only 16 modes the per-snapshot
+# sample correlation is dominated by finite-mode-count noise, not the sampling defect.
+# nx=16 in each direction satisfies the Nyquist bound (nx >= 2*nhigh) needed to resolve
+# k=7 modes.
+
+<job>
+basename = TurbulenceIsotropyCheck
+
+<mesh>
+nghost = 2
+nx1 = 16
+x1min = 0.0
+x1max = 1.0
+ix1_bc = periodic
+ox1_bc = periodic
+nx2 = 16
+x2min = 0.0
+x2max = 1.0
+ix2_bc = periodic
+ox2_bc = periodic
+nx3 = 16
+x3min = 0.0
+x3max = 1.0
+ix3_bc = periodic
+ox3_bc = periodic
+
+<meshblock>
+nx1 = 8
+nx2 = 8
+nx3 = 8
+
+<time>
+evolution = dynamic
+integrator = rk2
+cfl_number = 0.3
+nlim = 2
+tlim = 0.2
+ndiag = 1
+
+<hydro>
+eos = ideal
+reconstruct = plm
+rsolver = llf
+gamma = 1.6666666666666667
+
+<problem>
+pgen_name = turbulence
+d_n = 1.0
+
+<turb_driving>
+nlow = 4
+nhigh = 7
+driving_type = 0
+random_seed = 271828
+dedt = 0.02
+tcorr = 0.05
+dt_turb_update = 0.01
+dt_turb_thresh = 0.0001
+sol_fraction = 1.0
+turb_flag = 2
+restart_forcing = true
+
+<output1>
+file_type = bin
+variable = turb_force
+dcycle = 1
