@@ -122,35 +122,10 @@ TurbulenceDriver::TurbulenceDriver(MeshBlockPack *pp, ParameterInput *pin) :
   }
   n_turb_updates_yet = 0;
 
-  Real nlow_sqr = nlow*nlow;
-  Real nhigh_sqr = nhigh*nhigh;
-
-  mode_count = 0;
-
-  int nkx, nky, nkz;
-  Real nsqr;
-  for (nkx = 0; nkx <= nhigh; nkx++) {
-    for (nky = 0; nky <= nhigh; nky++) {
-      for (nkz = min_kz; nkz <= max_kz; nkz++) {
-        if (nkx == 0 && nky == 0 && nkz == 0) continue;
-        nsqr = 0.0;
-        bool flag_prl = true;
-        if (driving_type == 0) {
-          nsqr = SQR(nkx) + SQR(nky) + SQR(nkz);
-        } else if (driving_type == 1) {
-          nsqr = SQR(nkx) + SQR(nky);
-          Real nprlsqr = SQR(nkz);
-          if (nprlsqr >= nlow_sqr && nprlsqr <= nhigh_sqr) {
-            flag_prl = true;
-          } else {
-            flag_prl = false;
-          }
-        }
-        if (nsqr >= nlow_sqr && nsqr <= nhigh_sqr && flag_prl) {
-          mode_count++;
-        }
-      }
-    }
+  BuildModeList();
+  mode_count = static_cast<int>(mode_list_.size());
+  if (global_variable::my_rank == 0) {
+    std::cout << " mode_count = " << mode_count << std::endl;
   }
 
   Kokkos::realloc(aka, 3, mode_count); // Amplitude of real component
@@ -174,6 +149,56 @@ TurbulenceDriver::TurbulenceDriver(MeshBlockPack *pp, ParameterInput *pin) :
 // destructor
 
 TurbulenceDriver::~TurbulenceDriver() {
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn  void TurbulenceDriver::BuildModeList
+//  \brief Builds mode_list_, the integer wavevector triplets (nkx,nky,nkz) driven by the
+//  turbulence forcing. driving_type=0 samples the full signed lattice, keeping exactly
+//  one member of every +-k pair (lexicographic tie-break); driving_type=1 samples only
+//  the nonnegative nkx,nky octant.
+
+void TurbulenceDriver::BuildModeList() {
+  mode_list_.clear();
+  int nlow_sqr = nlow*nlow;
+  int nhigh_sqr = nhigh*nhigh;
+
+  if (driving_type == 0) {
+    for (int nkx = -nhigh; nkx <= nhigh; nkx++) {
+      for (int nky = -nhigh; nky <= nhigh; nky++) {
+        for (int nkz = -nhigh; nkz <= nhigh; nkz++) {
+          if (nkx == 0 && nky == 0 && nkz == 0) continue;
+          bool keep = (nkx > 0) || (nkx == 0 && nky > 0) ||
+                      (nkx == 0 && nky == 0 && nkz > 0);
+          if (!keep) continue;
+          int nsqr = nkx*nkx + nky*nky + nkz*nkz;
+          if (nsqr < nlow_sqr || nsqr > nhigh_sqr) continue;
+          // min_kz/max_kz bound |kz|, since nkz ranges over signed values here
+          int abs_nkz = std::abs(nkz);
+          if (abs_nkz < min_kz || abs_nkz > max_kz) continue;
+          mode_list_.push_back({nkx, nky, nkz});
+        }
+      }
+    }
+  } else {
+    for (int nkx = 0; nkx <= nhigh; nkx++) {
+      for (int nky = 0; nky <= nhigh; nky++) {
+        for (int nkz = min_kz; nkz <= max_kz; nkz++) {
+          if (nkx == 0 && nky == 0 && nkz == 0) continue;
+          int nsqr = 0;
+          bool flag_prl = true;
+          if (driving_type == 1) {
+            nsqr = nkx*nkx + nky*nky;
+            int nprlsqr = nkz*nkz;
+            flag_prl = (nprlsqr >= nlow_sqr && nprlsqr <= nhigh_sqr);
+          }
+          if (nsqr >= nlow_sqr && nsqr <= nhigh_sqr && flag_prl) {
+            mode_list_.push_back({nkx, nky, nkz});
+          }
+        }
+      }
+    }
+  }
 }
 
 //----------------------------------------------------------------------------------------
@@ -223,39 +248,14 @@ void TurbulenceDriver::Initialize() {
   dky = 2.0*M_PI/ly;
   dkz = 2.0*M_PI/lz;
 
-  int nmode = 0;
-  int nkx, nky, nkz;
-  Real nsqr;
-  Real nlow_sqr = nlow*nlow;
-  Real nhigh_sqr = nhigh*nhigh;
-  for (nkx = 0; nkx <= nhigh; nkx++) {
-    for (nky = 0; nky <= nhigh; nky++) {
-      for (nkz = min_kz; nkz <= max_kz; nkz++) {
-        if (nkx == 0 && nky == 0 && nkz == 0) continue;
-        nsqr = 0.0;
-        bool flag_prl = true;
-        if (driving_type == 0) {
-          nsqr = SQR(nkx) + SQR(nky) + SQR(nkz);
-        } else if (driving_type == 1) {
-          nsqr = SQR(nkx) + SQR(nky);
-          Real nprlsqr = SQR(nkz);
-          if (nprlsqr >= nlow_sqr && nprlsqr <= nhigh_sqr) {
-            flag_prl = true;
-          } else {
-            flag_prl = false;
-          }
-        }
-        if (nsqr >= nlow_sqr && nsqr <= nhigh_sqr && flag_prl) {
-          kx = dkx*nkx;
-          ky = dky*nky;
-          kz = dkz*nkz;
-          kx_mode_.h_view(nmode) = kx;
-          ky_mode_.h_view(nmode) = ky;
-          kz_mode_.h_view(nmode) = kz;
-          nmode++;
-        }
-      }
-    }
+  for (int nmode = 0; nmode < mode_count; nmode++) {
+    auto &trip = mode_list_[nmode];
+    kx = dkx*trip[0];
+    ky = dky*trip[1];
+    kz = dkz*trip[2];
+    kx_mode_.h_view(nmode) = kx;
+    ky_mode_.h_view(nmode) = ky;
+    kz_mode_.h_view(nmode) = kz;
   }
 
   kx_mode_.template modify<HostMemSpace>();
@@ -366,8 +366,6 @@ TaskStatus TurbulenceDriver::InitializeModes(Driver *pdrive, int stage) {
   Real current_time=pm->time;
   int n_turb_updates_reqd = static_cast<int>(current_time/dt_turb_update) + 1;
 
-  int nlow_sqr = SQR(nlow);
-  int nhigh_sqr = SQR(nhigh);
   auto mode_count_ = mode_count;
 
   auto aka_ = aka;
@@ -411,93 +409,71 @@ TaskStatus TurbulenceDriver::InitializeModes(Driver *pdrive, int stage) {
       });
 
       int no_dir=3;
-      int nmode = 0;
-      int nkx, nky, nkz, nsqr;
 
-      for (nkx = 0; nkx <= nhigh; nkx++) {
-        for (nky = 0; nky <= nhigh; nky++) {
-          for (nkz = min_kz; nkz <= max_kz; nkz++) {
-            if (nkx == 0 && nky == 0 && nkz == 0) continue;
+      for (int nmode = 0; nmode < mode_count_; nmode++) {
+        auto &trip = mode_list_[nmode];
+        int nkx = trip[0], nky = trip[1], nkz = trip[2];
+        norm = 0.0;
+        kx = dkx*nkx;
+        ky = dky*nky;
+        kz = dkz*nkz;
+
+        Real k[3] = {kx, ky, kz};
+        // Generate Fourier amplitudes
+        if (driving_type == 0) {
+          kiso = sqrt(SQR(kx) + SQR(ky) + SQR(kz));
+          if (kiso > 1e-16) {
+            if (spect_form==2) {
+              norm = 1.0/pow(kiso,(ex+2.0)/2.0); // power-law driving
+            } else if (spect_form==1) {
+              // parabola in k-space
+              norm = fabs(parab_prefact*pow(kiso-k_peak,2.0)+1.0);
+              norm = pow(norm,0.5) *
+                     pow(k_peak/kiso, (static_cast<int>(no_dir)-1)/2.);
+            } else {
+              norm = 0.0;
+            }
+          } else {
             norm = 0.0;
-            nsqr = 0.0;
-            bool flag_prl = true;
-            if (driving_type == 0) {
-              nsqr = SQR(nkx) + SQR(nky) + SQR(nkz);
-            } else if (driving_type == 1) {
-              nsqr = SQR(nkx) + SQR(nky);
-              Real nprlsqr = SQR(nkz);
-              if (nprlsqr >= nlow_sqr && nprlsqr <= nhigh_sqr) {
-                flag_prl = true;
-              } else {
-                flag_prl = false;
-              }
+          }
+        } else if (driving_type == 1) {
+          no_dir = 2;
+          kprl = sqrt(SQR(kx));
+          kprp = sqrt(SQR(ky) + SQR(kz));
+          if (kprl > 1e-16 && kprp > 1e-16) {
+            if (spect_form==2) {
+              norm = 1.0/pow(kprp,(ex_prp+1.0)/2.0)/pow(kprl,ex_prl/2.0);
+            } else if (spect_form==1) {
+              // parabola in kperp-space
+              norm = fabs(parab_prefact*pow(kprp-k_peak,2.0)+1.0);
+              norm = pow(norm,0.5) *
+                     pow(k_peak/kprp, (static_cast<int>(no_dir)-1)/2.);
             }
-            if (nsqr >= nlow_sqr && nsqr <= nhigh_sqr && flag_prl) {
-              kx = dkx*nkx;
-              ky = dky*nky;
-              kz = dkz*nkz;
+          } else {
+            norm = 0.0;
+          }
+        }
+        Real ka = 0.0;
+        Real kb = 0.0;
 
-              Real k[3] = {kx, ky, kz};
-              // Generate Fourier amplitudes
-              if (driving_type == 0) {
-                kiso = sqrt(SQR(kx) + SQR(ky) + SQR(kz));
-              if (kiso > 1e-16) {
-                if (spect_form==2) {
-                  norm = 1.0/pow(kiso,(ex+2.0)/2.0); // power-law driving
-                } else if (spect_form==1) {
-                  // parabola in k-space
-                  norm = fabs(parab_prefact*pow(kiso-k_peak,2.0)+1.0);
-                  norm = pow(norm,0.5) *
-                         pow(k_peak/kiso, (static_cast<int>(no_dir)-1)/2.);
-                } else {
-                norm = 0.0;
-                }
-              } else {
-                norm = 0.0;
-              }
-              } else if (driving_type == 1) {
-                no_dir = 2;
-                kprl = sqrt(SQR(kx));
-                kprp = sqrt(SQR(ky) + SQR(kz));
-                if (kprl > 1e-16 && kprp > 1e-16) {
-                  if (spect_form==2) {
-                    norm = 1.0/pow(kprp,(ex_prp+1.0)/2.0)/pow(kprl,ex_prl/2.0);
-                  } else if (spect_form==1) {
-                    // parabola in kperp-space
-                    norm = fabs(parab_prefact*pow(kprp-k_peak,2.0)+1.0);
-                    norm = pow(norm,0.5) *
-                           pow(k_peak/kprp, (static_cast<int>(no_dir)-1)/2.);
-                  }
-                } else {
-                  norm = 0.0;
-                }
-              }
-              Real ka = 0.0;
-              Real kb = 0.0;
+        for (int dir = 0; dir < no_dir; dir ++) {
+          aka_.h_view(dir,nmode) = norm*RanGaussianSt(&(rstate));
+          akb_.h_view(dir,nmode) = norm*RanGaussianSt(&(rstate));
 
-              for (int dir = 0; dir < no_dir; dir ++) {
-                aka_.h_view(dir,nmode) = norm*RanGaussianSt(&(rstate));
-                akb_.h_view(dir,nmode) = norm*RanGaussianSt(&(rstate));
+          ka = ka + k[dir]*akb_.h_view(dir,nmode);
+          kb = kb + k[dir]*aka_.h_view(dir,nmode);
+        }
 
-                ka = ka + k[dir]*akb_.h_view(dir,nmode);
-                kb = kb + k[dir]*aka_.h_view(dir,nmode);
-              }
+        // Now decompose into solenoidal/compressive modes
+        if(norm > 0.) {
+          for (int dir = 0; dir < no_dir; dir ++) {
+            Real diva = k[dir]*ka/SQR(kiso);
+            Real divb = k[dir]*kb/SQR(kiso);
 
-              // Now decompose into solenoidal/compressive modes
-              if(norm > 0.) {
-                for (int dir = 0; dir < no_dir; dir ++) {
-                  Real diva = k[dir]*ka/SQR(kiso);
-                  Real divb = k[dir]*kb/SQR(kiso);
-
-                  Real curla = aka_.h_view(dir,nmode) - divb;
-                  Real curlb = akb_.h_view(dir,nmode) - diva;
-                  aka_.h_view(dir,nmode) = sol_fraction*curla+(1.0-sol_fraction)*divb;
-                  akb_.h_view(dir,nmode) = sol_fraction*curlb+(1.0-sol_fraction)*diva;
-                }
-              }
-
-              nmode++;
-            }
+            Real curla = aka_.h_view(dir,nmode) - divb;
+            Real curlb = akb_.h_view(dir,nmode) - diva;
+            aka_.h_view(dir,nmode) = sol_fraction*curla+(1.0-sol_fraction)*divb;
+            akb_.h_view(dir,nmode) = sol_fraction*curlb+(1.0-sol_fraction)*diva;
           }
         }
       }
