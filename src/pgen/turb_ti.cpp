@@ -62,7 +62,6 @@
 #include "units/units.hpp"
 #include "utils/random.hpp"
 #include "srcterms/turb_driver.hpp"
-#include "turb_init.hpp"
 #include "mag_init.hpp"
 #include "densfluc_init.hpp"
 // #include "srcterms/TurbGen.h"
@@ -397,16 +396,6 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     } // end uniform magnetic field
 
     pmbp->pmhd->peos->ConsToPrim(u0, b0_, w0, bcc0_, false, 0, n1m1, 0, n2m1, 0, n3m1);
-  }
-  // Initialise the turbulent initial velocities module
-  for (auto it = pin->block.begin(); it != pin->block.end(); ++it) {
-    if (it->block_name.compare(0, 9, "turb_init") == 0) {
-      TurbulenceInit *pturb_init;
-      pturb_init = new TurbulenceInit(it->block_name,pmbp, pin);
-      pturb_init->InitializeModes(1);
-      pturb_init->AddForcing(1);
-      delete pturb_init;
-    }
   }
   // Initialise the turbulent initial density fluctuations module
   for (auto it = pin->block.begin(); it != pin->block.end(); ++it) {

@@ -9,8 +9,10 @@
 //  \brief defines Mag Init class, which implements data and functions for
 //  poloidal/toroidal/randomly seeded turbulent magnetic field
 
+#include <array>
 #include <iostream>
 #include <memory>
+#include <vector>
 
 #include "athena.hpp"
 #include "mesh/mesh.hpp"
@@ -45,10 +47,14 @@ class MagInit {
   TaskStatus InitializeAVecModes(int stage);
   TaskStatus InitMagField(int stage);
   void Initialize();
+  void BuildModeList();
 
  private:
   bool first_time = true;   // flag to enable initialization on first call
   MeshBlockPack *pmy_pack;  // ptr to MeshBlockPack containing this MagInit
+  // integer wavevector triplets (nkx,nky,nkz) sampled for the turbulent field, built by
+  // BuildModeList(). mode_count == mode_list_.size().
+  std::vector<std::array<int,3>> mode_list_;
 };
 
 
@@ -93,25 +99,11 @@ MagInit::MagInit(MeshBlockPack *pp, ParameterInput *pin) :
   if (global_variable::my_rank == 0) {
     std::cout << "Initializing non-uniform Magnetic fields module" << std::endl;
   }
-  Real nlow_sqr = nlow*nlow;
-  Real nhigh_sqr = nhigh*nhigh;
-
   mode_count = 0;
 
-  int nkx, nky, nkz;
-  Real nsqr;
   if(mag_flag>1) {
-    for (nkx = 0; nkx <= nhigh; nkx++) {
-      for (nky = 0; nky <= nhigh; nky++) {
-        for (nkz = 0; nkz <= nhigh; nkz++) {
-          if (nkx == 0 && nky == 0 && nkz == 0) continue;
-          nsqr = SQR(nkx) + SQR(nky) + SQR(nkz);
-          if (nsqr >= nlow_sqr && nsqr <= nhigh_sqr) {
-            mode_count++;
-          }
-        }
-      }
-    }
+    BuildModeList();
+    mode_count = static_cast<int>(mode_list_.size());
 
     Kokkos::realloc(aka, 3, mode_count); // Amplitude of real component
     Kokkos::realloc(akb, 3, mode_count); // Amplitude of imaginary component
@@ -135,6 +127,32 @@ MagInit::MagInit(MeshBlockPack *pp, ParameterInput *pin) :
 // destructor
 
 MagInit::~MagInit() {
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn  void MagInit::BuildModeList
+//  \brief Builds mode_list_, the integer wavevector triplets (nkx,nky,nkz) for the
+//  turbulent field. Samples the full signed lattice, keeping exactly one member of
+//  every +-k pair, so the resulting field has no spurious cross-component correlation
+//  (matching the fix applied to TurbulenceDriver::BuildModeList in turb_driver.cpp).
+
+void MagInit::BuildModeList() {
+  mode_list_.clear();
+  int nlow_sqr = nlow*nlow;
+  int nhigh_sqr = nhigh*nhigh;
+  for (int nkx = -nhigh; nkx <= nhigh; nkx++) {
+    for (int nky = -nhigh; nky <= nhigh; nky++) {
+      for (int nkz = -nhigh; nkz <= nhigh; nkz++) {
+        if (nkx == 0 && nky == 0 && nkz == 0) continue;
+        bool keep = (nkx > 0) || (nkx == 0 && nky > 0) ||
+                    (nkx == 0 && nky == 0 && nkz > 0);
+        if (!keep) continue;
+        int nsqr = nkx*nkx + nky*nky + nkz*nkz;
+        if (nsqr < nlow_sqr || nsqr > nhigh_sqr) continue;
+        mode_list_.push_back({nkx, nky, nkz});
+      }
+    }
+  }
 }
 
 //----------------------------------------------------------------------------------------
@@ -176,27 +194,14 @@ void MagInit::Initialize() {
   dky = 2.0*M_PI/ly;
   dkz = 2.0*M_PI/lz;
 
-  int nmode = 0;
-  int nkx, nky, nkz;
-  Real nsqr;
-  Real nlow_sqr = nlow*nlow;
-  Real nhigh_sqr = nhigh*nhigh;
-  for (nkx = 0; nkx <= nhigh; nkx++) {
-    for (nky = 0; nky <= nhigh; nky++) {
-      for (nkz = 0; nkz <= nhigh; nkz++) {
-        if (nkx == 0 && nky == 0 && nkz == 0) continue;
-        nsqr = SQR(nkx) + SQR(nky) + SQR(nkz);
-        if (nsqr >= nlow_sqr && nsqr <= nhigh_sqr) {
-          kx = dkx*nkx;
-          ky = dky*nky;
-          kz = dkz*nkz;
-          kx_mode_.h_view(nmode) = kx;
-          ky_mode_.h_view(nmode) = ky;
-          kz_mode_.h_view(nmode) = kz;
-          nmode++;
-        }
-      }
-    }
+  for (int nmode = 0; nmode < mode_count; nmode++) {
+    auto &trip = mode_list_[nmode];
+    kx = dkx*trip[0];
+    ky = dky*trip[1];
+    kz = dkz*trip[2];
+    kx_mode_.h_view(nmode) = kx;
+    ky_mode_.h_view(nmode) = ky;
+    kz_mode_.h_view(nmode) = kz;
   }
 
   kx_mode_.template modify<HostMemSpace>();
@@ -270,8 +275,6 @@ TaskStatus MagInit::InitializeAVecModes(int) {
   int ncells2 = (nx2 > 1)? (nx2 + 2*(ng)) : 1;
   int ncells3 = (nx3 > 1)? (nx3 + 2*(ng)) : 1;
 
-  int nlow_sqr = SQR(nlow);
-  int nhigh_sqr = SQR(nhigh);
   auto mode_count_ = mode_count;
 
   auto aka_ = aka;
@@ -335,64 +338,50 @@ TaskStatus MagInit::InitializeAVecModes(int) {
 
     // if (global_variable::my_rank == 0) std::cout << "force_tmp2_ zeroed." << std::endl;
 
-    int nmode = 0;
-    int nkx, nky, nkz, nsqr;
+    for (int nmode = 0; nmode < mode_count_; nmode++) {
+      auto &trip = mode_list_[nmode];
+      kx = dkx*trip[0];
+      ky = dky*trip[1];
+      kz = dkz*trip[2];
+      Real k[3] = {kx, ky, kz};
+      // Generate Fourier amplitudes
+      kiso = sqrt(SQR(kx) + SQR(ky) + SQR(kz));
+      if (kiso > 1e-16) {
+        if (spect_form==2) {
+          norm = 1.0/pow(kiso,(ex+2.0)/2.0); // power-law driving
+        } else if (spect_form==1) {
+          norm = fabs(parab_prefact*pow(kiso-k_peak,2.0)+1.0);// parabola in k-space
+          norm = pow(norm,0.5) * pow(k_peak/kiso, (static_cast<int>(no_dir)-1)/2.);
+        } else {
+        norm = 0.0;
+        }
+      } else {
+        norm = 0.0;
+      }
 
-    for (nkx = 0; nkx <= nhigh; nkx++) {
-      for (nky = 0; nky <= nhigh; nky++) {
-        for (nkz = 0; nkz <= nhigh; nkz++) {
-          if (nkx == 0 && nky == 0 && nkz == 0) continue;
-          norm = 0.0;
-          nsqr = 0.0;
-          nsqr = SQR(nkx) + SQR(nky) + SQR(nkz);
-          if (nsqr >= nlow_sqr && nsqr <= nhigh_sqr) {
-            kx = dkx*nkx;
-            ky = dky*nky;
-            kz = dkz*nkz;
-            Real k[3] = {kx, ky, kz};
-            // Generate Fourier amplitudes
-            kiso = sqrt(SQR(kx) + SQR(ky) + SQR(kz));
-            if (kiso > 1e-16) {
-              if (spect_form==2) {
-                norm = 1.0/pow(kiso,(ex+2.0)/2.0); // power-law driving
-              } else if (spect_form==1) {
-                norm = fabs(parab_prefact*pow(kiso-k_peak,2.0)+1.0);// parabola in k-space
-                norm = pow(norm,0.5) * pow(k_peak/kiso, (static_cast<int>(no_dir)-1)/2.);
-              } else {
-              norm = 0.0;
-              }
-            } else {
-              norm = 0.0;
-            }
+      Real ka = 0.0;
+      Real kb = 0.0;
 
-            Real ka = 0.0;
-            Real kb = 0.0;
+      for (int dir = 0; dir < no_dir; dir ++) {
+        aka_.h_view(dir,nmode) = norm*RanGaussianSt(&(rstate));
+        akb_.h_view(dir,nmode) = norm*RanGaussianSt(&(rstate));
 
-            for (int dir = 0; dir < no_dir; dir ++) {
-              aka_.h_view(dir,nmode) = norm*RanGaussianSt(&(rstate));
-              akb_.h_view(dir,nmode) = norm*RanGaussianSt(&(rstate));
+        // ka = ka + k[dir]*aka_.h_view(dir,nmode);
+        // kb = kb + k[dir]*akb_.h_view(dir,nmode);
+        ka = ka + k[dir]*akb_.h_view(dir,nmode);
+        kb = kb + k[dir]*aka_.h_view(dir,nmode);
+      }
 
-              // ka = ka + k[dir]*aka_.h_view(dir,nmode);
-              // kb = kb + k[dir]*akb_.h_view(dir,nmode);
-              ka = ka + k[dir]*akb_.h_view(dir,nmode);
-              kb = kb + k[dir]*aka_.h_view(dir,nmode);
-            }
+      // Now decompose into solenoidal/compressive modes
+      if(norm > 0.) {
+        for (int dir = 0; dir < no_dir; dir ++) {
+          Real diva = k[dir]*ka/SQR(kiso);
+          Real divb = k[dir]*kb/SQR(kiso);
 
-            // Now decompose into solenoidal/compressive modes
-            if(norm > 0.) {
-              for (int dir = 0; dir < no_dir; dir ++) {
-                Real diva = k[dir]*ka/SQR(kiso);
-                Real divb = k[dir]*kb/SQR(kiso);
-
-                Real curla = aka_.h_view(dir,nmode) - divb;
-                Real curlb = akb_.h_view(dir,nmode) - diva;
-                aka_.h_view(dir,nmode) = curla;
-                akb_.h_view(dir,nmode) = curlb;
-              }
-            }
-
-            nmode++;
-          }
+          Real curla = aka_.h_view(dir,nmode) - divb;
+          Real curlb = akb_.h_view(dir,nmode) - diva;
+          aka_.h_view(dir,nmode) = curla;
+          akb_.h_view(dir,nmode) = curlb;
         }
       }
     }
