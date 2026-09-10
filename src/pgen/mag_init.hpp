@@ -12,6 +12,7 @@
 #include <array>
 #include <iostream>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "athena.hpp"
@@ -24,7 +25,7 @@
 
 class MagInit {
  public:
-  MagInit(MeshBlockPack *pp, ParameterInput *pin);
+  MagInit(MeshBlockPack *pp, ParameterInput *pin, const std::string &block_name);
   ~MagInit();
 
   DvceArray5D<Real> a_vecp;  // arrays used for turb forcing
@@ -59,7 +60,8 @@ class MagInit {
 
 
 
-MagInit::MagInit(MeshBlockPack *pp, ParameterInput *pin) :
+MagInit::MagInit(MeshBlockPack *pp, ParameterInput *pin,
+                  const std::string &block_name) :
   a_vecp("a_vecp",1,1,1,1,1),
   aka("aka",1,1),akb("zssc",1,1),
   kx_mode("kx_mode",1),ky_mode("ky_mode",1),kz_mode("kz_mode",1),
@@ -80,22 +82,22 @@ MagInit::MagInit(MeshBlockPack *pp, ParameterInput *pin) :
   Real dkx = 2.0*M_PI/lx;
 
   // range of modes including, corresponding to kmin and kmax
-  nlow = pin->GetOrAddInteger("mag_init", "nlow", 1);
-  nhigh = pin->GetOrAddInteger("mag_init", "nhigh", 3);
+  nlow = pin->GetOrAddInteger(block_name, "nlow", 1);
+  nhigh = pin->GetOrAddInteger(block_name, "nhigh", 3);
   // Peak of power when spectral form is parabolic, in units of 2*(PI/L)
-  kpeak = pin->GetOrAddReal("mag_init", "kpeak", dkx*0.5*(nlow+nhigh));
+  kpeak = pin->GetOrAddReal(block_name, "kpeak", dkx*0.5*(nlow+nhigh));
   // spect form - 1 for parabola, 2 for power-law
-  spect_form = pin->GetOrAddInteger("mag_init", "spect_form", 1);
+  spect_form = pin->GetOrAddInteger(block_name, "spect_form", 1);
   // power-law exponent for isotropic driving
-  expo = pin->GetOrAddReal("mag_init", "expo", 5.0/3.0);
+  expo = pin->GetOrAddReal(block_name, "expo", 5.0/3.0);
   // inverse of plasma beta
-  inv_beta = pin->GetOrAddReal("mag_init", "inv_beta", 0.0);
-  amin = pin->GetOrAddReal("mag_init", "mag_amin", 10.0);
+  inv_beta = pin->GetOrAddReal(block_name, "inv_beta", 0.0);
+  amin = pin->GetOrAddReal(block_name, "mag_amin", 10.0);
   // sink radius in code units to set B=0 inside
   r_in = pin->GetOrAddReal("problem", "r_in", 0.0);
 
   // magnetic field properties - 0 for toroidal, 1 for poloidal, turbulent otherwise
-  mag_flag = pin->GetOrAddInteger("mag_init", "mag_flag", 2);
+  mag_flag = pin->GetOrAddInteger(block_name, "mag_flag", 2);
   if (global_variable::my_rank == 0) {
     std::cout << "Initializing non-uniform Magnetic fields module" << std::endl;
   }

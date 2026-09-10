@@ -357,7 +357,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       if (it->block_name.compare(0, 8, "mag_init") == 0) {
         if (global_variable::my_rank == 0) std::cout << "Now adding turbulent B fields" << std::endl;
         MagInit *pmaginit;
-        pmaginit = new MagInit(pmbp, pin);
+        pmaginit = new MagInit(pmbp, pin, it->block_name);
         if (global_variable::my_rank == 0) std::cout << "New MagIni created." << std::endl;
         pmaginit->InitializeAVecModes(1);
         if (global_variable::my_rank == 0) std::cout << "Modes initialized" << std::endl;
@@ -402,7 +402,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     if (it->block_name.compare(0, 9, "dens_init") == 0) {
       if (global_variable::my_rank == 0) std::cout << "Now adding turbulent density fluctuations" << std::endl;
       DensFlucInit *pdensfluc;
-      pdensfluc = new DensFlucInit(pmbp, pin);
+      pdensfluc = new DensFlucInit(pmbp, pin, it->block_name);
       if (global_variable::my_rank == 0) std::cout << "New DensFlucInit created." << std::endl;
       pdensfluc->InitializeLogDensFlucModes(1);
       if (global_variable::my_rank == 0) std::cout << "Modes initialized" << std::endl;
