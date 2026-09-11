@@ -500,10 +500,19 @@ Real add_triangle(const char *trig, char n, const Cube &cube) {
               }
           }
         }
-        // average the positions of edge vertices
-        xt[ t % 3 ] = xv/nv;
-        yt[ t % 3 ] = yv/nv;
-        zt[ t % 3 ] = zv/nv;
+        // average the positions of edge vertices. nv can be 0 if none of the 12 cube
+        // edges register a strict sign change (e.g. a corner value exactly equal to
+        // the isovalue), which would otherwise divide 0/0 into a NaN interior vertex;
+        // fall back to the cube center in that degenerate case.
+        if (nv > 0) {
+          xt[ t % 3 ] = xv/nv;
+          yt[ t % 3 ] = yv/nv;
+          zt[ t % 3 ] = zv/nv;
+        } else {
+          xt[ t % 3 ] = 0.5;
+          yt[ t % 3 ] = 0.5;
+          zt[ t % 3 ] = 0.5;
+        }
         break;
       default :
         break;
