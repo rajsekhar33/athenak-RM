@@ -155,6 +155,12 @@ void ProfileOutput::LoadOutputData(Mesh *pm) {
   auto result  = profile_data.result_;
   auto scatter = profile_data.scatter_result;
 
+  // Counts cells whose coordinate or profiled value were non-finite this call, so a
+  // corrupted run is reported instead of silently converting a NaN into an undefined
+  // bin index (static_cast<int> of a NaN is UB) or a poisoned bin mean.
+  Kokkos::View<int, DevMemSpace> nonfinite_count("prof_nonfinite_count");
+  Kokkos::deep_copy(nonfinite_count, 0);
+
   int nmb = pm->pmb_pack->nmb_thispack;
   int nx1 = indcs.nx1 + 2*indcs.ng;
   int nx2 = (indcs.nx2 > 1) ? (indcs.nx2 + 2*indcs.ng) : 1;
@@ -235,6 +241,14 @@ void ProfileOutput::LoadOutputData(Mesh *pm) {
       }
     }
 
+    // Only NaN is rejected here, matching pdf.cpp: +-Inf compares correctly against
+    // bins(0)/bins(nbin_) and belongs in the ordinary overflow/underflow bucket, so
+    // rejecting it here would destroy real, intended overflow/underflow semantics.
+    if (Kokkos::isnan(coord_val)) {
+      Kokkos::atomic_fetch_add(&nonfinite_count(), 1);
+      return;
+    }
+
     // bin lookup: same three-way (underflow/overflow/interior) structure as PDF output
     int bin = -1;
     if (coord_val < bins(0)) {
@@ -251,10 +265,35 @@ void ProfileOutput::LoadOutputData(Mesh *pm) {
     Real weight = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
     weight *= mass_weighted == false ? 1.0 : u0_(m, IDN, k, j, i);
 
+    if (!Kokkos::isfinite(var_val) || !Kokkos::isfinite(weight)) {
+      Kokkos::atomic_fetch_add(&nonfinite_count(), 1);
+      return;
+    }
+
     auto res = scatter.access();
     res(0, bin) += weight;
     res(1, bin) += weight*var_val;
   });
+
+  {
+    auto nonfinite_host = Kokkos::create_mirror_view(nonfinite_count);
+    Kokkos::deep_copy(nonfinite_host, nonfinite_count);
+    int nonfinite_local = nonfinite_host();
+#if MPI_PARALLEL_ENABLED
+    int nonfinite_total = 0;
+    MPI_Reduce(&nonfinite_local, &nonfinite_total, 1, MPI_INT, MPI_SUM, 0,
+               MPI_COMM_WORLD);
+#else
+    int nonfinite_total = nonfinite_local;
+#endif
+    if (global_variable::my_rank == 0 && nonfinite_total > 0) {
+      std::cout << "### WARNING in " << __FILE__ << " at line " << __LINE__
+                << std::endl << "Profile output '" << out_params.block_name
+                << "' skipped " << nonfinite_total
+                << " cell(s) with non-finite coordinate, value, or weight at time="
+                << pm->time << std::endl;
+    }
+  }
 
   // "reduce" results from scatter view to original view.
   Kokkos::Experimental::contribute(result, scatter);

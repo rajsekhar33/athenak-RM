@@ -40,6 +40,7 @@
 //! comment text: 'NEW_OUTPUT_TYPES'.
 //========================================================================================
 
+#include <cmath>      // std::isfinite
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>    // strcmp
@@ -70,6 +71,44 @@ void ParseRegionRestriction(ParameterInput *pin, Mesh *pm, OutputParameters *opa
   opar->x2_max = pin->GetOrAddReal(opar->block_name, "x2_max", pm->mesh_size.x2max);
   opar->x3_min = pin->GetOrAddReal(opar->block_name, "x3_min", pm->mesh_size.x3min);
   opar->x3_max = pin->GetOrAddReal(opar->block_name, "x3_max", pm->mesh_size.x3max);
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn void ValidateBinConfig()
+//  \brief shared validation for a "pdf" or "prof" output block's bin configuration,
+//  called once per binned axis (the primary axis, and again for a PDF's optional second
+//  axis). Catches bad input before any bin array is allocated or a step size computed,
+//  rather than letting a zero/negative bin count or non-finite/inverted range reach
+//  allocation, division, or a logarithm downstream.
+
+void ValidateBinConfig(const std::string &block_name, const std::string &axis_label,
+                        int nbin, Real bin_min, Real bin_max, bool logscale) {
+  if (nbin <= 0) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+        << std::endl << "Output block '" << block_name << "' has " << axis_label
+        << "nbin=" << nbin << " <= 0" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  if (!std::isfinite(bin_min) || !std::isfinite(bin_max)) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+        << std::endl << "Output block '" << block_name << "' has non-finite "
+        << axis_label << "bin_min=" << bin_min << " or " << axis_label
+        << "bin_max=" << bin_max << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  if (bin_min >= bin_max) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+        << std::endl << "Output block '" << block_name << "' has " << axis_label
+        << "bin_min=" << bin_min << " >= " << axis_label << "bin_max=" << bin_max
+        << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  if (logscale && bin_min <= 0.0) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+        << std::endl << axis_label << "logscale is true but " << axis_label
+        << "bin_min <= 0.0" << std::endl;
+    exit(EXIT_FAILURE);
+  }
 }
 
 }  // namespace
@@ -305,6 +344,8 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {
         opar.nbin = pin->GetInteger(opar.block_name,"nbin");
         opar.logscale = pin->GetOrAddBoolean(opar.block_name,"logscale",true);
         opar.mass_weighted = pin->GetOrAddBoolean(opar.block_name,"mass_weighted",false);
+        ValidateBinConfig(opar.block_name, "", opar.nbin, opar.bin_min, opar.bin_max,
+                          opar.logscale);
         // check and set second variable option.
         if (pin->DoesParameterExist(opar.block_name,"variable_2")) {
           opar.variable_2 = pin->GetString(opar.block_name, "variable_2");
@@ -312,6 +353,8 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {
           opar.bin2_max = pin->GetOrAddReal(opar.block_name,"bin2_max",1);
           opar.nbin2 = pin->GetOrAddInteger(opar.block_name,"nbin2",0);
           opar.logscale2 = pin->GetOrAddBoolean(opar.block_name,"logscale2",true);
+          ValidateBinConfig(opar.block_name, "2nd-axis ", opar.nbin2, opar.bin2_min,
+                            opar.bin2_max, opar.logscale2);
         } else {
           opar.variable_2 = "";
           opar.bin2_min = 0;
@@ -328,6 +371,8 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {
         opar.nbin = pin->GetInteger(opar.block_name,"nbin");
         opar.logscale = pin->GetOrAddBoolean(opar.block_name,"logscale",true);
         opar.mass_weighted = pin->GetOrAddBoolean(opar.block_name,"mass_weighted",false);
+        ValidateBinConfig(opar.block_name, "", opar.nbin, opar.bin_min, opar.bin_max,
+                          opar.logscale);
 
         // coordinate to bin cells by: x1, x2, x3, or r (radial)
         opar.coord_axis = pin->GetString(opar.block_name,"coord_axis");

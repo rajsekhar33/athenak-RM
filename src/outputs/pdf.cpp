@@ -204,6 +204,12 @@ void PDFOutput::LoadOutputData(Mesh *pm) {
   auto result  = pdf_data.result_;
   auto scatter = pdf_data.scatter_result;
 
+  // Counts cells whose sampled variable(s) or weight were non-finite this call, so a
+  // corrupted run is reported instead of silently converting a NaN into an undefined
+  // bin index (static_cast<int> of a NaN is UB).
+  Kokkos::View<int, DevMemSpace> nonfinite_count("pdf_nonfinite_count");
+  Kokkos::deep_copy(nonfinite_count, 0);
+
   int nmb = pm->pmb_pack->nmb_thispack;
   int nx1 = indcs.nx1 + 2*indcs.ng;
   int nx2 = (indcs.nx2 > 1) ? (indcs.nx2 + 2*indcs.ng) : 1;
@@ -266,6 +272,14 @@ void PDFOutput::LoadOutputData(Mesh *pm) {
     }
 
     auto &x_val = outvars_device(0, m, k, j, i);
+    // Only NaN is rejected here: it satisfies neither the underflow nor overflow
+    // comparison below and would otherwise reach an undefined static_cast<int>. +-Inf
+    // compares correctly against bins(0)/bins(nbin_) and belongs in the ordinary
+    // overflow/underflow bucket, so it must NOT be rejected here.
+    if (Kokkos::isnan(x_val)) {
+      Kokkos::atomic_fetch_add(&nonfinite_count(), 1);
+      return;
+    }
     int x_bin = -1;
     // First handle edge cases explicitly
     if (x_val < bins(0)) {
@@ -284,6 +298,13 @@ void PDFOutput::LoadOutputData(Mesh *pm) {
     int y_bin = 0;
     if (pdf_dimension == 2) {
       auto &y_val = outvars_device(1, m, k, j, i);
+      // Only NaN rejected here, for the same reason as x_val above: +-Inf compares
+      // correctly against bins2(0)/bins2(nbin2_) and belongs in the ordinary
+      // overflow/underflow bucket.
+      if (Kokkos::isnan(y_val)) {
+        Kokkos::atomic_fetch_add(&nonfinite_count(), 1);
+        return;
+      }
 
       y_bin = -1; // reset to impossible value
       // First handle edge cases explicitly
@@ -300,13 +321,37 @@ void PDFOutput::LoadOutputData(Mesh *pm) {
         }
       }
     }
-    auto res = scatter.access();
     Real weight = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
     weight *= mass_weighted == false
               ? 1.0
               : u0_(m, IDN, k, j, i);
+    if (!Kokkos::isfinite(weight)) {
+      Kokkos::atomic_fetch_add(&nonfinite_count(), 1);
+      return;
+    }
+    auto res = scatter.access();
     res(y_bin, x_bin) += weight;
   });
+
+  {
+    auto nonfinite_host = Kokkos::create_mirror_view(nonfinite_count);
+    Kokkos::deep_copy(nonfinite_host, nonfinite_count);
+    int nonfinite_local = nonfinite_host();
+#if MPI_PARALLEL_ENABLED
+    int nonfinite_total = 0;
+    MPI_Reduce(&nonfinite_local, &nonfinite_total, 1, MPI_INT, MPI_SUM, 0,
+               MPI_COMM_WORLD);
+#else
+    int nonfinite_total = nonfinite_local;
+#endif
+    if (global_variable::my_rank == 0 && nonfinite_total > 0) {
+      std::cout << "### WARNING in " << __FILE__ << " at line " << __LINE__
+                << std::endl << "PDF output '" << out_params.block_name
+                << "' skipped " << nonfinite_total
+                << " cell(s) with non-finite sampled value(s) or weight at time="
+                << pm->time << std::endl;
+    }
+  }
 
   // "reduce" results from scatter view to original view.
   // May be a no-op depending on backend.
