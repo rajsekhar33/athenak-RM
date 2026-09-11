@@ -31,7 +31,7 @@
 #include "srcterms/srcterms.hpp"
 #include "globals.hpp"
 #include "units/units.hpp"
-#include "utils/marching_cubes.hpp"
+#include "utils/legacy_marching_cubes/marching_cubes.hpp"
 #include "utils/random.hpp"
 #include "srcterms/turb_driver.hpp"
 
@@ -1877,8 +1877,8 @@ void UserHistOutput(HistoryData *pdata, Mesh *pm) {
       v5 = log10(gm1*w0(m,IEN,k+s,j  ,i+s)/w0(m,IDN,k+s,j  ,i+s)) - iso;
       v6 = log10(gm1*w0(m,IEN,k+s,j+s,i+s)/w0(m,IDN,k+s,j+s,i+s)) - iso;
       v7 = log10(gm1*w0(m,IEN,k+s,j+s,i  )/w0(m,IDN,k+s,j+s,i  )) - iso;
-      marching_cubes::Cube c = marching_cubes::Cube(v0, v1, v2, v3, v4, v5, v6, v7);
-      hvars1.the_array[ns] = marching_cubes::process_cube(c)*dA;
+      ::Cube c = ::Cube(v0, v1, v2, v3, v4, v5, v6, v7);
+      hvars1.the_array[ns] = ::process_cube(c)*dA;
       ns++;
     }
     // get small scale diffusion velocity for gas selected to
