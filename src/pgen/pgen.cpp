@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cmath>
+#include <limits>
 
 #include "athena.hpp"
 #include "geodesic-grid/geodesic_grid.hpp"
@@ -30,6 +31,7 @@
 #include "radiation/radiation.hpp"
 #include "srcterms/turb_driver.hpp"
 #include "particles/particles.hpp"
+#include "outputs/checkpoint_metadata.hpp"
 #include "coordinates/cell_locations.hpp"
 #include "pgen.hpp"
 
@@ -742,10 +744,10 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf
       exit(EXIT_FAILURE);
     }
     std::memcpy(&magic_number, headerdata, 8);
-    if (magic_number != 42) {
+    if (magic_number != 42 && magic_number != checkpoint::particle_magic) {
       std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
                 << std::endl
-                << "Particle restart file magic number is not 42, got "
+                << "Unsupported particle restart file magic number "
                 << magic_number << std::endl;
       exit(EXIT_FAILURE);
     }
@@ -764,6 +766,31 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf
     }
     delete[] headerdata;
 
+    std::size_t data_offset = 2 * sizeof(int64_t);
+    if (number_particles < 0 || number_particles > std::numeric_limits<int>::max()) {
+      Kokkos::abort("Invalid particle restart count");
+    }
+    if (magic_number == checkpoint::particle_magic) {
+      uint64_t metadata[4] = {};
+      double times[2] = {};
+      if (prestartfile->Read_bytes_at(metadata, 1, sizeof(metadata), data_offset,
+                                     single_file_per_rank) != sizeof(metadata) ||
+          prestartfile->Read_bytes_at(times, 1, sizeof(times), data_offset+sizeof(metadata),
+                                     single_file_per_rank) != sizeof(times)) {
+        Kokkos::abort("Truncated particle checkpoint lifecycle metadata");
+      }
+      if (!pm->restart_next_dt || metadata[0] != checkpoint::version ||
+          metadata[1] != static_cast<uint64_t>(pm->ncycle) ||
+          metadata[2] != static_cast<uint64_t>(pm->nmb_total) ||
+          metadata[3] != checkpoint::TopologyHash(pm) ||
+          times[0] != static_cast<double>(pm->time) || times[1] != static_cast<double>(pm->dt)) {
+        Kokkos::abort("Fluid and particle checkpoint lifecycle/topology mismatch");
+      }
+      data_offset = checkpoint::particle_header_bytes;
+    } else if (pm->restart_next_dt) {
+      Kokkos::abort("Cannot pair a versioned fluid checkpoint with legacy particle data");
+    }
+
     // read the data - gid, tag, plastmove, x, y, z (all as Real/double)
     Real *gid_data = new Real[number_particles];
     Real *tag_data = new Real[number_particles];
@@ -771,8 +798,6 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf
     Real *X_data = new Real[number_particles];
     Real *Y_data = new Real[number_particles];
     Real *Z_data = new Real[number_particles];
-
-    std::size_t data_offset = 2 * sizeof(int64_t);  // after the 2 int64_t header fields
 
     if (
       (prestartfile->Read_Reals_at(gid_data, number_particles, data_offset,

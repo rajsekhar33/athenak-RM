@@ -11,6 +11,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "athena.hpp"
 #include "parameter_input.hpp"
@@ -18,6 +19,8 @@
 #include "bvals/bvals.hpp"
 
 #include <Kokkos_Random.hpp>
+
+struct LogicalLocation;
 
 // forward declarations
 
@@ -93,6 +96,17 @@ class Particles {
   // functions...
   void ReallocateParticles(int new_nprtcl_thispack);
   void CreateParticleTags(ParameterInput *pin);
+  // Scoped host staging for topology changes, distinct from timestep migration.
+  struct MeshRedistribution {
+    HostArray2D<Real> real;
+    HostArray2D<int> integer;
+    std::vector<int> destination, old_level;
+    int global_count;
+    Real next_dt;
+  };
+  MeshRedistribution PrepareMeshRedistribution(const LogicalLocation *new_locations,
+      const int *new_ranks, const int *old_to_new, int new_nmb);
+  void FinishMeshRedistribution(const MeshRedistribution &transfer);
   void AssembleTasks(std::map<std::string, std::shared_ptr<TaskList>> tl);
   TaskStatus Push(Driver *pdriver, int stage);
   TaskStatus NewGID(Driver *pdriver, int stage);

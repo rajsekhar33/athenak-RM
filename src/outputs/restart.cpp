@@ -29,6 +29,7 @@
 #include "z4c/z4c.hpp"
 #include "radiation/radiation.hpp"
 #include "srcterms/turb_driver.hpp"
+#include "checkpoint_metadata.hpp"
 //#include "outputs.hpp"
 
 //----------------------------------------------------------------------------------------
@@ -158,6 +159,8 @@ void RestartOutput::LoadOutputData(Mesh *pm) {
 //  \brief Cycles over all MeshBlocks and writes everything to a single restart file
 
 void RestartOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
+  if (!pm->checkpoint_ready) Kokkos::abort("Checkpoint requested before AMR/dt completion");
+  pin->SetInteger("mesh", "checkpoint_lifecycle_version", checkpoint::version);
   // get spatial dimensions of arrays, including ghost zones
   auto &indcs = pm->pmb_pack->pmesh->mb_indcs;
   int nout1 = indcs.nx1 + 2*(indcs.ng);
@@ -262,6 +265,20 @@ void RestartOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
                            "byte", single_file_per_rank);
     resfile.Write_any_type(&(pm->cost_eachmb[0]), (pm->nmb_total)*sizeof(float),
                            "byte", single_file_per_rank);
+    // Versioned lifecycle extension; the input marker tells new readers to
+    // consume it. Legacy files without the marker retain their original layout.
+    const uint64_t marker[2] = {checkpoint::fluid_magic, checkpoint::version};
+    const Real steps[2] = {pm->dtold, pm->dt_last_completed};
+    const int state[2] = {pm->GetAMRLoadBalanceUpdateSeq(), pm->adaptive ? pm->nmb_total : 0};
+    if (resfile.Write_any_type(marker, sizeof(marker), "byte", single_file_per_rank) != sizeof(marker) ||
+        resfile.Write_any_type(steps, sizeof(steps), "byte", single_file_per_rank) != sizeof(steps) ||
+        resfile.Write_any_type(state, sizeof(state), "byte", single_file_per_rank) != sizeof(state)) {
+      Kokkos::abort("Cannot write checkpoint lifecycle header");
+    }
+    if (pm->adaptive && resfile.Write_any_type(pm->pmr->ncyc_since_ref.data(),
+        pm->nmb_total*sizeof(int), "byte", single_file_per_rank) != pm->nmb_total*sizeof(int)) {
+      Kokkos::abort("Cannot write checkpoint refinement ages");
+    }
   }
 
   //--- STEP 3.  Root process writes internal state of objects that require it
@@ -329,6 +346,8 @@ void RestartOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
   IOWrapperSizeT step1size = sbuf.size()*sizeof(char) + 3*sizeof(int) + 2*sizeof(Real) +
                              sizeof(RegionSize) + 2*sizeof(RegionIndcs);
   IOWrapperSizeT step2size = (pm->nmb_total)*(sizeof(LogicalLocation) + sizeof(float));
+  step2size += 2*sizeof(uint64_t) + 2*sizeof(Real) + 2*sizeof(int);
+  if (pm->adaptive) step2size += pm->nmb_total*sizeof(int);
 
   IOWrapperSizeT step3size = 3*nco*sizeof(Real);
   if (pz4c != nullptr) step3size += sizeof(Real);
