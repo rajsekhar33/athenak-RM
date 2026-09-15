@@ -6,7 +6,8 @@
 //! \file res_prtcl.cpp
 //! \brief writes particle restart data in binary format.
 //! Binary format consists of:
-//!   - Header: 2 int64_t values (magic number 42, particle count in this file)
+//!   - Versioned 64-byte header (magic 44, count, phase and topology metadata).
+//!     Legacy magic-42 files with 16-byte headers remain readable.
 //!   - Data: 6 double/Real arrays (all as Real/double to avoid type issues)
 //!     - gid[nparticles]      : MeshBlock global ID (double)
 //!     - tag[nparticles]      : Particle tag (double)
@@ -34,6 +35,7 @@
 #include "mesh/mesh.hpp"
 #include "particles/particles.hpp"
 #include "outputs.hpp"
+#include "checkpoint_metadata.hpp"
 
 //----------------------------------------------------------------------------------------
 // ctor: also calls BaseTypeOutput base class constructor
@@ -82,10 +84,9 @@ void ParticleRestartOutput::LoadOutputData(Mesh *pm) {
 //! \brief Writes particle restart data in binary format.
 //!
 //! Binary file format:
-//!  1. Header: 2 x int64_t values
-//!     - Magic number (42) for format identification
-//!     - Number of particles in the file (global for shared files, local for per-rank
-//!       files)
+//!  1. Header: 6 uint64_t values (magic 44, count, version, cycle, MeshBlock count,
+//!     topology hash), followed by two doubles (time, selected next dt). Count is
+//!     global for shared files, local for per-rank files.
 //!  2. Data arrays (all as double/Real):
 //!     - gid[nparticles]      : MeshBlock global ID for each particle (double)
 //!     - tag[nparticles]      : Particle tag (double)
@@ -96,6 +97,7 @@ void ParticleRestartOutput::LoadOutputData(Mesh *pm) {
 //!  Note: Random seeds are NOT stored - computed from tag + ncycle
 
 void ParticleRestartOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
+  if (!pm->checkpoint_ready) Kokkos::abort("Particle checkpoint before AMR/dt completion");
   // create filename: "prst/file_basename"."file_id"."XXXXX".prtclrst
   // or "prst/rank_YYYYYYY/file_basename"."file_id"."XXXXX".prtclrst for
   // single_file_per_rank
@@ -146,22 +148,22 @@ void ParticleRestartOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
   std::size_t header_offset = 0;
   partfile.Open(fname.c_str(), IOWrapper::FileMode::write, single_file_per_rank);
 
-  // Write header: magic number (42) and particle count in this file (as int64_t)
+  // Version 1: magic 44, count, version, cycle, block count, topology hash,
+  // followed by time and selected next dt. Legacy magic 42 remains read-only.
   if (global_variable::my_rank == 0 || single_file_per_rank) {
-    int64_t header[2];
-    header[0] = 42;  // magic number
-    header[1] = static_cast<int64_t>(npout_file);
-
-    // Write as raw bytes (2 int64_t values = 16 bytes)
-    if (partfile.Write_any_type(header, 2*sizeof(int64_t), "byte",
-                                 single_file_per_rank) != 2*sizeof(int64_t)) {
+    const uint64_t header[6] = {checkpoint::particle_magic, static_cast<uint64_t>(npout_file),
+        checkpoint::version, static_cast<uint64_t>(pm->ncycle),
+        static_cast<uint64_t>(pm->nmb_total), checkpoint::TopologyHash(pm)};
+    const double times[2] = {pm->time, pm->dt};
+    if (partfile.Write_any_type(header, sizeof(header), "byte", single_file_per_rank) != sizeof(header) ||
+        partfile.Write_any_type(times, sizeof(times), "byte", single_file_per_rank) != sizeof(times)) {
       std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
           << std::endl << "header not written correctly to particle restart file"
           << std::endl;
       std::exit(EXIT_FAILURE);
     }
   }
-  header_offset = 2 * sizeof(int64_t);
+  header_offset = checkpoint::particle_header_bytes;
 
   // Calculate offsets for the shared MPI-IO file. Per-rank files store each rank's
   // particles contiguously starting immediately after the header.

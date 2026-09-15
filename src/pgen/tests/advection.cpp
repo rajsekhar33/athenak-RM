@@ -19,6 +19,28 @@
 #include "mhd/mhd.hpp"
 #include "pgen/pgen.hpp"
 
+namespace {
+// Opt-in topology schedule for particle AMR regression tests. Enrolled on restart too.
+int particle_amr_period = 0;
+void ParticleAMRRefinement(MeshBlockPack *pack) {
+  auto *mesh = pack->pmesh;
+  auto &flag = mesh->pmr->refine_flag;
+  // Hold refinement for period cycles, then coarsen for period cycles. Cycle 0
+  // remains unrefined, allowing outputs to bracket the first topology event.
+  const bool refine = mesh->ncycle > 0 &&
+      ((mesh->ncycle-1)/particle_amr_period)%2 == 0;
+  for (int m=0; m<pack->nmb_thispack; ++m) {
+    const auto &sz = pack->pmb->mb_size.h_view(m);
+    const bool region = sz.x1min < 0.5*(mesh->mesh_size.x1min+mesh->mesh_size.x1max) &&
+                       sz.x2min < 0.5*(mesh->mesh_size.x2min+mesh->mesh_size.x2max) &&
+        (!mesh->three_d || sz.x3min < 0.5*(mesh->mesh_size.x3min+mesh->mesh_size.x3max));
+    flag.h_view(pack->gids+m) = refine && region ? 1 : -1;
+  }
+  flag.template modify<HostMemSpace>();
+  flag.template sync<DevExeSpace>();
+}
+}  // namespace
+
 //----------------------------------------------------------------------------------------
 //! \fn void MeshBlock::Advection_()
 //  \brief Problem Generator for advection problems. By default, initializes profiles
@@ -29,6 +51,9 @@
 //   iprob=2: Gaussian, square, and triangle
 
 void ProblemGenerator::Advection(ParameterInput *pin, const bool restart) {
+  particle_amr_period = pin->GetOrAddInteger("problem","particle_amr_period",0);
+  if (particle_amr_period < 0) Kokkos::abort("particle_amr_period must be nonnegative");
+  if (particle_amr_period > 0) user_ref_func = ParticleAMRRefinement;
   // nothing needs to be done on restarts for this pgen
   if (restart) return;
 
@@ -254,6 +279,19 @@ void ProblemGenerator::Advection(ParameterInput *pin, const bool restart) {
       }
     });
   }  // End initialization of MHD variables
+
+  // Optional uniform transverse flow for oblique transport regression tests.
+  // Zero preserves all existing axis-aligned advection inputs.
+  const Real transverse = pin->GetOrAddReal("problem", "transverse_velocity", 0.0);
+  if (transverse != 0.0) {
+    auto &u = (pmbp->phydro != nullptr) ? pmbp->phydro->u0 : pmbp->pmhd->u0;
+    par_for("advection_transverse", DevExeSpace(), 0, pmbp->nmb_thispack-1,
+    ks, ke, js, je, is, ie, KOKKOS_LAMBDA(int m, int k, int j, int i) {
+      if (flow_dir != 1) u(m,IM1,k,j,i) = transverse*u(m,IDN,k,j,i);
+      if (flow_dir != 2) u(m,IM2,k,j,i) = transverse*u(m,IDN,k,j,i);
+      if (flow_dir != 3) u(m,IM3,k,j,i) = transverse*u(m,IDN,k,j,i);
+    });
+  }
 
   if (pmbp->ppart != nullptr) {
     auto &u0_ = (pmbp->phydro != nullptr) ? pmbp->phydro->u0 : pmbp->pmhd->u0;

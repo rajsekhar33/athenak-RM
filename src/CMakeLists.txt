@@ -119,6 +119,7 @@ add_executable(
         outputs/bin_prtcl.cpp
 
         particles/particles.cpp
+        particles/particles_amr.cpp
         particles/particles_pushers.cpp
         particles/particles_tasks.cpp
         outputs/pdf.cpp
