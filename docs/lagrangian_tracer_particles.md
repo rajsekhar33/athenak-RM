@@ -1,370 +1,382 @@
-# Lagrangian Tracer Particle Pushers in AthenaK
+# Lagrangian Tracer Particles in AthenaK
 
-This note documents the Lagrangian tracer particle module and its three
-interchangeable pusher (update-rule) choices: a flux-based stochastic
-cell-jump method, a continuous stochastic-displacement method built from the
-same flux moments, and a classical CIC-velocity tracer, plus the RK-integrator
-support and optional accuracy constraint added alongside them.
+Implementation reference checked against public `main` commit `366a172a`
+(2026-09-15). This describes the code and the scope of recorded tests, not a
+proof of accuracy for every flow, boundary condition, or integrator combination.
 
-- `pusher = lagrangian_mc`: flux-based stochastic cell-jump tracer, after
-  Genel et al. 2013 (arXiv:1305.2195). After each hydro/MHD update, each
-  particle uses the mass fluxes through the faces of its current cell to
-  choose whether it jumps to a neighboring cell. In expectation, particles
-  sample the same mass transport as the finite-volume fluid update.
-- `pusher = ito_2` (aliases `ito2`, `ito`): a continuous Ito-2 tracer built
-  from the first two moments of the same local flux transition kernel, after
-  Moseley, Teyssier & Abel 2026 (arXiv:2604.23041). Rather than a discrete
-  cell jump, the particle receives a continuous stochastic displacement whose
-  mean and variance match the MC method's first two moments.
-- `pusher = classical` (aliases `classical_lagrangian`, `lagrangian_tracer`):
-  an ordinary velocity-field tracer, using cloud-in-cell (CIC) interpolation
-  of the primitive velocity onto the particle position.
+The module requires a 2-D or 3-D mesh. Its three tracer pushers share storage,
+migration and restart machinery:
 
-All three share the same particle storage, boundary-exchange, restart, and
-output machinery, selected via `particle_type = mass_tracer` (`lagrangian_mc`
-and `lagrangian_tracer` are also accepted, but `mass_tracer` is recommended:
-`lagrangian_mc` implies the MC-specific pusher even when using
-`classical`/`ito_2`, and `lagrangian_tracer` collides with the
-`pusher = classical` alias of the same name — `mass_tracer` avoids both, and
-describes what the three pushers have in common: mass-conserving tracer
-particles, regardless of update rule) so they can be run and compared
-side-by-side on identical setups.
+| `pusher` | Update |
+| --- | --- |
+| `classical` | Explicit displacement from CIC-interpolated fluid velocity |
+| `lagrangian_mc` | Stochastic face selection and discrete cell-center jumps |
+| `ito_2` | Continuous stochastic displacement from interpolated flux moments |
 
-## Where the Code Lives
+The MC approach follows [Genel et al. (2013)](https://arxiv.org/abs/1305.2195);
+the Ito method is motivated by
+[Moseley, Teyssier & Abel (2026)](https://arxiv.org/abs/2604.23041).
+The implementation details and limitations below do not constitute validation
+of every method or result in those papers.
 
-Core particle module:
-
-- `src/particles/particles.hpp` / `src/particles/particles.cpp`
-  `Particles`: particle data arrays, particle types, pusher selection, task
-  IDs, and the `<particles>` input block parsing.
-- `src/particles/particles_tasks.cpp`
-  Registers particle tasks in `after_timeintegrator`, after the fluid time
-  integrator, so the completed fluid update and its saved mass fluxes (where
-  needed) are available.
-- `src/particles/particles_pushers.cpp`
-  `Particles::PushLagrangianTracer()`, `Particles::PushLagrangianMC()`,
-  `Particles::PushIto2()`, `Particles::AdjustMeshRefinement()`, and
-  `Particles::NewTimeStep()` (the optional Ito-2 locality-dt constraint).
-- `src/bvals/bvals_part.cpp`
-  Particle GID updates and MPI exchange when particles cross
-  MeshBlock/rank boundaries.
-
-Restart and output support:
-
-- `src/outputs/res_prtcl.cpp` — particle restart files, `file_type = prst`.
-- `src/outputs/bin_prtcl.cpp` — particle diagnostic/analysis files,
-  `file_type = pbin`.
-- `src/outputs/outputs.cpp` — registers `prst`, `pbin`, `pvtk`, and `trk`.
-- `src/pgen/pgen.cpp` — reads particle restart files when run with
-  `-p <particle_restart_file>`; also `ProblemGenerator::InitializeLagrangianParticles()`,
-  a reusable fresh-run initializer.
-
-Example pgens using the initializer:
-
-- `src/pgen/tests/advection.cpp` (square-wave/advection tests)
-- `src/pgen/fluids/turb.cpp` (turbulence tests)
-
-RK-integrator support used by `lagrangian_mc`/`ito_2` (see "RK-Integrator
-Support" below):
-
-- `src/hydro/hydro.cpp`/`.hpp`, `src/hydro/hydro_fluxes.cpp` and the MHD
-  equivalents `src/mhd/mhd.cpp`/`.hpp`, `src/mhd/mhd_fluxes.cpp` — the
-  `SaveFlux()` per-stage density-flux quadrature and the `u0idnsaved`
-  start-of-step density snapshot.
-- `src/mhd/mhd_tasks.cpp` — `MHD::CopyCons()`'s RK4(4)[2S] stage-register
-  update, a general fix independent of particles (any nontrivial MHD+RK4
-  evolution needs it; see that section for why).
-
-## Particle State
-
-For `particle_type = mass_tracer`, real particle data (indexed by
-`src/athena.hpp`'s `ParticlesIndex` enum):
-
-- `IPX`, `IPY`, `IPZ`: particle position.
-
-None of the three tracer pushers use the particle velocity slots
-(`IPVX`/`IPVY`/`IPVZ`) — those are only used by the separate `drift` pusher
-(`particle_type = cosmic_ray`). The MC and Ito-2 pushers compute displacement
-from fluid mass fluxes; the classical pusher interpolates the fluid velocity
-field directly and applies it explicitly.
-
-Integer particle data:
-
-- `PGID`: global MeshBlock ID currently owning the particle.
-- `PTAG`: persistent particle tag (used as one input to the deterministic
-  random draws below).
-- `PLASTMOVE`: status and, for the MC pusher, last-move encoding (see below).
-  `>= 0` active; `-1` frozen (crossed a user boundary); `-2` reserved for a
-  not-yet-implemented deletion marker.
-- `PLASTLEVEL`: refinement level of the particle's previous cell, used by
-  `AdjustMeshRefinement()`.
-
-## Pusher Choices and Update Methods
+## Configuration and Fresh Initialization
 
 ```ini
 <particles>
 particle_type = mass_tracer
-pusher        = classical   # or lagrangian_mc, or ito_2
-ppc           = 1.0         # initial per-MeshBlockPack array sizing
-target_count  = 100000      # actual fresh-run particle count target
+pusher = classical             # or lagrangian_mc, ito_2
+ppc = 1.0                      # preliminary per-pack allocation
+target_count = 100000           # expected global count, not an exact quota
+uniform_by_volume = false      # true selects volume instead of density weighting
+random_positions = true
+pos_init_seed = 280496
+random_seed = -1
+ito2_enforce_locality_dt = false
 ```
 
-`particle_type` selects the shared storage/boundary/restart/output layout
-used by all three variants (see "Where the Code Lives" above for why
-`mass_tracer` is recommended over the two other accepted spellings). `ppc`
-(particles-per-cell) sizes the initial per-pack particle array allocation;
-`target_count`, read separately by `InitializeLagrangianParticles()`, is what
-actually determines the fresh-run global particle count (see "What a Problem
-Generator Must Do").
+`particle_type = mass_tracer`, `lagrangian_tracer`, and `lagrangian_mc` are
+equivalent storage-type spellings. **The separate `pusher` selects the
+algorithm**; the type alias does not force MC. The name `mass_tracer` does
+not imply that classical tracers reproduce the fluid mass distribution.
 
-### Classical Velocity-Field Tracer
+Pusher aliases are `classical_lagrangian`/`lagrangian_tracer` for
+`classical`, and `ito2`/`ito` for `ito_2`. `drift` belongs to the
+separate `cosmic_ray` type and is rejected for tracers. This guide's
+validation statements concern tracers, not cosmic-ray/drift particles.
 
-`pusher = classical` treats particles as passive points advected by the
-cell-centered primitive velocity field. `PushLagrangianTracer()` CIC-
-interpolates `w0(IVX/IVY/IVZ)` onto the particle position and applies
-`x_new = x_old + dt*v_interp`. It does not request saved mass fluxes and sets
-`PLASTMOVE = 0` (it doesn't use the MC face/parity encoding below). It is not
-expected to exactly reproduce finite-volume density transport — the fluid
-density is updated by face-integrated mass fluxes, while these particles move
-by an interpolated velocity field. That mismatch is exactly what the Ito-2
-and MC methods are designed to avoid.
+The constructor uses `ppc` for preliminary allocation. A problem generator
+must initialize the actual fresh-run population, for example by calling
+`ProblemGenerator::InitializeLagrangianParticles(pin, u0)` after initializing
+the fluid. Advection and turbulence use this helper, which returns immediately
+if no particle object exists.
 
-### Lagrangian Monte Carlo Tracer
+The helper uses cell weights `density * volume` by default, or `volume`
+when `uniform_by_volume = true`. It distributes `target_count` in expectation,
+using integer counts plus deterministic stochastic rounding in each cell.
+The realized count can differ from the target. Use a positive target and
+physically valid weights; a nonpositive total weight is rejected.
+Uniform-by-volume placement in a nonuniform-density flow is not initially
+an equal-weight sample of gas mass.
 
-`pusher = lagrangian_mc` uses the saved density fluxes from the
-just-completed fluid update (see "RK-Integrator Support"). For each active
-particle, `PushLagrangianMC()`:
+For classical/Ito tracers, `random_positions = true` places particles within
+their assigned cells; false places them at centers. **MC particles always
+start at cell centers**, regardless of this flag. Initialization draws use
+`pos_init_seed` and cell/particle indexing; identical fresh populations under
+arbitrary MPI-decomposition changes are not promised. Default
+`assign_tag = index_order` assigns persistent tags after initialization.
+Restart loading restores particles instead of rerunning this initializer.
 
-1. Locates the particle's owner MeshBlock and active cell.
-2. Reads the start-of-step donor mass from `u0idnsaved(m,k,j,i)`.
-3. Reads the saved density fluxes on each face in each active direction,
-   keeping only outward flux (inflow is clamped to zero for this cell's
-   transition probability) and normalizing by the donor mass.
-4. Draws one deterministic uniform deviate from `PTAG`, `ncycle`, and
-   `random_seed` (see "Restart-Safe Randomness").
-5. Compares the draw against the cumulative outward face probabilities and
-   moves the particle by exactly one local cell width in the selected
-   direction, or leaves it in place if the draw falls outside the outgoing
-   probability sum.
-6. Encodes the current cell parity and selected face in `PLASTMOVE`
-   (`1`-`6` = left/right `x1`/`x2`/`x3` face; parity bits
-   `32*(i%2) + 16*(j%2) + 8*(k%2)` packed into the high bits), and the
-   current refinement level in `PLASTLEVEL`.
+For regression fixtures, the advection pgen accepts opt-in
+`problem/transverse_velocity` (default 0) and `problem/particle_amr_period`
+(default 0, disabled). A positive period installs an alternating refinement
+callback, including on restart; it targets the lower-coordinate half in each
+active direction. The advection fixture requires an isothermal EOS. Custom
+pgens must likewise enroll any restart-needed callbacks before returning
+early from their restart path.
 
-`AdjustMeshRefinement()` uses that packed `PLASTMOVE` state when a jump
-crosses a coarse/fine boundary — this correction is MC-specific, since only
-the MC pusher represents motion as a discrete cell-center-to-cell-center jump.
+Sources: [constructor and tags](../src/particles/particles.cpp),
+[initializer and restart reader](../src/pgen/pgen.cpp).
 
-### Ito-2 Tracer
+## Particle State and Physical-Step Updates
 
-`pusher = ito_2` converts the same left/right outward transition
-probabilities into a continuous stochastic displacement per active direction:
+Tracers store three real values, `IPX/IPY/IPZ`, and four integers:
+
+- `PGID`: owning global MeshBlock ID.
+- `PTAG`: persistent identity and random-draw input.
+- `PLASTMOVE`: nonnegative for active particles; MC also packs previous
+  face/parity here. `-1` freezes transport; `-2` is reserved for deletion,
+  which is not implemented.
+- `PLASTLEVEL`: previous-owner refinement-level bookkeeping used by MC's
+  coarse/fine correction. Restart reconstructs it from the current owner.
+
+Tracers do not store independent velocities. They advance once in
+`after_timeintegrator`, after the fluid stages, followed by owner/rank
+exchange. Fluid RK order is not the order of the classical particle update,
+which remains `x += dt * v_interp`.
+
+### Classical
+
+`PushLagrangianTracer()` CIC-interpolates cell-centered primitive velocity,
+using surrounding centers and available ghost cells near a block edge.
+It advances active coordinates explicitly, sets `PLASTMOVE = 0`, and records
+the donor level. It does not request saved mass fluxes. Velocity interpolation
+is generally not equivalent to the finite-volume fluid mass update.
+
+### Monte Carlo
+
+`PushLagrangianMC()` uses `u0idnsaved` (start-of-step density) and
+`uflxidnsaved` (RK-weighted face mass flux multiplied by `dt/dx`).
+Dividing these density-transfer contributions by donor density gives
+dimensionless probabilities; the common cell volume cancels.
+
+For each active particle:
+
+1. Locate the donor cell; skip the update for an out-of-active-zone index or
+   nonpositive donor density.
+2. Keep positive outward contributions in face order
+   `-x1,+x1,-x2,+x2,-x3,+x3`. Contributions smaller than
+   `1e-12 * donor_density` are set to zero.
+3. Initialize a remaining-density budget to donor density. For each active,
+   nonzero face, compare a face-specific deterministic draw with
+   `min(outward_contribution / remaining_budget, 1)` (or 1 if exhausted).
+   On rejection, subtract that contribution before trying the next face.
+4. Take the first accepted jump by one donor-cell width, or remain in place.
+   Save donor level and face/parity encoding.
+
+This is **sequential conditional sampling**, not a single cumulative draw.
+When total outward transfer fits the donor budget, it realizes the face
+probabilities up to the small-flux cutoff. Saturation when the budget is
+exceeded is a safeguard, not a guarantee of exact fluid mass tracking in
+that regime. A finite population also has sampling noise.
+
+`PLASTMOVE` encodes face 0 (stay) or 1--6 (the ordered faces), plus
+`32*(i%2) + 16*(j%2) + 8*(k%2)` using donor array indices.
+
+### Ito-2
+
+For each surrounding active cell and coordinate, the code derives outward
+probabilities from saved fluxes and donor density, then forms:
 
 ```text
-dx * (cminus + sqrt(variance) * xi)
-cminus   = p_right - p_left
-variance = max(p_left + p_right - cminus^2, 0)
+cminus = p_right - p_left
+cplus = p_right + p_left
+variance = max(cplus - cminus*cminus, 0)
+displacement = dx * (cminus + sqrt(variance) * xi)
+xi = sqrt(3) * (2*u - 1)
 ```
 
-`cminus` is the mean displacement (in cell-width units) of the corresponding
-MC left/stay/right step; the square-root term supplies the matching variance.
-`xi` is a stateless uniform deviate rescaled to zero mean, unit variance
-(`sqrt(3)*(2*u - 1)`), with independent streams per coordinate.
+It CIC-interpolates already-computed `cminus`, `cplus`, and `variance`,
+not raw probabilities. Unlike the classical stencil, both corners stay
+inside the block's active cells: the lower x1 index is clamped to
+`[is, ie-1]`, with analogous bounds in other active coordinates and endpoint
+weights at edges. Nonpositive-density corners are skipped without
+renormalizing remaining weights; no valid corner means no update. This
+guard does not make invalid-density states physically acceptable or impossible.
 
-Per Moseley, Teyssier & Abel 2026 Sec. 3.1, `PushIto2()` **CIC-interpolates**
-these moments onto the particle's continuous position, rather than using a
-single nearest-grid-point cell (which the paper notes is "much noisier by
-nature"). Concretely, for each of the (up to 8) surrounding cells:
+If the largest interpolated `cplus` exceeds 1, the code uses
+`nsub = min(ceil(max_cplus), 1000)` draws per direction, dividing original
+mean and variance by `nsub` for each draw. **It sums the displacements and
+updates position only once.** It does not re-sample moments or migrate between
+sub-draws. Moment splitting therefore does not enforce a maximum total
+displacement or guarantee neighbor-local transport. The per-direction
+formula is not a claim of matching the full multidimensional MC transition
+distribution, especially when MC's budget saturation applies.
 
-1. Compute that cell's `cminus`/`cplus`/`variance` from its own saved fluxes
-   and `u0idnsaved` donor mass (skipping any cell whose donor mass is
-   `<= 0.0` — unreachable in practice, since AthenaK's density floor keeps
-   `u0idnsaved` strictly positive in any valid simulation state).
-2. Accumulate the CIC-weighted sum of these **already-derived moments**
-   across valid corners — not the raw face probabilities, since interpolating
-   before the nonlinear `cminus^2` step would be a different, incorrect
-   quantity.
+Source for all three: [particle pushers](../src/particles/particles_pushers.cpp).
 
-The lower corner is clamped to `[is, ie-1]` (one cell tighter than the
-classical pusher's `[is-1, ie]`), since these moments come from
-`u0idnsaved`/saved fluxes, which are only guaranteed valid on the active
-zone, unlike cell-centered primitives that extend one ghost cell further.
+## RK Fluxes and Optional Ito Timestep Estimate
 
-Because a near-vacuum donor cell can leave `p_left`/`p_right` well outside
-`[0,1]` (the hydro CFL condition only bounds the net six-face flux
-divergence, not any single face's flux/mass ratio in isolation), a single
-unbounded displacement could push a particle to an undefined cell index.
-`PushIto2()` guards against this by sub-cycling: it splits the total
-`cminus`/`variance` (computed once, from the unscaled moments) into `nsub`
-equal shares when `Cplus > 1`, rather than rescaling probabilities and
-recomputing moments per sub-step (which would inflate the summed variance).
-Each active direction draws independent stateless `xi` values.
+MC/Ito construction enables `Hydro::SaveFlux()` or `MHD::SaveFlux()`.
+Each stage contributes density flux with weights derived from the driver's
+`gam0/gam1/beta/delta` register recurrence for the implemented RK1--RK4
+schemes. Stage 1 separately snapshots donor density because RK4 subsequently
+repurposes `u1` as an accumulator. These are saved advective density-flux
+contributions, not a general representation of arbitrary density source
+terms or every operator-split process.
 
-Ito-2 particles do not run `AdjustMeshRefinement()` — they are continuous
-displacements, not discrete cell-center jumps, and don't store a
-last-crossed-face state. Ordinary `NewGID()`/boundary-exchange tasks handle
-MeshBlock/rank reassignment after the update.
+MHD's `CopyCons()` also maintains RK4 conserved and face-field accumulators
+after stage 1. This is fluid-integrator machinery independent of tracers;
+it does not establish stability of every MHD+RK4 problem.
 
-## RK-Integrator Support
+With `ito2_enforce_locality_dt = true`, the post-integrator particle task
+computes `dtnew = dt_current / (4 * max_abs_cminus)` over active cells and
+coordinates when the denominator is positive. `Mesh::NewTimeStep()`
+includes it in global timestep selection. Other pushers, or the default
+false setting, leave the particle constraint inactive.
 
-`lagrangian_mc`/`ito_2` need the fluid's density flux integrated over the
-**full timestep**, not just the flux from whichever RK stage happens to run
-last. `Hydro::SaveFlux()`/`MHD::SaveFlux()` (registered in the `stagen` task
-list, a no-op unless a mass-conserving pusher calls
-`SetSaveUFlxIdn()` on construction) accumulate each stage's density flux with
-an **exact quadrature weight**, derived from the driver's actual per-stage
-register recurrence (`gam0`/`gam1`/`beta`/`delta`) rather than assuming a
-fixed 2-stage (`dt/2`-per-stage) integrator. This makes it correct for
-RK1-RK4, not just RK2.
+This is a **lagged next-step accuracy estimate**, not rejection/retry of the
+completed step or a bound on every stochastic displacement. Dynamic refinement
+retains the global old-mesh estimate and tightens it by
+`2^(-largest_level_increase)`, without interpreting old flux arrays with new
+block indices. Changed future fluxes can invalidate the prediction.
 
-For RK4(4)[2S] specifically, the driver's `u1` register is legitimately
-repurposed as a stage accumulator after the first stage (see
-`Hydro::CopyCons()`/`MHD::CopyCons()`), so it no longer holds the
-start-of-step density the way it does for RK1-RK3. `SaveFlux()` therefore
-also snapshots the true stage-1 density into a separate `u0idnsaved` buffer,
-and both pushers read their donor mass from that buffer rather than `u1`
-directly — this is what makes the transition-probability normalization
-correct regardless of integrator.
+Sources: [Hydro flux saving](../src/hydro/hydro_fluxes.cpp),
+[MHD flux saving](../src/mhd/mhd_fluxes.cpp),
+[MHD registers](../src/mhd/mhd_tasks.cpp),
+[particle task ordering](../src/particles/particles_tasks.cpp),
+[mesh timestep](../src/mesh/mesh.cpp).
 
-**`MHD::CopyCons()`'s RK4 register fix is a separate, general prerequisite**,
-not specific to particles: `Hydro::CopyCons()` already applied the RK4(4)[2S]
-`u1 += delta*u0` accumulator update for `stage > 1`, but `MHD::CopyCons()`
-only copied `u0`->`u1`/`b0`->`b1` at stage 1, with no RK4 handling at all — a
-pre-existing AthenaK bug (confirmed against Athena++'s reference RK4(4)[2S]
-implementation) that made any nontrivial MHD+RK4 evolution unstable
-(reproducibly, a timestep collapse from `dt ~ 1.5e-3` to `dt ~ 1e-25` after
-the first step), independent of whether particles are even present. Without
-this fix, MHD+RK4 saved-flux particle tracking cannot be validated, since the
-underlying fluid evolution itself is broken.
+## Boundaries and Static Mesh Refinement (SMR)
 
-## Optional Ito-2 Locality Timestep Constraint
+After a push, `SetNewPrtclGID()` handles physical faces and searches the
+crossed neighbor interface. Remote owners trigger normal particle MPI
+exchange. Lookup searches bounded subface/subedge groups, prefers explicit
+edge/corner neighbors, and uses coarse face/edge fallbacks where appropriate.
+A missing valid crossed-interface neighbor aborts.
 
-Moseley, Teyssier & Abel 2026 Eq. 63 gives a stronger, *accuracy*-motivated
-locality bound on Ito-2's drift, `|u_i|*dt/h < 1/4`, in addition to the
-`Cplus > 1` *stability* guard `PushIto2()` already enforces unconditionally.
-The paper itself notes enforcing it "makes little difference to the
-results," so it is off by default:
+| Physical boundary | Tracer behavior |
+| --- | --- |
+| Periodic | Wrap by one domain length; roundoff corrections preserve half-open ownership `[lo, hi)` |
+| Reflecting | Mirror overshoot inside; MC wall crossings should already be suppressed by wall mass flux |
+| Outflow, diode, inflow, vacuum, user | Freeze an exiting particle (`PLASTMOVE = -1`); retain its record, without injecting replacements |
 
-```ini
-<particles>
-ito2_enforce_locality_dt = true   # default: false
-```
+These rules govern existing tracers; fluid inflow does not automatically
+create particles. Frozen particles skip subsequent physical pushes and
+migration. Existing user-face/excision checks can also freeze particles.
+Filter inactive records when measuring an in-domain population.
 
-When enabled (`ito_2` only; no effect for any other pusher),
-`Particles::NewTimeStep()` evaluates `dt_new < dt/(4*max|cminus_i|)` from the
-same per-cell saved fluxes `PushIto2()` reads, using the un-interpolated
-(host-cell) `cminus_i` — deliberately not CIC-smoothed, since this sets one
-scalar `dt` for the whole domain.
+Migration is a neighboring-block route, not an arbitrary-distance locator.
+Wrapping/reflection does not iterate over multiple domain crossings.
+Shear-periodic handling retains coordinate wrapping but does not provide
+a general particle shear-offset/velocity remap.
 
-## Restart-Safe Randomness
+For MC only, `AdjustMeshRefinement()` runs after physical migration across
+an existing coarse/fine interface. It uses donor face/parity/level information
+to restore cell-center placement; fine-side selection uses saved interface
+fluxes. Classical/Ito positions remain continuous and skip this correction.
+This operation is distinct from changing mesh topology.
 
-The stochastic pushers use a **stateless** random draw: it depends only on
-the particle tag, cycle number, input seed, and (for Ito-2) a coordinate
-stream index — never on thread scheduling or random-pool consumption order,
-so it reproduces exactly across a restart. MC draws one value from
-`(PTAG, ncycle, random_seed)`; Ito-2 draws independently per coordinate using
-stream IDs `1`/`2`/`3`; `AdjustMeshRefinement()`'s extra MC draw uses
-`random_seed + 1` so it never collides with the main pusher draw.
+Sources: [boundary routing](../src/bvals/bvals_part.cpp),
+[MC coarse/fine correction](../src/particles/particles_pushers.cpp).
 
-`random_seed` defaults to a fixed constant (`-1`), the same on every rank,
-rather than a rank/GID-varying value: each draw already hashes in the
-particle's own globally unique `PTAG`, so a rank-varying base seed would add
-no real decorrelation, and it would actively break restart-exactness — a
-restart's `ParameterInput` block embeds one already-resolved value that every
-rank then reuses, so a rank-varying *default* would diverge from what a
-continuous run computes fresh per rank. Only set `random_seed` explicitly if
-you need a value different from the default.
+## Dynamic AMR and Rank Redistribution
 
-## Boundary Exchange
+`MeshRefinement::RedistAndRefineMeshBlocks()` brackets topology replacement
+with `PrepareMeshRedistribution()` and `FinishMeshRedistribution()`:
 
-After the pusher moves particles, `src/bvals/bvals_part.cpp`:
+1. Deep-copy real/integer records before old arrays and ownership become
+   invalid. Map an old leaf to the same leaf, its immediate parent, or its
+   immediate children, then select destination rank and GID.
+2. After new fluid data, coordinates and neighbors exist, exchange full records
+   and donor levels with host-staged MPI counts and `Alltoallv`. Zero-particle
+   ranks participate. CUDA MC density is packed into a contiguous device array
+   before copying to host.
+3. Restore arrays and rank/global counts; validate active ownership, supported
+   count ranges and unchanged global particle count.
 
-1. `SetNewPrtclGID()` checks whether each particle crossed a MeshBlock
-   boundary.
-2. Particles destined for another MPI rank are queued for send.
-3. `CountSendsAndRecvs()`/`InitPrtclRecv()`/`PackAndSendPrtcls()`/
-   `RecvAndUnpackPrtcls()`/`ClearPrtclRecv()`/`ClearPrtclSend()` exchange
-   particle data.
-4. Local particle arrays are resized and compacted.
+Classical/Ito positions are unchanged by this transfer. Active MC particles
+coarsening to a parent are placed at its cell center. On refinement, each MC
+particle selects one of the old cell's 4 (2-D) or 8 (3-D) fine children with
+probability proportional to **post-prolongation child mass**, then moves to
+that child's center. Equal Cartesian child volumes cancel from mass ratios.
+Invalid/negative child densities or a nonpositive total are rejected.
+Particles are not split or duplicated: stochastic allocation conserves count,
+not an exact quota in each child.
 
-Particles that cross a user boundary are frozen (`PLASTMOVE = -1`). Periodic
-boundaries wrap positions across the global mesh extent.
+Active tracer levels are updated; MC's last-move encoding is cleared because
+topology transfer is not a flux crossing. Inactive records retain coordinates
+and negative status. A clamped temporary position selects a new storage owner
+without moving an escaped record back into the domain.
 
-## What a Problem Generator Must Do
+The transfer handles one-level changes per event on the supported 2-D/3-D
+Cartesian hierarchy. It is not a general remapper between unrelated meshes
+or a GPU-direct/scalable-at-any-rank-count guarantee.
 
-The particle module allocates arrays, selects the pusher, and handles
-movement; a problem generator still owns initial particle placement for a
-fresh run:
+Sources: [particle AMR transfer](../src/particles/particles_amr.cpp),
+[mesh lifecycle hooks](../src/mesh/mesh_refinement.cpp).
 
-```cpp
-if (restart) return;   // particles are read from -p <file> on restart, not regenerated
-...
-InitializeLagrangianParticles(pin, u0_);
-```
+## Deterministic Random Draws
 
-The reusable initializer computes the domain-integrated mass (or volume, with
-`uniform_by_volume = true`) and divides by `target_count` to get an expected
-per-cell particle count, using stateless draws (`pos_init_seed`) for
-fractional counts and in-cell positions. It then calls
-`ReallocateParticles(nparticles_thispack)` and fills `PGID`/`PLASTLEVEL`/
-`IPX`/`IPY`/`IPZ`; `Mesh::FinalizeParticleDataStructures()` assigns tags via
-`Particles::CreateParticleTags()` afterward. A new pgen not using the shared
-initializer should follow the same pattern, explicitly setting
-`PLASTMOVE = 0` for fresh active particles (negative values stay reserved
-for frozen/deletion-marked particles).
+Physical pushers use stateless hashes, with `random_seed = -1` on every rank
+by default. For a fixed tag, cycle and seed:
 
-## Particle Output and Exact Restarts
+- MC face draws additionally use face index 0--5.
+- Ito draws use stream `direction * 10000 + subdraw`, for directions 1--3.
+- MC's existing-interface correction uses a separate `random_seed + 1` draw.
+- Dynamic-AMR child selection uses a dedicated hash of seed, tag, cycle,
+  donor level and global parent-cell coordinates.
 
-`file_type = pbin` (`src/outputs/bin_prtcl.cpp`, written under `pbin/` as
-`.prtclbin`) writes particle positions, integer data (`PGID`/`PTAG`/
-`PLASTMOVE`), and grid quantities sampled at particle positions (the
-`variable` key selects which fields, falling back to a default set if unset).
+These do not consume a thread-scheduled random pool. Draws do not depend on
+rank or array order, but this does **not** guarantee identical whole simulations
+across hardware, reductions, mesh histories or fresh-run decompositions.
+Preserve seeds and pusher settings on restart.
 
-Exact restarts need **both** a fluid restart (`file_type = rst`) and a
-particle restart (`file_type = prst`, `src/outputs/res_prtcl.cpp`, written
-under `prst/` as `.prtclrst` — magic number `42`, particle count, then
-`PGID`/`PTAG`/`PLASTMOVE`/`IPX`/`IPY`/`IPZ`; random seeds are not stored, since
-they're recomputed deterministically from `PTAG`/`ncycle`/`random_seed`):
+## Outputs and Paired Checkpoints
+
+`file_type = pbin` writes `.prtclbin` diagnostics under `pbin/`: all three
+real and four integer tracer arrays (including `PLASTLEVEL`), plus grid
+fields selected by `variable`. Grid fields use containing-cell sampling,
+with indices clamped to the stored owner's active cells, not the classical
+pusher's CIC interpolation. Values attached to escaped/frozen records are
+not physical measurements outside the domain.
+
+Continuation with particles requires both `rst` and `prst`:
 
 ```bash
-./athena -r rst/Problem.00010.rst -p prst/Problem.00010.prtclrst -i athinput
+./athena -r rst/Problem.00010.rst -p prst/Problem.00010.prtclrst
 ```
 
-If particles are enabled and a fluid restart is run without `-p`, the
-restart constructor exits with an error — a statistically regenerated
-particle set is not an exact restart, so this is treated as a hard error
-rather than silently falling back to it. Keep `rst`/`prst` at the same output
-cadence, and don't change mesh decomposition, AMR settings, particle count,
-or pgen placement settings across a restart (the particle restart reader
-maps particles back to ranks by `PGID`, which changing the mesh layout can
-disturb).
+Use the actual filenames generated by your basename/output ID. Missing `-p`
+with enabled particles is an error. Keep both outputs on the same schedule.
+The driver defers due `rst`/`prst` writes until after AMR, particle
+redistribution, next-timestep selection and STS-state refresh. Ordinary
+analysis outputs stay before AMR during the cycle; equal time labels do not
+guarantee identical topology between an analysis dump and a checkpoint.
 
-## Validation
+The fluid restart carries a versioned lifecycle extension: previous and last
+completed timesteps, AMR/load-balance sequence, and adaptive refinement ages.
+The base header carries the selected next timestep. Output counters in embedded
+parameters are reserved before a checkpoint batch. Restart initialization
+reapplies tighter current timestep constraints without exceeding the saved
+next timestep, restores `dtold`, and refreshes STS state. This fluid-checkpoint
+lifecycle change also applies to runs without particles.
 
-Extensively cross-checked across CPU, MPI-CPU, and GPU builds: stock
-regression suites; a 12-leg RK1/RK3/RK4 x Hydro/MHD x MC/Ito-2 saved-flux
-matrix; single- and two-node GPU particle restart and migration checks
-(exact bitwise match); a two-node rank-local (`single_file_per_rank`)
-restart check (exact match); square-wave/advection and driven-turbulence
-paper-comparison suites (against Genel et al. 2013 and Moseley, Teyssier &
-Abel 2026); a Mach-0.315, 64-particles/cell case with CIC-deposited
-gas-tracer cross-spectra; and a resolution/seed study on a converging-flow
-setup targeting the exact stagnation-point regime the CIC interpolation was
-built for (mean error 18.6% -> 1.3% after CIC vs. nearest-grid-point).
+### Particle checkpoint version 1
 
-## Common Gotchas
+The header is 64 bytes: six 64-bit integer values followed by two doubles:
 
-- Missing `<particles>` block: no particle object is constructed, so pgen
-  particle initialization is silently skipped.
-- `particle_type = mass_tracer` with `pusher = drift`: the constructor
-  exits — `drift` is reserved for `particle_type = cosmic_ray`.
-- Fluid restart without `-p` when particles are enabled: hard error by
-  design (see "Particle Output and Exact Restarts").
-- Mismatched `rst`/`prst` cadence: the fluid and particle states come from
-  different cycles, so the restart is not exact.
-- MHD + `integrator = rk4`: needs the `MHD::CopyCons()` register fix (see
-  "RK-Integrator Support") to be stable at all, independent of particles —
-  without it, a nontrivial MHD+RK4 run diverges within one step regardless
-  of whether particles are present.
-- `ito2_enforce_locality_dt = true`: off by default; per the paper, expect
-  it to make little practical difference, and it only affects `ito_2`.
+```text
+magic=44, particle_count, version=1, cycle, global_block_count, topology_hash,
+time, selected_next_dt
+```
+
+The payload is six arrays of doubles: `PGID`, `PTAG`, `PLASTMOVE`, `x`,
+`y`, `z` (integer fields are encoded as doubles). Count is global for shared
+files and local for per-rank files. The reader uses `Real`-sized payload reads,
+so the current writer/reader contract requires a double-precision build;
+do not assume single-precision or cross-endian portability.
+
+The reader rejects mismatched version, cycle, time, next timestep, block count
+or topology hash. The hash covers geometry, block dimensions and ordered
+logical locations, not rank assignment. It is a pairing check, not a payload
+checksum or a check of every physics option.
+
+`PLASTLEVEL` is not serialized in `prst`: it is reconstructed from the current
+owner. MC reload restores cell-center placement for in-block particles;
+classical/Ito coordinates are retained, and out-of-owner/excised positions
+are frozen. Exact continuation therefore need not mean every bookkeeping
+integer matches immediately after reload. Preserve type, pusher, seeds,
+physical setup and mesh/AMR policy when comparing continuation.
+
+Shared files allow reassignment by GID to a different MPI decomposition of
+the same checkpoint mesh; this is not permission to change topology in the
+input. Per-rank files require compatible rank ownership and the complete
+rank-file set. Bitwise evolution across rank-count changes is not promised.
+
+Legacy magic-42 particle files remain readable **with legacy fluid files**.
+Mixed new/legacy pairs are rejected. Legacy fluid files lack lifecycle state
+and warn that exact continuation across topology changes is not guaranteed.
+Old executables are not promised to read the new format.
+
+Sources: [diagnostic output](../src/outputs/bin_prtcl.cpp),
+[particle writer](../src/outputs/res_prtcl.cpp),
+[reader and reconstruction](../src/pgen/pgen.cpp),
+[metadata definitions](../src/outputs/checkpoint_metadata.hpp),
+[fluid writer](../src/outputs/restart.cpp),
+[fluid reader](../src/mesh/build_tree.cpp),
+[driver ordering](../src/driver/driver.cpp).
+
+## Validation Scope at Integration
+
+This is an integration evidence summary, not exhaustive coverage or a fresh
+full four-mode rerun on `366a172a`:
+
+- Earlier-base standard suites recorded CPU 232 passed/15 expected skips,
+  MPI-CPU 52 passed in single-host and two-node runs, and single-GPU 54 passed.
+  Functional matrices and isolated GPU OOM reruns supplied additional evidence.
+- The exact candidate later committed as `366a172a` passed targeted two-GPU
+  job 13750687: 57 boundary cases plus one geometry case. Job 13741451 passed
+  targeted diode/AMR, STS/turbulence restart, checkpoint-format and MC allocation
+  checks. MC analysis accepted post-prolongation child masses and rejected
+  uniform allocation across 16 parent groups.
+- Twelve positive-oblique SMR cases had reload-only, one-level `PLASTLEVEL`
+  differences. The checks validate reconstruction from the current owner;
+  they do not require all four integer rows to match bitwise.
+- The broader job 13733251 timed out; it is not a full-suite pass.
+
+Integration-specific launchers and artifacts remain in the maintainer's
+scratch handoff, not this repository. The existing
+[imported-feature tests](../tst/test_suite/imported_features) are not a portable
+replacement for that entire boundary/AMR/checkpoint matrix. Packaging the new
+checks remains follow-up work. Historical paper comparisons are not presented
+here as certification of this integration.
