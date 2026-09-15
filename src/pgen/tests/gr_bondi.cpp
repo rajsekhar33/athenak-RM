@@ -103,7 +103,6 @@ void ProblemGenerator::BondiAccretion(ParameterInput *pin, const bool restart) {
   // set user-defined BCs and error function pointers
   pgen_final_func = BondiErrors;
   user_bcs_func = FixedBondiInflow;
-  if (restart) return;
 
   // Read problem-specific parameters from input file
   // global parameters
@@ -122,7 +121,7 @@ void ProblemGenerator::BondiAccretion(ParameterInput *pin, const bool restart) {
   }
 
   // Parameters
-  bondi.temp_min = 1.0e-2;  // lesser temperature root must be greater than this
+  bondi.temp_min = 1.0e-10; // lesser temperature root must be greater than this
   bondi.temp_max = 1.0e1;   // greater temperature root must be less than this
 
   // Get spin of black hole
@@ -143,6 +142,10 @@ void ProblemGenerator::BondiAccretion(ParameterInput *pin, const bool restart) {
   bondi.c1 = pow(t_crit, bondi.n_adi) * u_crit * SQR(bondi.r_crit);  // (HSW 68)
   bondi.c2 = (SQR(1.0 + (bondi.n_adi+1.0) * t_crit)
               * (1.0 - 3.0/(2.0*bondi.r_crit)));                     // (HSW 69)
+
+  // Boundary callbacks also need these parameters after loading a checkpoint.
+  // Do not overwrite the restored fluid state with fresh initial conditions.
+  if (restart) return;
 
   // capture variables for the kernel
   auto &indcs = pmy_mesh_->mb_indcs;

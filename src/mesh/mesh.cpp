@@ -754,3 +754,18 @@ void Mesh::FinalizeParticleDataStructures(ParameterInput *pinput, bool is_restar
     }
   }
 }
+
+//----------------------------------------------------------------------------------------
+//! \fn Mesh::AddCyclicZoom(ParameterInput *pin)
+
+void Mesh::AddCyclicZoom(ParameterInput *pin) {
+  if (adaptive && pmr != nullptr && pmr->pmrc != nullptr) {
+    auto rcrit = pmr->pmrc->rcrit;
+    for (auto it = rcrit.begin(); it != rcrit.end(); ++it) {
+      if (it->rmethod == RefCritMethod::cyclic_zoom) {
+        pzoom = new CyclicZoom(this, pin);
+        return;
+      }
+    }
+  }
+}
