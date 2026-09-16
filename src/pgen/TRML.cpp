@@ -128,6 +128,11 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   user_ref_func= UserRefine;
   pgen_final_func = TRMLFinalWork;
   MeshBlockPack *pmbp = pmy_mesh_->pmb_pack;
+  if (user_hist && pmy_mesh_->mb_indcs.ng < 4) {
+    std::cerr << "TRML user history requires mesh/nghost >= 4 for stride-four "
+              << "marching-cubes diagnostics." << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
   if (pmbp->phydro == nullptr && pmbp->pmhd == nullptr) {
     std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
        << "TRML problem generator can only be run with Hydro and/or MHD, "
@@ -457,167 +462,11 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       std::cout << "Hydro/MHD variables initialization done" << "\n";
     }
 
-    // Initialize particles - within Hydro/MHD block check
+    // Preserve TRML's volume-weighted, centered defaults; explicit choices still win.
     if (pmbp->ppart != nullptr) {
-      // captures for the kernel
-      auto &mblev = pmbp->pmb->mb_lev;
-      auto gids = pmbp->gids;
-
-      // Get fixed seed for reproducibility - will be offset by MeshBlock ID
-      int64_t pos_init_seed = pin->GetOrAddInteger("particles","pos_init_seed",280496);
-      
-      // Get distribution type: false = by mass (default), true = uniform by volume
-      bool uniform_by_volume = pin->GetOrAddBoolean("particles","uniform_by_volume",true);
-
-      // count total mass/volume across the domain
-      Real total_mass = 0.0;
-      Real total_volume = 0.0;
-      const int nmkji = (pmbp->nmb_thispack)*indcs.nx3*indcs.nx2*indcs.nx1;
-      const int nkji = indcs.nx3*indcs.nx2*indcs.nx1;
-      const int nji  = indcs.nx2*indcs.nx1;
-
-      Kokkos::parallel_reduce("pgen_mass_vol", Kokkos::RangePolicy<>(DevExeSpace(), 0, nmkji),
-      KOKKOS_LAMBDA(const int &idx, Real &total_mass, Real &total_volume) {
-        // compute m,k,j,i indices of thread and evaluate
-        int m = (idx)/nkji;
-        int k = (idx - m*nkji)/nji;
-        int j = (idx - m*nkji - k*nji)/indcs.nx1;
-        int i = (idx - m*nkji - k*nji - j*indcs.nx1) + is;
-        k += ks;
-        j += js;
-
-        Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
-        total_mass += u0(m,IDN,k,j,i) * vol;
-        total_volume += vol;
-      }, total_mass, total_volume);
-
-      Real total_mass_thispack = total_mass;
-      Real total_volume_thispack = total_volume;
-
-  #if MPI_PARALLEL_ENABLED
-      // get total mass/volume over all MPI ranks
-      MPI_Allreduce(MPI_IN_PLACE, &total_mass, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      MPI_Allreduce(MPI_IN_PLACE, &total_volume, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  #endif
-
-      // get number of particles for this mbpack using MC to deal with fractional particles
-      Real target_nparticles = pin->GetOrAddReal("particles","target_count",100000.0);
-      Real mass_per_particle = total_mass / target_nparticles;
-      Real volume_per_particle = total_volume / target_nparticles;
-
-      // create shared array to hold number of particles per zone
-      DualArray2D<int> nparticles_per_zone("partperzone", nmkji,2);
-      par_for("particle_count", DevExeSpace(), 0,nmkji-1,
-      KOKKOS_LAMBDA(int idx) {
-        int m = (idx)/nkji;
-        int k = (idx - m*nkji)/nji;
-        int j = (idx - m*nkji - k*nji)/indcs.nx1;
-        int i = (idx - m*nkji - k*nji - j*indcs.nx1) + is;
-        k += ks;
-        j += js;
-        
-        // Create deterministic pseudo-random number using hash function
-        // This ensures same particle count for same zone regardless of MPI decomposition
-        int64_t mb_gid = gids + m;  // Global MeshBlock ID
-        int64_t zone_seed = pos_init_seed + mb_gid * 999983 + i * 7919 + j * 104729 + k * 524287;
-        
-        // Simple hash-based pseudo-random number generation (device-compatible)
-        // Using a variant of the splitmix64 algorithm
-        uint64_t z = static_cast<uint64_t>(zone_seed);
-        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ULL;
-        z = (z ^ (z >> 27)) * 0x94d049bb133111ebULL;
-        z = z ^ (z >> 31);
-        Real rand_val = static_cast<Real>(z & 0x7FFFFFFFULL) / static_cast<Real>(0x80000000ULL);
-        
-        Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
-        
-        // Calculate number of particles per zone based on distribution type
-        Real nppc;
-        if (uniform_by_volume) {
-          // Uniform distribution: each zone gets same number per unit volume
-          nppc = vol / volume_per_particle;
-        } else {
-          // Mass-weighted distribution: zones get particles proportional to mass
-          nppc = u0(m,IDN,k,j,i) * vol / mass_per_particle;
-        }
-        
-        int nparticles = static_cast<int>(nppc);
-        nppc = fabs(fmod(nppc, 1.0));
-        if (rand_val < nppc) {
-          nparticles += 1;
-        }
-        nparticles_per_zone.d_view(idx,0) = nparticles;
-      });
-
-      // count total number of particles in this pack
-      nparticles_per_zone.template modify<DevExeSpace>();
-      nparticles_per_zone.template sync<HostMemSpace>();
-      int nparticles_thispack = 0;
-      for (int i=0; i<nmkji; ++i) {
-        nparticles_per_zone.h_view(i,1) = nparticles_thispack;
-        nparticles_thispack += nparticles_per_zone.h_view(i,0);
-      }
-      nparticles_per_zone.template modify<HostMemSpace>();
-      nparticles_per_zone.template sync<DevMemSpace>();
-
-      // helpful debug statement
-      if (uniform_by_volume) {
-        if (global_variable::my_rank == 0) {
-          std::cout << "Particle distribution: UNIFORM BY VOLUME" << std::endl;
-        }
-        std::cout << "Rank " << global_variable::my_rank
-                  << ": total volume across domain: " << total_volume
-                  << ", total volume in pack: " << total_volume_thispack
-                  << ", target nparticles: " << target_nparticles
-                  << ", nparticles in pack: " << nparticles_thispack
-                  << std::endl;
-      } else {
-        if (global_variable::my_rank == 0) {
-          std::cout << "Particle distribution: BY MASS (default)" << std::endl;
-        }
-        std::cout << "Rank " << global_variable::my_rank
-                  << ": total mass across domain: " << total_mass
-                  << ", total mass in pack: " << total_mass_thispack
-                  << ", target nparticles: " << target_nparticles
-                  << ", nparticles in pack: " << nparticles_thispack
-                  << std::endl;
-      }
-
-      // reallocate space for particles and get relevant pointers
-      pmbp->ppart->ReallocateParticles(nparticles_thispack);
-
-      auto &pr = pmbp->ppart->prtcl_rdata;
-      auto &pi = pmbp->ppart->prtcl_idata;
-
-      // initialize particles. only intended for Lagrangian-type particles
-      par_for("part_init", DevExeSpace(), 0,nmkji-1,
-      KOKKOS_LAMBDA(int idx) {
-        int m = (idx)/nkji;
-        int k = (idx - m*nkji)/nji;
-        int j = (idx - m*nkji - k*nji)/indcs.nx1;
-        int i = (idx - m*nkji - k*nji - j*indcs.nx1) + is;
-        k += ks;
-        j += js;
-
-        int nparticles_in_zone = nparticles_per_zone.d_view(idx,0);
-        int starting_index = nparticles_per_zone.d_view(idx,1);
-
-        for (int p=0; p<nparticles_in_zone; ++p) {
-          int pidx = p + starting_index;
-
-          pi(PGID,pidx) = gids + m;
-          pi(PLASTLEVEL,pidx) = mblev.d_view(m);
-
-          // set particle to zone center
-          pr(IPX,pidx) = CellCenterX(i-is, nx1, size.d_view(m).x1min,
-                                    size.d_view(m).x1max);
-          pr(IPY,pidx) = CellCenterX(j-js, nx2, size.d_view(m).x2min,
-                                    size.d_view(m).x2max);
-          pr(IPZ,pidx) = CellCenterX(k-ks, nx3, size.d_view(m).x3min,
-                                    size.d_view(m).x3max) -
-                        size.d_view(m).dx3/2;
-        }
-      });
+      pin->GetOrAddBoolean("particles", "uniform_by_volume", true);
+      pin->GetOrAddBoolean("particles", "random_positions", false);
+      InitializeLagrangianParticles(pin, u0);
     }
   }
   return;

@@ -10,6 +10,7 @@
 #include <cinttypes>
 #include <limits> // numeric_limits<>
 #include <memory> // make_unique<>
+#include <cmath>
 
 #include "athena.hpp"
 #include "globals.hpp"
@@ -18,6 +19,7 @@
 #include "coordinates/cell_locations.hpp"
 #include "hydro/hydro.hpp"
 #include "mhd/mhd.hpp"
+#include "outputs/checkpoint_metadata.hpp"
 
 #if MPI_PARALLEL_ENABLED
 #include <mpi.h>
@@ -427,6 +429,58 @@ void Mesh::BuildTreeFromRestart(ParameterInput *pin, IOWrapper &resfile,
     if (lloc_eachmb[i].level > current_level) current_level = lloc_eachmb[i].level;
   }
   delete [] idlist;
+  if (pin->DoesParameterExist("mesh", "checkpoint_lifecycle_version")) {
+    if (pin->GetInteger("mesh", "checkpoint_lifecycle_version") != checkpoint::version) {
+      Kokkos::abort("Unsupported checkpoint lifecycle version");
+    }
+    uint64_t marker[2] = {};
+    Real steps[2] = {};
+    int state[2] = {};
+    if (global_variable::my_rank == 0 || single_file_per_rank) {
+      if (resfile.Read_bytes(marker, 1, sizeof(marker), single_file_per_rank) != sizeof(marker) ||
+          resfile.Read_bytes(steps, 1, sizeof(steps), single_file_per_rank) != sizeof(steps) ||
+          resfile.Read_bytes(state, 1, sizeof(state), single_file_per_rank) != sizeof(state)) {
+        Kokkos::abort("Truncated checkpoint lifecycle header");
+      }
+    }
+#if MPI_PARALLEL_ENABLED
+    if (!single_file_per_rank) {
+      MPI_Bcast(marker, sizeof(marker), MPI_BYTE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(steps, 2, MPI_ATHENA_REAL, 0, MPI_COMM_WORLD);
+      MPI_Bcast(state, 2, MPI_INT, 0, MPI_COMM_WORLD);
+    }
+#endif
+    if (marker[0] != checkpoint::fluid_magic || marker[1] != checkpoint::version ||
+        (state[1] != 0 && state[1] != nmb_total) || state[0] < 0 ||
+        !std::isfinite(dt) || dt <= 0 || !std::isfinite(steps[0]) || steps[0] < 0 ||
+        !std::isfinite(steps[1]) || steps[1] < 0) {
+      Kokkos::abort("Invalid checkpoint lifecycle metadata");
+    }
+    restart_next_dt = true;
+    dtold = steps[0];
+    dt_last_completed = steps[1];
+    amr_lb_seq_ = state[0];
+    restart_amr_age.resize(state[1]);
+    if (state[1] > 0) {
+      if (global_variable::my_rank == 0 || single_file_per_rank) {
+        if (resfile.Read_bytes(restart_amr_age.data(), sizeof(int), state[1],
+                              single_file_per_rank) != state[1]) {
+          Kokkos::abort("Truncated checkpoint refinement ages");
+        }
+      }
+#if MPI_PARALLEL_ENABLED
+      if (!single_file_per_rank) {
+        MPI_Bcast(restart_amr_age.data(), state[1], MPI_INT, 0, MPI_COMM_WORLD);
+      }
+#endif
+      for (int age : restart_amr_age) {
+        if (age < 0) Kokkos::abort("Negative checkpoint refinement age");
+      }
+    }
+  } else if (global_variable::my_rank == 0) {
+    std::cout << "WARNING: legacy checkpoint has no AMR/timestep phase metadata; "
+              << "exact restart across topology changes is not guaranteed." << std::endl;
+  }
   if (!adaptive) max_level = current_level;
 
   // rebuild the MeshBlockTree

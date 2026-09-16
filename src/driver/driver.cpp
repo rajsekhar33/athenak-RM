@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <string> // string
+#include <vector>
 
 #include "athena.hpp"
 #include "globals.hpp"
@@ -35,6 +36,18 @@
 #endif
 
 namespace {
+
+// A fluid checkpoint must contain the NEXT counters for all outputs in the
+// batch, including particle checkpoints written later in that batch. Reserve
+// only ParameterInput values; writers still advance their own counters once.
+void ReserveOutputCounters(const std::vector<BaseTypeOutput*> &outputs,
+                           ParameterInput *pin, Real time) {
+  for (auto *out : outputs) {
+    const auto &op = out->out_params;
+    pin->SetInteger(op.block_name, "file_number", op.file_number+1);
+    pin->SetReal(op.block_name, "last_time", op.last_time < 0 ? time : op.last_time+op.dt);
+  }
+}
 
 [[noreturn]] void DriverFatalError(const char *file, int line, const std::string &msg) {
   std::cout << "### FATAL ERROR in " << file << " at line " << line << std::endl
@@ -461,6 +474,8 @@ void Driver::ExecuteTaskList(Mesh *pm, std::string tl, int stage) {
 //  outputting ICs, and computing initial time step
 
 void Driver::Initialize(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool res_flag) {
+  const Real saved_next_dt = pmesh->dt;
+  const Real saved_dtold = pmesh->dtold;
   //---- Step 1.  Set conserved variables in ghost zones for all physics
   InitBoundaryValuesAndPrimitives(pmesh);
 
@@ -488,11 +503,20 @@ void Driver::Initialize(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool re
     }
 
     pmesh->NewTimeStep(tlim);
+    if (res_flag && pmesh->restart_next_dt) {
+      // This dt was already selected at a complete checkpoint boundary. Reapply
+      // tighter current constraints, but do not grant another growth allowance
+      // or lose a saved particle accuracy cap during restart initialization.
+      pmesh->dt = std::min(pmesh->dt, saved_next_dt);
+      pmesh->dtold = saved_dtold;
+    }
     RefreshSTSCycleState(pmesh);
   }
+  pmesh->checkpoint_ready = true;
 
   //---- Step 3.  Cycle through output Types and load data / write files.
   if (!res_flag) { // only write outputs at the beginning of the run
+    ReserveOutputCounters(pout->pout_list, pin, pmesh->time);
     for (auto &out : pout->pout_list) {
       out->LoadOutputData(pmesh);
       out->WriteOutputFile(pmesh, pin);
@@ -547,6 +571,7 @@ void Driver::Execute(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool wdfla
     }
     while ((pmesh->time < tlim) && (pmesh->ncycle < nlim || nlim < 0) &&
            (elapsed_time < wall_time)) {
+      pmesh->checkpoint_ready = false;
       if (global_variable::my_rank == 0) {OutputCycleDiagnostics(pmesh);}
       if (wdflag) {WatchDog(0);}
 
@@ -611,6 +636,10 @@ void Driver::Execute(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool wdfla
             static_cast<float>(pmesh->nmb_total);
       }
 
+      // Keep analysis outputs here (some consume completed-step fluxes). Stage
+      // only the list of due checkpoints, not their old-topology data.
+      pmesh->checkpoint_ready = false;
+      std::vector<BaseTypeOutput*> due_checkpoints;
       // Test for/make outputs
       for (auto &out : pout->pout_list) {
         // compare at floating point (32-bit) precision to reduce effect of round off
@@ -628,8 +657,12 @@ void Driver::Execute(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool wdfla
           // update the elapsed time
           out->out_params.last_wall_time = (Real) elapsed_time_32;
 
-          out->LoadOutputData(pmesh);
-          out->WriteOutputFile(pmesh, pin);
+          if (out->out_params.file_type == "rst" || out->out_params.file_type == "prst") {
+            due_checkpoints.push_back(out);
+          } else {
+            out->LoadOutputData(pmesh);
+            out->WriteOutputFile(pmesh, pin);
+          }
         }
       }
 
@@ -638,6 +671,12 @@ void Driver::Execute(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool wdfla
       // compute new timestep AFTER all Meshblocks refined/derefined
       pmesh->NewTimeStep(tlim);
       RefreshSTSCycleState(pmesh);
+      pmesh->checkpoint_ready = true;
+      ReserveOutputCounters(due_checkpoints, pin, pmesh->time);
+      for (auto *out : due_checkpoints) {
+        out->LoadOutputData(pmesh);
+        out->WriteOutputFile(pmesh, pin);
+      }
 
       // Update wall clock time if needed.
       if (wall_time > 0.) {
@@ -654,6 +693,7 @@ void Driver::Execute(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool wdfla
 //!  and printing diagnostic messages
 
 void Driver::Finalize(Mesh *pmesh, ParameterInput *pin, Outputs *pout) {
+  ReserveOutputCounters(pout->pout_list, pin, pmesh->time);
   // cycle through output Types and load data / write files
   //  This design allows for asynchronous outputs to implemented in the future.
   for (auto &out : pout->pout_list) {

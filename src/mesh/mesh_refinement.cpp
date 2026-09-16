@@ -28,6 +28,7 @@
 #include "dyn_grmhd/dyn_grmhd.hpp"
 #include "hydro/hydro.hpp"
 #include "mhd/mhd.hpp"
+#include "particles/particles.hpp"
 #include "radiation/radiation.hpp"
 #include "coordinates/adm.hpp"
 #include "z4c/z4c.hpp"
@@ -83,7 +84,7 @@ MeshRefinement::MeshRefinement(Mesh *pm, ParameterInput *pin) :
   for (int m=0; m<(pm->nmb_total); ++m) {
     refine_flag.h_view(m) = 0;
     fc_amr_repair.h_view(m) = 0;
-    ncyc_since_ref(m) = 0;
+    ncyc_since_ref(m) = pm->restart_amr_age.empty() ? 0 : pm->restart_amr_age[m];
   }
   refine_flag.template modify<HostMemSpace>();
   refine_flag.template sync<DevExeSpace>();
@@ -153,12 +154,14 @@ void MeshRefinement::AdaptiveMeshRefinement(Driver *pdriver, ParameterInput *pin
 
   // Refine/derefine mesh and evolved data, set boundary conditions/timestep on new mesh
   if (nnew != 0 || ndel != 0) { // at least one (de)refinement flagged
+    if (pmy_mesh->pzoom != nullptr) pmy_mesh->pzoom->StoreZoomRegion();
     RedistAndRefineMeshBlocks(pin, nnew, ndel);
 
     // Mark one mesh-topology update event (AMR and any resulting load balancing).
     pmy_mesh->MarkMeshUpdated();
 
     pdriver->InitBoundaryValuesAndPrimitives(pmy_mesh);
+    if (pmy_mesh->pzoom != nullptr) pmy_mesh->pzoom->ApplyZoomRegion(pdriver);
 
     MeshBlockPack* pmbp = pmy_mesh->pmb_pack;
     if (pmbp->pmhd != nullptr) {
@@ -180,6 +183,9 @@ void MeshRefinement::AdaptiveMeshRefinement(Driver *pdriver, ParameterInput *pin
     if (pmbp->pz4c != nullptr) {
       (void) pmbp->pz4c->NewTimeStep(pdriver, pdriver->nexp_stages);
     }
+    // Particle remapping already transferred a conservative lagged dt bound.
+    // Its ordinary NewTimeStep reads old-cycle saved fluxes, which are NOT valid
+    // on the new topology; do not call it here. The next full step refreshes them.
 
     nmb_created += nnew;
     nmb_deleted += ndel;
@@ -227,6 +233,9 @@ void MeshRefinement::CheckForRefinement(MeshBlockPack* pmbp) {
         break;
       case RefCritMethod::location:
         pmrc->CheckLocation(pmbp, *it);
+        break;
+      case RefCritMethod::cyclic_zoom:
+        pmrc->CheckCyclicZoom(pmbp);
         break;
       case RefCritMethod::user:
         pmy_mesh->pgen->user_ref_func(pmbp);
@@ -509,6 +518,12 @@ void MeshRefinement::RedistAndRefineMeshBlocks(ParameterInput *pin, int nnew, in
   refine_flag.template sync<DevExeSpace>();
 
   hydro::Hydro* phydro = pm->pmb_pack->phydro;
+  auto *ppart = pm->pmb_pack->ppart;
+  particles::Particles::MeshRedistribution particle_transfer;
+  if (ppart != nullptr) {
+    particle_transfer = ppart->PrepareMeshRedistribution(
+        new_lloc_eachmb, new_rank_eachmb, oldtonew, new_nmb);
+  }
   mhd::MHD* pmhd = pm->pmb_pack->pmhd;
   radiation::Radiation* prad = pm->pmb_pack->prad;
   z4c::Z4c* pz4c = pm->pmb_pack->pz4c;
@@ -658,6 +673,12 @@ void MeshRefinement::RedistAndRefineMeshBlocks(ParameterInput *pin, int nnew, in
   pm->pmb_pack->AddMeshBlocks(pin);
   pm->pmb_pack->AddCoordinates(pin);
   pm->pmb_pack->pmb->SetNeighbors(pm->ptree, pm->rank_eachmb);
+
+  // New geometry and conservative fluid data are now valid. Finish before any
+  // output, restart or timestep task can observe new blocks with old particle GIDs.
+  if (ppart != nullptr) {
+    ppart->FinishMeshRedistribution(particle_transfer);
+  }
 
   Kokkos::realloc(fc_amr_repair, new_nmb_total);
   for (int m=0; m<new_nmb_total; ++m) {
