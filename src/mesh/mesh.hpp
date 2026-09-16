@@ -14,6 +14,7 @@
 #include <cstdint>  // int32_t
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "athena.hpp"
 #include "diffusion/sts_types.hpp"
@@ -85,6 +86,7 @@ class Mesh;
 #include "meshblock_pack.hpp"
 #include "meshblock_tree.hpp"
 #include "mesh_refinement.hpp"
+#include "cyclic_zoom/cyclic_zoom.hpp"
 
 //----------------------------------------------------------------------------------------
 //! \class Mesh
@@ -141,12 +143,17 @@ class Mesh {
   Real time, dt, dtold, dt_last_completed, dt_parabolic_sts, sts_max_dt_ratio, cfl_no;
   parabolic::STSIntegrator sts_integrator;
   int ncycle;
+  // Versioned checkpoints are written after AMR and next-step selection.
+  bool restart_next_dt = false;
+  bool checkpoint_ready = false;
+  std::vector<int> restart_amr_age;
   EventCounters ecounter;
 
   int nmb_packs_thisrank;                  // number of MBPacks on this rank
   MeshBlockPack* pmb_pack;                 // container for MeshBlocks on this rank
   std::unique_ptr<ProblemGenerator> pgen;  // class containing functions to set ICs
   MeshRefinement *pmr=nullptr;             // mesh refinement data/functions (if needed)
+  CyclicZoom *pzoom=nullptr;               // cyclic zoom data/functions (if needed)
 
   // functions
   void BuildTreeFromScratch(ParameterInput *pin);
@@ -162,6 +169,7 @@ class Mesh {
   // true whenever particles were just restored from a particle restart file, so
   // CreateParticleTags() does not clobber the tags that were just read back in.
   void FinalizeParticleDataStructures(ParameterInput *pinput, bool is_restart);
+  void AddCyclicZoom(ParameterInput *pin);
   BoundaryFlag GetBoundaryFlag(const std::string& input_string);
   std::string GetBoundaryString(BoundaryFlag input_flag);
 

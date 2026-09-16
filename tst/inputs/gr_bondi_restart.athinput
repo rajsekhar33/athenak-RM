@@ -1,0 +1,66 @@
+# Short static-refinement Bondi restart test, deliberately without cyclic zoom.
+<job>
+basename = bondi_restart
+<mesh>
+nghost = 2
+nx1 = 32
+x1min = -50.0
+x1max = 50.0
+ix1_bc = user
+ox1_bc = user
+nx2 = 32
+x2min = -50.0
+x2max = 50.0
+ix2_bc = user
+ox2_bc = user
+nx3 = 32
+x3min = -50.0
+x3max = 50.0
+ix3_bc = user
+ox3_bc = user
+<meshblock>
+nx1 = 8
+nx2 = 8
+nx3 = 8
+<mesh_refinement>
+refinement = static
+num_levels = 5
+<refined_region1>
+level = 4
+x1min = -1.0
+x1max = 1.0
+x2min = -1.0
+x2max = 1.0
+x3min = -1.0
+x3max = 1.0
+<coord>
+general_rel = true
+a = 0.0
+excise = true
+dexcise = 1.0e-8
+pexcise = 0.333e-12
+<time>
+evolution = dynamic
+integrator = rk2
+cfl_number = 0.3
+nlim = 8
+tlim = 10000.0
+ndiag = 1
+<hydro>
+eos = ideal
+reconstruct = plm
+rsolver = hlle
+gamma = 1.66666666667
+<problem>
+pgen_name = gr_bondi
+k_adi = 1.0
+r_crit = 8.0
+<output1>
+file_type = rst
+dt = -1
+dcycle = 1
+<output2>
+file_type = bin
+variable = hydro_u
+dt = -1
+dcycle = 1
