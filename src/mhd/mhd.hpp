@@ -224,6 +224,7 @@ class MHD {
   TaskStatus STSEField(Driver *d, int stage);
   TaskStatus STSUpdateU(Driver *d, int stage);
   TaskStatus STSUpdateB(Driver *d, int stage);
+  TaskStatus STSCheckState(Driver *d, int stage);
   TaskStatus STSRefreshTimeStep(Driver *d, int stage);
   // ...in "after_stagen_tl" task list
   TaskStatus ClearSend(Driver *d, int stage);

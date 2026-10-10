@@ -45,6 +45,8 @@ add_executable(
 
         diffusion/ambipolar.cpp
         diffusion/conduction.cpp
+        diffusion/conduction_spitzer.cpp
+        diffusion/conduction_saturated.cpp
         diffusion/resistivity.cpp
         diffusion/sts_rkl2.cpp
         diffusion/viscosity.cpp
@@ -143,6 +145,8 @@ add_executable(
         pgen/tests/cshock.cpp
         pgen/tests/divb_amr.cpp
         pgen/tests/diffusion.cpp
+        pgen/tests/transport_mode.cpp
+        pgen/tests/transport_refinement.cpp
         pgen/tests/gr_bondi.cpp
         pgen/tests/gr_monopole.cpp
         pgen/tests/linear_wave.cpp

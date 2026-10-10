@@ -7,7 +7,8 @@
 //========================================================================================
 //! \file conduction.hpp
 //! \brief Contains data and functions that implement various formulations for conduction.
-//  Currently only isotropic conduction implemented
+//  Constant isotropic and slope-limited anisotropic conduction are implemented.
+//  Nonlinear STS uses checked, retryable conduction-only RKL2 sweeps.
 
 #include <string>
 
@@ -26,10 +27,15 @@ class Conduction {
 
   // data
   Real dtnew;
+  Real dt_transport;  // CFL-free saturation donor bound; never STS-accelerated
   Real alpha_iso;       // isotropic thermal diffusivity
   Real alpha_aniso;     // anisotropic thermal diffusivity
   bool alpha_spitzer;   // switch to turn on Spitzer conductivity
-  Real q_limit;         // saturated heat flux limit
+  Real spitzer_kappa0_code = 0.0;  // K(theta) = K0 theta^(5/2), theta = p/rho
+  bool spitzer_field_aligned = false;
+  bool saturated = false;
+  Real saturation_phi = 0.3;  // dimensionless Cowie-McKee uncertainty factor
+  Real q_limit;              // legacy disabled sentinel, not a physical cap
   parabolic::DiffusionSelection mode = parabolic::DiffusionSelection::explicit_only;
 
   // functions
@@ -41,9 +47,36 @@ class Conduction {
                         DvceFaceFld5D<Real> &f);
   void AddHeatFluxSpitzer(const DvceArray5D<Real> &w, const EOS_Data &eos,
                           DvceFaceFld5D<Real> &f);
+  void AddHeatFluxSaturated(const DvceArray5D<Real> &w, const EOS_Data &eos,
+                            DvceFaceFld5D<Real> &f);
   void NewTimeStep(const DvceArray5D<Real> &w, const EOS_Data &eos_data);
+  void CheckExplicitStage(const DvceArray5D<Real> &w, const EOS_Data &eos_data);
+  void ValidateRawState(const DvceArray5D<Real> &u, const EOS_Data &eos_data,
+                        const DvceFaceFld4D<Real> *b = nullptr) const;
+  struct ThermalState {
+    int invalid;
+    Real minimum, maximum;
+  };
+  bool UsesNonlinearSTS() const;
+  ThermalState InspectRawState(const DvceArray5D<Real> &u, const EOS_Data &eos_data,
+                               const DvceFaceFld4D<Real> *b = nullptr,
+                               bool active_only = false) const;
+  void BeginSTSTrial(const DvceArray5D<Real> &u, const DvceArray5D<Real> &w,
+                     DvceArray5D<Real> &snapshot);
+  void RestoreSTSTrial(DvceArray5D<Real> &u, DvceArray5D<Real> &w,
+                       const DvceArray5D<Real> &snapshot);
+  bool CheckSTSTransport(const DvceArray5D<Real> &w, const EOS_Data &eos_data,
+                         Real interval) const;
+  // Public because NVCC requires enclosing extended-lambda methods to be public.
+  Real SpitzerTimeStep(const DvceArray5D<Real> &w, const EOS_Data &eos_data,
+                       bool include_saturation = true) const;
+  Real SaturationTimeStep(const DvceArray5D<Real> &w, const EOS_Data &eos_data,
+                          bool donor_only = false) const;
 
  private:
   MeshBlockPack* pmy_pack;
+  bool use_mc_limiter = false;
+  DvceArray5D<Real> sts_w0;
+  void FailIfInvalid(int local_count, const char *where) const;
 };
 #endif // DIFFUSION_CONDUCTION_HPP_

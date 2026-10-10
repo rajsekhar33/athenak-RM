@@ -38,13 +38,15 @@ long double RKL2MaxRatio(int nstages) {
 namespace parabolic {
 
 int ComputeRKL2StageCount(Real dt_sweep, Real dt_parabolic_min) {
-  if (dt_sweep < 0.0) {
+  if (!std::isfinite(dt_sweep) || dt_sweep < 0.0) {
     STSFatalError(__FILE__, __LINE__,
-                  "dt_sweep must be non-negative in RKL2 stage-count calculation");
+                  "dt_sweep must be finite and non-negative in RKL2 stage-count "
+                  "calculation");
   }
-  if (dt_parabolic_min <= 0.0) {
+  if (!std::isfinite(dt_parabolic_min) || dt_parabolic_min <= 0.0) {
     STSFatalError(__FILE__, __LINE__,
-                  "dt_parabolic_min must be positive in RKL2 stage-count calculation");
+                  "dt_parabolic_min must be finite and positive in RKL2 stage-count "
+                  "calculation");
   }
 
   long double ratio = static_cast<long double>(dt_sweep)/

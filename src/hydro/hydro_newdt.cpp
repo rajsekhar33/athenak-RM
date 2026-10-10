@@ -127,6 +127,11 @@ TaskStatus Hydro::NewTimeStep(Driver *pdrive, int stage) {
   // compute timestep for diffusion
   if (pcond != nullptr) {
     pcond->NewTimeStep(w0, peos->eos_data);
+    if (pcond->UsesNonlinearSTS()) {
+      // This donor-pressure transport cap is not an accelerated parabolic
+      // process. Mesh::NewTimeStep applies the mesh CFL once to owner dtnew.
+      dtnew = std::min(dtnew, pcond->dt_transport);
+    }
   }
   if (pvisc != nullptr) {
     pvisc->NewTimeStep(w0, peos->eos_data);
