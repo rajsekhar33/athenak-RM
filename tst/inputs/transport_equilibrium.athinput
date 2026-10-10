@@ -1,0 +1,54 @@
+<job>
+basename = equilibrium
+<mesh>
+nghost = 2
+nx1 = 16
+nx2 = 16
+nx3 = 1
+x1min = -0.5
+x1max = 0.5
+x2min = -0.5
+x2max = 0.5
+x3min = 0.0
+x3max = 1.0
+ix1_bc = user
+ox1_bc = user
+ix2_bc = user
+ox2_bc = user
+<meshblock>
+nx1 = 16
+nx2 = 16
+<time>
+evolution = kinematic
+integrator = rk2
+cfl_number = 0.4
+tlim = 0.5
+nlim = -1
+ndiag = 10000
+sts_integrator = none
+<mhd>
+eos = ideal
+gamma = 2.0
+rsolver = advect
+reconstruct = plm
+alpha_iso = 1.0
+alpha_aniso = 0.0
+conductivity_integrator = explicit
+anisotropic_limiter = mc
+dfloor = 1.e-12
+pfloor = 1.e-12
+tfloor = 1.e-12
+<problem>
+pgen_name = transport_mode
+profile = sovinec
+density_ratio = 10.0
+perturbation = 0.0
+stage_probe_negative = false
+user_srcs = true
+user_work_in_loop = true
+<output1>
+file_type = log
+dt = 0.1
+<output2>
+file_type = rst
+dt = 0.25

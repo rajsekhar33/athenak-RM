@@ -10,6 +10,7 @@
 #include <iomanip>    // std::setprecision()
 #include <limits>
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <string> // string
 #include <vector>
@@ -18,6 +19,9 @@
 #include "globals.hpp"
 #include "parameter_input.hpp"
 #include "mesh/mesh.hpp"
+#include "mesh/mesh_refinement.hpp"
+#include "diffusion/conduction.hpp"
+#include "eos/eos.hpp"
 #include "coordinates/coordinates.hpp"
 #include "outputs/outputs.hpp"
 #include "hydro/hydro.hpp"
@@ -45,13 +49,34 @@ void ReserveOutputCounters(const std::vector<BaseTypeOutput*> &outputs,
   for (auto *out : outputs) {
     const auto &op = out->out_params;
     pin->SetInteger(op.block_name, "file_number", op.file_number+1);
-    pin->SetReal(op.block_name, "last_time", op.last_time < 0 ? time : op.last_time+op.dt);
+    pin->SetReal(op.block_name, "last_time",
+                 op.last_time < 0 ? time : op.last_time+op.dt);
   }
 }
 
 [[noreturn]] void DriverFatalError(const char *file, int line, const std::string &msg) {
   std::cout << "### FATAL ERROR in " << file << " at line " << line << std::endl
             << msg << std::endl;
+  std::exit(EXIT_FAILURE);
+}
+
+Conduction *NonlinearSTSConduction(Mesh *pm) {
+  auto *ph = pm->pmb_pack->phydro;
+  auto *pmhd = pm->pmb_pack->pmhd;
+  if (ph != nullptr && ph->pcond != nullptr && ph->pcond->UsesNonlinearSTS()) {
+    return ph->pcond;
+  }
+  if (pmhd != nullptr && pmhd->pcond != nullptr && pmhd->pcond->UsesNonlinearSTS()) {
+    return pmhd->pcond;
+  }
+  return nullptr;
+}
+
+[[noreturn]] void NonlinearSTSFatal(const char *reason) {
+  std::cerr << "### FATAL ERROR: nonlinear STS: " << reason << std::endl;
+#if MPI_PARALLEL_ENABLED
+  MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+#endif
   std::exit(EXIT_FAILURE);
 }
 
@@ -315,6 +340,10 @@ Driver::Driver(ParameterInput *pin, Mesh *pmesh, Real wtlim, Kokkos::Timer* ptim
 
 void Driver::ResetSTSController() {
   sts.enabled = false;
+  sts.nonlinear = false;
+  sts.attempt_failed = false;
+  sts.temperature_min = sts.temperature_max = 0.0;
+  sts.rejection_reason = "none";
   sts.integrator = parabolic::STSIntegrator::none;
   sts.sweep = STSSweep::none;
   sts.dt_cycle = 0.0;
@@ -390,6 +419,22 @@ void Driver::ValidateSTSConfiguration(Mesh *pm) {
     DriverFatalError(__FILE__, __LINE__,
                      "MHD STS is not supported with shearing-box or orbital advection");
   }
+  if (NonlinearSTSConduction(pm) != nullptr) {
+    // Rollback currently covers a single conduction-owned U/W state. It does
+    // not undo other parabolic operators or arbitrary user boundary effects.
+    if (nsts_processes != 1 || (phydro != nullptr && pmhd != nullptr)) {
+      NonlinearSTSFatal("nonlinear conduction must be the only STS process and fluid");
+    }
+    if (pm->pgen->user_bcs) {
+      NonlinearSTSFatal("retryable nonlinear conduction does not support user BCs");
+    }
+    if (pm->pzoom != nullptr) {
+      NonlinearSTSFatal("retryable nonlinear conduction does not support cyclic zoom");
+    }
+    if (pm->pmr != nullptr && pm->pmr->prolong_prims) {
+      NonlinearSTSFatal("nonlinear STS requires conserved-variable prolongation");
+    }
+  }
 }
 
 //----------------------------------------------------------------------------------------
@@ -441,6 +486,113 @@ void Driver::EndSTSSweep() {
   sts.sweep = STSSweep::none;
   sts.current_stage = 0;
   sts.coeffs = parabolic::RKL2Coefficients{};
+  sts.nonlinear = false;
+  sts.attempt_failed = false;
+}
+
+// A nonlinear residual is reevaluated at every RKL stage. Freeze only the
+// recurrence coefficients within a trial, not conductivity or saturated flux.
+// The row-budget stage count is not a nonlinear stability theorem: check raw
+// states before floors/restriction and retry an entire trial at half interval.
+// There is no time-error estimator here; accuracy needs time-refinement tests.
+void Driver::ExecuteSTSSweep(Mesh *pm, STSSweep sweep) {
+  if (pm->sts_integrator == parabolic::STSIntegrator::none) return;
+  auto *pcond = NonlinearSTSConduction(pm);
+  if (pcond == nullptr) {
+    // Preserve the original constant-coefficient scheduling and arithmetic.
+    if (sweep == STSSweep::post) pm->RefreshSTSParabolicTimeStep();
+    if (sweep == STSSweep::pre && !sts.enabled) return;
+    BeginSTSSweep(pm, sweep);
+    if (sts.enabled) {
+      for (int stage=1; stage<=sts.nstages; ++stage) {
+        SetSTSStage(stage);
+        ExecuteTaskList(pm, "before_parabolic_stagen", stage);
+        ExecuteTaskList(pm, "parabolic_stagen", stage);
+        ExecuteTaskList(pm, "after_parabolic_stagen", stage);
+      }
+      EndSTSSweep();
+    }
+    return;
+  }
+
+  auto *ph = pm->pmb_pack->phydro;
+  auto *pmhd = pm->pmb_pack->pmhd;
+  auto &u = ph != nullptr ? ph->u0 : pmhd->u0;
+  auto &w = ph != nullptr ? ph->w0 : pmhd->w0;
+  auto &snapshot = ph != nullptr ? ph->u_sts0 : pmhd->u_sts0;
+  const auto &eos = ph != nullptr ? ph->peos->eos_data : pmhd->peos->eos_data;
+  const DvceFaceFld4D<Real> *b = ph != nullptr ? nullptr : &pmhd->b0;
+
+  // WorkInLoop and sources may have changed U since the last primitive
+  // conversion. Refresh from current U before BOTH split halves. Existing
+  // initialization exchanges complete all sends/receives before returning.
+  EndSTSSweep();
+  InitBoundaryValuesAndPrimitives(pm);
+  const Real duration = 0.5*pm->dt;
+  Real elapsed = 0.0;
+  while (elapsed < duration) {
+    pcond->ValidateRawState(u, eos, b);
+    pcond->NewTimeStep(w, eos);
+    pm->RefreshSTSParabolicTimeStep();
+    BeginSTSSweep(pm, sweep);
+    // A vanishing operator still advances the requested interval with the
+    // minimum RKL recurrence; do not silently skip a split half.
+    sts.enabled = true;
+    sts.nonlinear = true;
+    sts.sweep = sweep;
+    const auto start = pcond->InspectRawState(u, eos, b);
+    sts.temperature_min = start.minimum;
+    sts.temperature_max = start.maximum;
+    Real donor_bound = pcond->dt_transport;
+#if MPI_PARALLEL_ENABLED
+    MPI_Allreduce(MPI_IN_PLACE, &donor_bound, 1, MPI_ATHENA_REAL,
+                  MPI_MIN, MPI_COMM_WORLD);
+#endif
+    Real interval = std::min(duration-elapsed, pm->cfl_no*donor_bound);
+    pcond->BeginSTSTrial(u, w, snapshot);
+    int retries = 0;
+    while (true) {
+      if (!std::isfinite(interval) || interval <= 0.0 ||
+          elapsed+interval <= elapsed || retries > 32) {
+        NonlinearSTSFatal("trial cannot make progress within 32 interval halvings");
+      }
+      sts.dt_sweep = interval;
+      sts.nstages = parabolic::ComputeRKL2StageCount(interval, pm->dt_parabolic_sts);
+      sts.attempt_failed = false;
+      sts.rejection_reason = "none";
+      int checked_stages = 0;
+      for (int stage=1; stage<=sts.nstages; ++stage) {
+        SetSTSStage(stage);
+        ExecuteTaskList(pm, "before_parabolic_stagen", stage);
+        ExecuteTaskList(pm, "parabolic_stagen", stage);
+        ExecuteTaskList(pm, "after_parabolic_stagen", stage);
+        ++checked_stages;
+        // Only exit after all posted exchanges/clears complete on all ranks.
+        if (sts.attempt_failed) break;
+      }
+      if (global_variable::my_rank == 0) {
+        const auto precision = std::cout.precision();
+        std::cout << std::setprecision(std::numeric_limits<Real>::max_digits10)
+                  << "nonlinear_sts cycle=" << pm->ncycle
+                  << " sweep=" << (sweep == STSSweep::pre ? "pre" : "post")
+                  << " interval=" << interval << " stages=" << sts.nstages
+                  << " checked_stages=" << checked_stages
+                  << " status=" << (sts.attempt_failed ? "retry" : "accepted")
+                  << " donor_bound=" << pm->cfl_no*donor_bound
+                  << " diffusion_bound=" << pm->dt_parabolic_sts
+                  << " reason=" << sts.rejection_reason << std::endl;
+        std::cout.precision(precision);
+      }
+      if (!sts.attempt_failed) break;
+      // Also restore after boundary exchange: no failed trial may leak ghost
+      // changes or a reconstructed primitive state into the next attempt.
+      pcond->RestoreSTSTrial(u, w, snapshot);
+      interval *= 0.5;
+      ++retries;
+    }
+    elapsed += interval;
+  }
+  EndSTSSweep();
 }
 
 //----------------------------------------------------------------------------------------
@@ -575,16 +727,7 @@ void Driver::Execute(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool wdfla
       if (global_variable::my_rank == 0) {OutputCycleDiagnostics(pmesh);}
       if (wdflag) {WatchDog(0);}
 
-      if (sts.enabled) {
-        BeginSTSSweep(pmesh, STSSweep::pre);
-        for (int sts_stage=1; sts_stage<=sts.nstages; ++sts_stage) {
-          SetSTSStage(sts_stage);
-          ExecuteTaskList(pmesh, "before_parabolic_stagen", sts_stage);
-          ExecuteTaskList(pmesh, "parabolic_stagen", sts_stage);
-          ExecuteTaskList(pmesh, "after_parabolic_stagen", sts_stage);
-        }
-        EndSTSSweep();
-      }
+      ExecuteSTSSweep(pmesh, STSSweep::pre);
 
       // Execute TaskLists
       // Work before time integrator indicated by "0" in stage
@@ -605,19 +748,7 @@ void Driver::Execute(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool wdfla
 
       // Diffusion coefficients may depend on the post-RK state. Refresh the global
       // stability bound before choosing the second Strang-split half-sweep.
-      if (pmesh->sts_integrator != parabolic::STSIntegrator::none) {
-        pmesh->RefreshSTSParabolicTimeStep();
-        BeginSTSSweep(pmesh, STSSweep::post);
-        if (sts.enabled) {
-          for (int sts_stage=1; sts_stage<=sts.nstages; ++sts_stage) {
-            SetSTSStage(sts_stage);
-            ExecuteTaskList(pmesh, "before_parabolic_stagen", sts_stage);
-            ExecuteTaskList(pmesh, "parabolic_stagen", sts_stage);
-            ExecuteTaskList(pmesh, "after_parabolic_stagen", sts_stage);
-          }
-          EndSTSSweep();
-        }
-      }
+      ExecuteSTSSweep(pmesh, STSSweep::post);
 
       // Work outside of TaskLists:
       // increment time, ncycle, etc.
