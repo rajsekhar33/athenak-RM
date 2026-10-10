@@ -17,6 +17,8 @@ import sys
 
 import pytest
 
+from test_conduction_closure_cpu import closure_source
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ATHENA_STUB = "using Real = double;\n#define KOKKOS_INLINE_FUNCTION inline\n"
@@ -26,7 +28,7 @@ WRAPPER_SOURCE = r"""
 #include <iostream>
 #include <string>
 
-#include "diffusion/conduction_closure.hpp"
+// CONDUCTION_TEST_CLOSURE
 
 int main(int argc, char **argv) {
   if (argc < 2) return 2;
@@ -59,7 +61,10 @@ def prepare_wrapper(build_dir):
     build_dir.mkdir(parents=True, exist_ok=True)
     (build_dir / "athena.hpp").write_text(ATHENA_STUB, encoding="ascii")
     source = build_dir / "spitzer_potential.cpp"
-    source.write_text(WRAPPER_SOURCE, encoding="ascii")
+    source.write_text(
+        WRAPPER_SOURCE.replace('// CONDUCTION_TEST_CLOSURE', closure_source()),
+        encoding="ascii",
+    )
     executable = build_dir / "spitzer_potential"
     command = ["c++", "-std=c++17", "-O2", "-Wall", "-Wextra", "-Werror",
                f"-I{build_dir}", f"-I{REPO_ROOT / 'src'}", str(source),

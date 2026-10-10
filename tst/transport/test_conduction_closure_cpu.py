@@ -1,8 +1,9 @@
 """Native constitutive checks; these do not establish PDE or STS acceptance.
 
 Run with pytest --basetemp pointing into the scratch filesystem. The tiny C++
-driver includes the real header through the same type-stub approach as the
-existing RKL2 controller unit tests; no AthenaK build or simulation is needed.
+driver extracts the actual file-local helper definitions from conduction.cpp
+and uses the same type-stub approach as the RKL2 controller unit tests.
+No AthenaK build or simulation is needed; no formula is duplicated here.
 """
 
 from decimal import Decimal, localcontext
@@ -17,6 +18,18 @@ import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def closure_source():
+    """Compile the real scalar helpers without exposing a production header."""
+    source = (REPO_ROOT / 'src/diffusion/conduction.cpp').read_text()
+    begin = 'namespace conduction {\n'
+    end = '\nstruct SaturatedFaceParameters {'
+    assert source.count(begin) == 1 and source.count(end) == 1
+    helpers = source.split(begin, 1)[1].split(end, 1)[0]
+    assert 'SpitzerCoefficientCode' in helpers and 'SaturateHeatFlux' in helpers
+    return ('#include <cmath>\n#include <limits>\n#include "athena.hpp"\n'
+            + begin + helpers + '\n} // namespace conduction\n')
 
 
 @pytest.fixture(scope="module")
@@ -40,7 +53,7 @@ def closure(tmp_path_factory):
 #include <iostream>
 #include <string>
 
-#include "diffusion/conduction_closure.hpp"
+// CONDUCTION_TEST_CLOSURE
 
 // Frozen pre-range-fix arithmetic: compare on the same execution backend.
 KOKKOS_INLINE_FUNCTION
@@ -94,7 +107,7 @@ int main(int argc, char **argv) {
   }
   return 0;
 }
-""",
+""".replace('// CONDUCTION_TEST_CLOSURE', closure_source()),
         encoding="ascii",
     )
     executable = build_dir / "closure"
