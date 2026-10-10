@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 
 import pytest
+from numpy.polynomial.legendre import legval
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -112,3 +113,60 @@ def test_unrepresentable_stage_count_fails_cleanly(controller):
     )
     assert result.returncode != 0
     assert "stage count exceeds the supported integer range" in result.stdout
+
+
+def _native_coefficients(controller, stages):
+    return [[float(v) for v in _run(controller, 'coeff', j, stages).split()]
+            for j in range(1, stages+1)]
+
+
+def _recurrence(coefficients, z):
+    """Apply exported native coefficients to y'=lambda*y, y(0)=1."""
+    older = previous = 1.0
+    values = []
+    for mu, nu, mt, gt in coefficients:
+        current = mu*previous + nu*older + (1-mu-nu) + mt*z*previous + gt*z
+        values.append(current)
+        older, previous = previous, current
+    return values
+
+
+@pytest.mark.parametrize('stages', [3, 5, 7, 11, 23, 33])
+def test_every_native_stage_matches_independent_legendre_polynomial(controller, stages):
+    # Polynomial evaluation uses NumPy's Clenshaw algorithm, not the native
+    # coefficient recurrence. This is a scalar linear check, NOT positivity
+    # acceptance for a nonlinear limited spatial operator.
+    coefficients = _native_coefficients(controller, stages)
+    denominator = stages*(stages+1)-2
+    for fraction in (0, .001, .1, .5, .9, 1):
+        z = -.5*denominator*fraction
+        actual = _recurrence(coefficients, z)
+        for j, value in enumerate(actual, 1):
+            bj = 1/3 if j < 3 else (j*j+j-2)/(2*j*(j+1))
+            expected = 1-bj+bj*legval(1+4*z/denominator, [0]*j+[1])
+            assert value == pytest.approx(expected, rel=0, abs=3e-12)
+            assert abs(value) <= 1+3e-12
+
+
+@pytest.mark.parametrize('stages', [3, 5, 11])
+def test_native_recurrence_has_second_order_time_convergence(controller, stages):
+    coefficients = _native_coefficients(controller, stages)
+    errors = [abs(_recurrence(coefficients, -1/n)[-1]**n-math.exp(-1))
+              for n in (8, 16, 32)]
+    assert errors[1]/errors[0] < .28
+    assert errors[2]/errors[1] < .28
+
+
+@pytest.mark.parametrize('cycle_ratio,stages', [(1, 3), (4, 3), (16, 7), (64, 11), (256, 23)])
+def test_native_controller_uses_half_sweep_ratio(controller, cycle_ratio, stages):
+    assert int(_run(controller, 'stages', cycle_ratio/2, 1)) == stages
+
+
+@pytest.mark.parametrize('dt,dt_fe', [
+    ('nan', '1'), ('inf', '1'), ('1', 'nan'), ('1', 'inf'),
+    ('0', 'inf'), ('-1', '1'), ('1', '0'), ('1', '-1')])
+def test_invalid_controller_times_rejected(controller, dt, dt_fe):
+    result = subprocess.run([str(controller), 'stages', dt, dt_fe],
+                            capture_output=True, text=True, check=False)
+    assert result.returncode == 1
+    assert 'FATAL ERROR' in result.stdout

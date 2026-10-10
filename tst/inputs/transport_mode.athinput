@@ -1,0 +1,75 @@
+<job>
+basename = transport
+<units>
+length_cgs = 1.0
+mass_cgs = 1.0
+time_cgs = 1.0
+mu = 1.0
+# Required by the GR initialization path used only in a rejection test.
+density_cgs = 1.0
+bhmass_msun = 1.0
+<mesh>
+nghost = 2
+nx1 = 64
+nx2 = 8
+nx3 = 1
+x1min = 0.0
+x1max = 1.0
+x2min = 0.0
+x2max = 1.0
+x3min = 0.0
+x3max = 1.0
+ix1_bc = periodic
+ox1_bc = periodic
+ix2_bc = periodic
+ox2_bc = periodic
+ix3_bc = periodic
+ox3_bc = periodic
+<meshblock>
+nx1 = 32
+nx2 = 8
+nx3 = 1
+<time>
+evolution = kinematic
+integrator = rk2
+cfl_number = 0.4
+tlim = 0.1
+nlim = -1
+ndiag = 100
+sts_integrator = none
+sts_max_dt_ratio = 16.0
+<mhd>
+anisotropic_limiter = vanleer
+eos = ideal
+gamma = 1.6666666666666667
+reconstruct = plm
+rsolver = advect
+alpha_iso = 0.1
+alpha_aniso = 0.0
+alpha_spitzer = false
+q_limit = 3.4028234663852886e38
+conductivity_integrator = explicit
+<coord>
+special_rel = false
+general_rel = false
+minkowski = true
+<problem>
+pgen_name = transport_mode
+check_advection_flux = true
+check_conduction_operator = false
+mode_x = 1
+mode_y = 0
+mode_z = 0
+rho0 = 1.0
+temp0 = 1.0
+amplitude = 0.01
+bx = 1.0
+by = 0.0
+bz = 0.0
+<output1>
+file_type = bin
+variable = mhd_w
+dt = 0.1
+<output2>
+file_type = rst
+dt = 0.05

@@ -6,6 +6,8 @@
 //! \file hydro_tasks.cpp
 //! \brief functions that control Hydro tasks stored in tasklists in MeshBlockPack
 
+#include <cmath>
+#include <limits>
 #include <map>
 #include <memory>
 #include <string>
@@ -16,6 +18,7 @@
 #include "parameter_input.hpp"
 #include "tasklist/task_list.hpp"
 #include "mesh/mesh.hpp"
+#include "driver/driver.hpp"
 #include "coordinates/coordinates.hpp"
 #include "eos/eos.hpp"
 #include "diffusion/viscosity.hpp"
@@ -87,7 +90,8 @@ void Hydro::AssembleHydroTasks(std::map<std::string, std::shared_ptr<TaskList>> 
     TaskID psendf = tl["parabolic_stagen"]->AddTask(&Hydro::SendFlux, this, pflux);
     TaskID precvf = tl["parabolic_stagen"]->AddTask(&Hydro::RecvFlux, this, psendf);
     TaskID pupdt = tl["parabolic_stagen"]->AddTask(&Hydro::STSUpdate, this, precvf);
-    TaskID prestu = tl["parabolic_stagen"]->AddTask(&Hydro::RestrictU, this, pupdt);
+    TaskID pcheck = tl["parabolic_stagen"]->AddTask(&Hydro::STSCheckState, this, pupdt);
+    TaskID prestu = tl["parabolic_stagen"]->AddTask(&Hydro::RestrictU, this, pcheck);
     TaskID psendu = tl["parabolic_stagen"]->AddTask(&Hydro::SendU, this, prestu);
     TaskID precvu = tl["parabolic_stagen"]->AddTask(&Hydro::RecvU, this, psendu);
     TaskID pprol = tl["parabolic_stagen"]->AddTask(&Hydro::Prolongate, this, precvu);
@@ -196,6 +200,7 @@ TaskStatus Hydro::CopyCons(Driver *pdrive, int stage) {
 //! of conserved variables
 
 TaskStatus Hydro::Fluxes(Driver *pdrive, int stage) {
+  if (has_explicit_conduction) pcond->CheckExplicitStage(w0, peos->eos_data);
   // select which calculate_flux function to call based on rsolver_method
   if (rsolver_method == Hydro_RSolver::advect) {
     CalculateFluxes<Hydro_RSolver::advect>(pdrive, stage);
@@ -441,6 +446,28 @@ TaskStatus Hydro::Prolongate(Driver *pdrive, int stage) {
 //! \brief Wrapper task list function to call ConsToPrim over entire mesh (including gz)
 
 TaskStatus Hydro::ConToPrim(Driver *pdrive, int stage) {
+  if (pdrive->sts.nonlinear && pdrive->sts.current_stage > 0 &&
+      pdrive->sts.sweep != Driver::STSSweep::none &&
+      pcond != nullptr && pcond->UsesNonlinearSTS()) {
+    const auto state = pcond->InspectRawState(u0, peos->eos_data);
+    const Real scale = std::fmax(std::fabs(pdrive->sts.temperature_min),
+                                 std::fabs(pdrive->sts.temperature_max));
+    const Real tolerance = 512.0*std::numeric_limits<Real>::epsilon()*scale;
+    const bool invalid = state.invalid || !std::isfinite(state.minimum) ||
+                         !std::isfinite(state.maximum);
+    const bool outside = state.minimum < pdrive->sts.temperature_min-tolerance ||
+                         state.maximum > pdrive->sts.temperature_max+tolerance;
+    if (invalid || outside) {
+      pcond->RestoreSTSTrial(u0, w0, u_sts0);
+      if (!pdrive->sts.attempt_failed) {
+        pdrive->sts.rejection_reason =
+            invalid ? "raw thermal stencil before EOS" :
+                      "thermal stencil outside starting envelope";
+      }
+      pdrive->sts.attempt_failed = true;
+    }
+  }
+  if (pcond != nullptr) pcond->ValidateRawState(u0, peos->eos_data);
   auto &indcs = pmy_pack->pmesh->mb_indcs;
   int &ng = indcs.ng;
   int n1m1 = indcs.nx1 + 2*ng - 1;

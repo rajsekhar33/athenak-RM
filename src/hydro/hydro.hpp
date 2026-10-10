@@ -167,6 +167,7 @@ class Hydro {
   TaskStatus ClearSTSFlux(Driver *d, int stage);
   TaskStatus STSFluxes(Driver *d, int stage);
   TaskStatus STSUpdate(Driver *d, int stage);
+  TaskStatus STSCheckState(Driver *d, int stage);
   TaskStatus STSRefreshTimeStep(Driver *d, int stage);
   // ...in "after_stagen_tl" list
   TaskStatus ClearSend(Driver *d, int stage);

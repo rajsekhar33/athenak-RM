@@ -166,6 +166,11 @@ void MHD::RecomputeTimeStepFromCurrentState(Driver *pdriver) {
   // compute timestep for diffusion
   if (pcond != nullptr) {
     pcond->NewTimeStep(w0, peos->eos_data);
+    if (pcond->UsesNonlinearSTS()) {
+      // Keep the unaccelerated donor-pressure cap outside the STS registry.
+      // The mesh applies its CFL factor exactly once to this owner limit.
+      dtnew = std::min(dtnew, pcond->dt_transport);
+    }
   }
   if (pvisc != nullptr) {
     pvisc->NewTimeStep(w0, peos->eos_data);

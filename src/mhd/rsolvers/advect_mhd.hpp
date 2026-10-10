@@ -7,13 +7,14 @@
 //========================================================================================
 //! \file advect_mhd.hpp
 //! \brief MHD Riemann solver for pure advection problems (v = constant).  Simply computes
-//!  the upwind flux of each variable.  Can only be used for isothermal EOS.  Per-face
-//!  implementation for the split-kernel path.
+//!  upwind fluxes for kinematic tests. With ideal EOS, advects internal energy as
+//!  in the hydro advection solver; this is not a dynamical MHD energy flux.
+//!  Thermal diffusion tests require fixed density, zero velocity and a static B.
 
 namespace mhd {
 //----------------------------------------------------------------------------------------
 //! \fn Advect<ivx>()
-//! \brief An advection Riemann solver for MHD (isothermal), single face (m,k,j,i).
+//! \brief Restricted kinematic MHD advection, single face (m,k,j,i).
 template <int ivx>
 KOKKOS_INLINE_FUNCTION
 void Advect(const EOS_Data &eos,
@@ -40,6 +41,9 @@ void Advect(const EOS_Data &eos,
     flx(m,ivx,k,j,i) = wl_idn*wl_ivx*wl_ivx;
     flx(m,ivy,k,j,i) = 0.0;
     flx(m,ivz,k,j,i) = 0.0;
+    if (eos.is_ideal) {
+      flx(m,IEN,k,j,i) = wl(m,IEN,k,j,i)*wl_ivx;
+    }
     ey(m,k,j,i) = -bl(m,iby,k,j,i)*wl_ivx + bxi*wl(m,ivy,k,j,i);
     ez(m,k,j,i) =  bl(m,ibz,k,j,i)*wl_ivx - bxi*wl(m,ivz,k,j,i);
   } else {
@@ -49,6 +53,9 @@ void Advect(const EOS_Data &eos,
     flx(m,ivx,k,j,i) = wr_idn*wr_ivx*wr_ivx;
     flx(m,ivy,k,j,i) = 0.0;
     flx(m,ivz,k,j,i) = 0.0;
+    if (eos.is_ideal) {
+      flx(m,IEN,k,j,i) = wr(m,IEN,k,j,i)*wr_ivx;
+    }
     ey(m,k,j,i) = -br(m,iby,k,j,i)*wr_ivx + bxi*wr(m,ivy,k,j,i);
     ez(m,k,j,i) =  br(m,ibz,k,j,i)*wr_ivx - bxi*wr(m,ivz,k,j,i);
   }
