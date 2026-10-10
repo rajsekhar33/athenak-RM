@@ -39,8 +39,7 @@ namespace {
 // Deterministic hashed draw (splitmix64-derived) used by InitializeLagrangianParticles()
 // for fresh-run particle placement, so the initial particle count/positions per zone are
 // reproducible given the same pos_init_seed -- not used for exact-restart continuity,
-// which comes from the particle restart file instead
-// (see InitializeParticlesFromRestart).
+// which comes from the particle restart file instead (see InitializeParticlesFromRestart).
 KOKKOS_INLINE_FUNCTION
 Real PGenUniform01(const int64_t base_seed, const int gid, const int zone_index,
                    const int particle_index, const int stream) {
@@ -627,9 +626,8 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf
                       std::make_pair(3,6), Kokkos::ALL, Kokkos::ALL, Kokkos::ALL));
     Kokkos::deep_copy(Kokkos::subview(pturb->force, std::make_pair(0,nmb), Kokkos::ALL,
                       Kokkos::ALL, Kokkos::ALL, Kokkos::ALL), force_host);
-    Kokkos::deep_copy(
-        Kokkos::subview(pturb->force_tmp1, std::make_pair(0,nmb), Kokkos::ALL,
-                        Kokkos::ALL, Kokkos::ALL, Kokkos::ALL), force_tmp1_host);
+    Kokkos::deep_copy(Kokkos::subview(pturb->force_tmp1, std::make_pair(0,nmb), Kokkos::ALL,
+                      Kokkos::ALL, Kokkos::ALL, Kokkos::ALL), force_tmp1_host);
     offset_myrank += nout1*nout2*nout3*nforce*sizeof(Real); // forcing
     myoffset = offset_myrank;
   }
@@ -777,8 +775,7 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf
       double times[2] = {};
       if (prestartfile->Read_bytes_at(metadata, 1, sizeof(metadata), data_offset,
                                      single_file_per_rank) != sizeof(metadata) ||
-          prestartfile->Read_bytes_at(times, 1, sizeof(times),
-                                     data_offset+sizeof(metadata),
+          prestartfile->Read_bytes_at(times, 1, sizeof(times), data_offset+sizeof(metadata),
                                      single_file_per_rank) != sizeof(times)) {
         Kokkos::abort("Truncated particle checkpoint lifecycle metadata");
       }
@@ -786,8 +783,7 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf
           metadata[1] != static_cast<uint64_t>(pm->ncycle) ||
           metadata[2] != static_cast<uint64_t>(pm->nmb_total) ||
           metadata[3] != checkpoint::TopologyHash(pm) ||
-          times[0] != static_cast<double>(pm->time) ||
-          times[1] != static_cast<double>(pm->dt)) {
+          times[0] != static_cast<double>(pm->time) || times[1] != static_cast<double>(pm->dt)) {
         Kokkos::abort("Fluid and particle checkpoint lifecycle/topology mismatch");
       }
       data_offset = checkpoint::particle_header_bytes;
@@ -1206,10 +1202,6 @@ void ProblemGenerator::CallProblemGenerator(ParameterInput *pin, bool is_restart
     Diffusion(pin, is_restart);
   } else if (pgen_fun_name.compare("linear_wave") == 0) {
     LinearWave(pin, is_restart);
-  } else if (pgen_fun_name.compare("transport_mode") == 0) {
-    TransportMode(pin, is_restart);
-  } else if (pgen_fun_name.compare("transport_refinement") == 0) {
-    TransportRefinement(pin, is_restart);
   } else if (pgen_fun_name.compare("implode") == 0) {
     LWImplode(pin, is_restart);
   } else if (pgen_fun_name.compare("gr_monopole") == 0) {
@@ -1452,8 +1444,7 @@ void ProblemGenerator::InitializeParticlesFromRestart(
 
     pi(PGID,idx) = pgid;
     pi(PTAG,idx) = static_cast<int>(part_data.d_view(idx,1));
-    // frozen/deleted status
-    pi(PLASTMOVE,idx) = static_cast<int>(part_data.d_view(idx,2));
+    pi(PLASTMOVE,idx) = static_cast<int>(part_data.d_view(idx,2));  // frozen/deleted status
 
     // particle's PGID doesn't belong to this rank -- shouldn't happen (the caller only
     // includes particles matched to a local MeshBlock), but guard against it anyway

@@ -80,8 +80,6 @@ class ProblemGenerator {
   void CShock(ParameterInput *pin, const bool restart);
   void DivBAMR(ParameterInput *pin, const bool restart);
   void Diffusion(ParameterInput *pin, const bool restart);
-  void TransportMode(ParameterInput *pin, const bool restart);
-  void TransportRefinement(ParameterInput *pin, const bool restart);
   void LinearWave(ParameterInput *pin, const bool restart);
   void LWImplode(ParameterInput *pin, const bool restart);
   void Monopole(ParameterInput *pin, const bool restart);
