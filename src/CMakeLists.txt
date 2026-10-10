@@ -45,8 +45,6 @@ add_executable(
 
         diffusion/ambipolar.cpp
         diffusion/conduction.cpp
-        diffusion/conduction_spitzer.cpp
-        diffusion/conduction_saturated.cpp
         diffusion/resistivity.cpp
         diffusion/sts_rkl2.cpp
         diffusion/viscosity.cpp
