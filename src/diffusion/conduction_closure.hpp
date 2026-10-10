@@ -95,35 +95,6 @@ Real SpitzerTemperature(const Real rho, const Real eint, const Real gm1) {
   return IsFinitePositive(theta) ? theta : InvalidClosureValue();
 }
 
-// Reference-only Kirchhoff gradient; not the production Spitzer face law.
-// [Psi(tr)-Psi(tl)]/dx, Psi(T)=K0*T^(7/2)/(7/2), without forming Psi.
-// For r=Tlo/Thi, the exact secant conductivity is K(Thi)*Q(r), where
-// Q=[1+r+r^2+r^3/(1+sqrt(r))]/3.5 lies in [2/7,1]. This factorization avoids
-// cancellation between nearly equal powers. Unrepresentable FINAL gradients
-// may return inf or underflow to zero; no temperature floor or cap is applied.
-KOKKOS_INLINE_FUNCTION
-Real SpitzerPotentialGradient(const Real tl, const Real tr,
-                              const Real dx, const Real kappa0_code) {
-  if (!IsFiniteNonNegative(tl) || !IsFiniteNonNegative(tr) ||
-      !IsFinitePositive(dx) || !IsFiniteNonNegative(kappa0_code)) {
-    return InvalidClosureValue();
-  }
-  if (kappa0_code == 0.0 || tl == tr) return 0.0;
-  const Real hi = fmax(tl,tr), lo = fmin(tl,tr);
-  const Real delta = hi-lo;
-  const Real r = lo/hi;
-  const Real q = (1.0+r*(1.0+r*(1.0+r/(1.0+sqrt(r)))))/3.5;
-  const Real secant = SpitzerConductivity(hi,kappa0_code)*q;
-  const Real slope = delta/dx;
-  Real magnitude = secant*slope;
-  if (!(secant >= kMinNormal && IsFinite(secant) &&
-        slope >= kMinNormal && IsFinite(slope) && IsFinitePositive(magnitude))) {
-    // Absolute delta, rather than delta/hi, preserves small absolute scales.
-    magnitude = exp(log(kappa0_code)+2.5*log(hi)+log(delta)-log(dx)+log(q));
-  }
-  return tr > tl ? magnitude : -magnitude;
-}
-
 // Mathematically the existing VL/MC limiters, evaluated without product/sum
 // overflow for Spitzer temperature slopes. Legacy constant-alpha arithmetic is
 // deliberately not changed. Validate all arguments before sign/zero exits.
@@ -187,32 +158,6 @@ Real CowieMcKeeFlux(const Real rho, const Real theta, const Real phi) {
   return exp(log(5.0) + log(phi) + log(rho) + 1.5*log(theta));
 }
 
-// Optional absolute code-flux ceiling. Call this only when an absolute ceiling
-// is explicitly enabled; disabled legacy q_limit sentinels are parser policy.
-KOKKOS_INLINE_FUNCTION
-Real LimitSaturatedFlux(const Real q_sat, const Real constant_cap) {
-  if (!IsFiniteNonNegative(q_sat) || !IsFiniteNonNegative(constant_cap)) {
-    return InvalidClosureValue();
-  }
-  return fmin(q_sat, constant_cap);
-}
-
-// q_sat/(q_sat+|F_class|), evaluated without overflowing the denominator.
-// At zero classical flux the identity factor is returned, including q_sat=0.
-KOKKOS_INLINE_FUNCTION
-Real SaturationSuppression(const Real flux_norm, const Real q_sat) {
-  if (!IsFiniteNonNegative(flux_norm) || !IsFiniteNonNegative(q_sat)) {
-    return InvalidClosureValue();
-  }
-  if (flux_norm == 0.0) return 1.0;
-  if (q_sat == 0.0) return 0.0;
-  if (flux_norm > q_sat) {
-    const Real ratio = q_sat/flux_norm;
-    return ratio/(1.0 + ratio);
-  }
-  return 1.0/(1.0 + flux_norm/q_sat);
-}
-
 struct HeatFluxVector {
   Real x, y, z;
 };
@@ -222,17 +167,6 @@ bool ValidHeatFlux(const HeatFluxVector &flux) {
   return IsFiniteNonNegative(fabs(flux.x)) &&
          IsFiniteNonNegative(fabs(flux.y)) &&
          IsFiniteNonNegative(fabs(flux.z));
-}
-
-// A true norm larger than max(Real) returns inf. Use SaturateHeatFlux directly
-// when the classical vector may be that large: it never needs this full norm.
-KOKKOS_INLINE_FUNCTION
-Real FluxMagnitude(const Real x, const Real y, const Real z) {
-  if (!ValidHeatFlux({x, y, z})) return InvalidClosureValue();
-  const Real scale = fmax(fabs(x), fmax(fabs(y), fabs(z)));
-  if (scale == 0.0) return 0.0;
-  const Real sx = x/scale, sy = y/scale, sz = z/scale;
-  return scale*sqrt(sx*sx + sy*sy + sz*sz);
 }
 
 // Limit the vector magnitude once, preserving its direction. The large-flux
