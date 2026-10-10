@@ -30,10 +30,440 @@
 #include "eos/ideal_c2p_hyd.hpp"
 #include "eos/ideal_c2p_mhd.hpp"
 #include "conduction.hpp"
-#include "conduction_closure.hpp"
 #include "units/units.hpp"
 
 namespace {
+
+// Constitutive arithmetic and face reconstruction are private to this module.
+namespace conduction {
+
+// Evaluate standard-library constants on the host at compile time. Device
+// functions use scalar values without calling host-only numeric_limits members.
+inline constexpr Real kMaxFinite = std::numeric_limits<Real>::max();
+inline constexpr Real kMinNormal = std::numeric_limits<Real>::min();
+inline constexpr Real kQuietNaN = std::numeric_limits<Real>::quiet_NaN();
+
+KOKKOS_INLINE_FUNCTION
+bool IsFiniteNonNegative(const Real value) {
+  return value >= 0.0 && value <= kMaxFinite;
+}
+
+KOKKOS_INLINE_FUNCTION
+bool IsFinitePositive(const Real value) {
+  return value > 0.0 && value <= kMaxFinite;
+}
+
+KOKKOS_INLINE_FUNCTION
+bool IsFinite(const Real value) {
+  return IsFiniteNonNegative(fabs(value));
+}
+
+KOKKOS_INLINE_FUNCTION
+bool ValidThermalState(const Real rho, const Real theta) {
+  return IsFinitePositive(rho) && IsFiniteNonNegative(theta);
+}
+
+KOKKOS_INLINE_FUNCTION
+Real InvalidClosureValue() {
+  return kQuietNaN;
+}
+
+// Interpolate conductivity itself, not a separately averaged diffusivity and
+// density. Multiplication after division avoids overflow for a == b == max().
+KOKKOS_INLINE_FUNCTION
+Real HarmonicMeanPositive(const Real a, const Real b) {
+  if (!IsFiniteNonNegative(a) || !IsFiniteNonNegative(b)) {
+    return InvalidClosureValue();
+  }
+  const Real lo = fmin(a, b), hi = fmax(a, b);
+  if (lo == 0.0) return 0.0;
+  return lo*(2.0/(1.0 + lo/hi));
+}
+
+// Pure T^(5/2) Spitzer law. kappa0_code includes ALL unit conversions.
+// A logarithmic fallback avoids intermediate overflow/underflow when the final
+// coefficient remains representable. A genuinely overflowing result stays inf.
+KOKKOS_INLINE_FUNCTION
+Real SpitzerConductivity(const Real theta, const Real kappa0_code) {
+  if (!IsFiniteNonNegative(theta) || !IsFiniteNonNegative(kappa0_code)) {
+    return InvalidClosureValue();
+  }
+  if (theta == 0.0 || kappa0_code == 0.0) return 0.0;
+  const Real power = pow(theta, 2.5);
+  const Real value = kappa0_code*power;
+  if (power >= kMinNormal && IsFinitePositive(value)) return value;
+  return exp(log(kappa0_code) + 2.5*log(theta));
+}
+
+// Recover theta without requiring either gm1*eint or eint/rho to be
+// representable. Positive energy whose theta underflows to zero is rejected;
+// exactly zero energy remains a valid mathematical constitutive limit.
+KOKKOS_INLINE_FUNCTION
+Real SpitzerTemperature(const Real rho, const Real eint, const Real gm1) {
+  if (!IsFinitePositive(rho) || !IsFiniteNonNegative(eint) ||
+      !IsFinitePositive(gm1)) return InvalidClosureValue();
+  if (eint == 0.0) return 0.0;
+  const Real ratio = eint/rho;
+  Real theta = gm1*ratio;
+  if (ratio >= kMinNormal && IsFinite(ratio) && IsFinitePositive(theta)) return theta;
+  theta = exp(log(gm1)+log(eint)-log(rho));
+  return IsFinitePositive(theta) ? theta : InvalidClosureValue();
+}
+
+// Mathematically the existing VL/MC limiters, evaluated without product/sum
+// overflow for Spitzer temperature slopes. Legacy constant-alpha arithmetic is
+// deliberately not changed. Validate all arguments before sign/zero exits.
+KOKKOS_INLINE_FUNCTION
+Real SpitzerVL2(const Real a, const Real b) {
+  if (!IsFinite(a) || !IsFinite(b)) return InvalidClosureValue();
+  if (!((a > 0.0 && b > 0.0) || (a < 0.0 && b < 0.0))) return 0.0;
+  const Real lo = fmin(fabs(a),fabs(b)), hi = fmax(fabs(a),fabs(b));
+  const Real limited = lo*(2.0/(1.0+lo/hi));
+  return a > 0.0 ? limited : -limited;
+}
+
+KOKKOS_INLINE_FUNCTION
+Real SpitzerMC2(const Real a, const Real b) {
+  if (!IsFinite(a) || !IsFinite(b)) return InvalidClosureValue();
+  if (!((a > 0.0 && b > 0.0) || (a < 0.0 && b < 0.0))) return 0.0;
+  const Real lo = fmin(fabs(a),fabs(b)), hi = fmax(fabs(a),fabs(b));
+  const Real mean = hi <= 0.5*kMaxFinite ? 0.5*(lo+hi) : 0.5*lo+0.5*hi;
+  // If lo>max/2, 2*lo exceeds every representable mean and cannot limit it.
+  const Real limited = lo <= 0.5*kMaxFinite ? fmin(mean,2.0*lo) : mean;
+  return a > 0.0 ? limited : -limited;
+}
+
+KOKKOS_INLINE_FUNCTION
+Real SpitzerLimited4(const Real a, const Real b, const Real c, const Real d,
+                     const bool mc) {
+  return mc ? SpitzerMC2(SpitzerMC2(a,b),SpitzerMC2(c,d)) :
+              SpitzerVL2(SpitzerVL2(a,b),SpitzerVL2(c,d));
+}
+
+// Signed product used to rescale the normalized gradient projection. A
+// logarithmic fallback recovers representable products after intermediate
+// overflow/underflow; neither it nor the projection is guaranteed correctly rounded.
+KOKKOS_INLINE_FUNCTION
+Real SpitzerProduct3(const Real a, const Real b, const Real c) {
+  if (!IsFinite(a) || !IsFinite(b) || !IsFinite(c)) return InvalidClosureValue();
+  if (a == 0.0 || b == 0.0 || c == 0.0) return 0.0;
+  const Real aa = fabs(a), ab = fabs(b), ac = fabs(c);
+  const Real pair = aa*ab;
+  Real magnitude = pair*ac;
+  if (!(pair >= kMinNormal && IsFinite(pair) && IsFinitePositive(magnitude))) {
+    magnitude = exp(log(aa)+log(ab)+log(ac));
+  }
+  const bool negative = ((a < 0.0) != (b < 0.0)) != (c < 0.0);
+  return negative ? -magnitude : magnitude;
+}
+
+// Cowie-McKee convention used by Vaidya et al. (2017), equations (2)-(4):
+// q_sat = 5 phi rho c_iso^3, with c_iso^2 = theta, NOT gamma*theta.
+KOKKOS_INLINE_FUNCTION
+Real CowieMcKeeFlux(const Real rho, const Real theta, const Real phi) {
+  if (!ValidThermalState(rho, theta) || !IsFiniteNonNegative(phi)) {
+    return InvalidClosureValue();
+  }
+  if (theta == 0.0 || phi == 0.0) return 0.0;
+  const Real prefactor = 5.0*phi*rho;
+  const Real power = theta*sqrt(theta);
+  const Real value = prefactor*power;
+  if (prefactor >= kMinNormal && power >= kMinNormal && IsFinitePositive(value))
+    return value;
+  return exp(log(5.0) + log(phi) + log(rho) + 1.5*log(theta));
+}
+
+struct HeatFluxVector {
+  Real x, y, z;
+};
+
+KOKKOS_INLINE_FUNCTION
+bool ValidHeatFlux(const HeatFluxVector &flux) {
+  return IsFiniteNonNegative(fabs(flux.x)) &&
+         IsFiniteNonNegative(fabs(flux.y)) &&
+         IsFiniteNonNegative(fabs(flux.z));
+}
+
+// Limit the vector magnitude once, preserving its direction. The large-flux
+// branch also avoids underflow of a suppression factor followed by loss of a
+// representable saturated flux (e.g. F=1e300 and q_sat=1e-300 in double precision).
+KOKKOS_INLINE_FUNCTION
+HeatFluxVector SaturateHeatFlux(const HeatFluxVector &flux, const Real q_sat) {
+  if (!ValidHeatFlux(flux) || !IsFiniteNonNegative(q_sat)) {
+    const Real invalid = InvalidClosureValue();
+    return {invalid, invalid, invalid};
+  }
+  const Real scale = fmax(fabs(flux.x), fmax(fabs(flux.y), fabs(flux.z)));
+  if (scale == 0.0 || q_sat == 0.0) return {0.0, 0.0, 0.0};
+  const Real sx = flux.x/scale, sy = flux.y/scale, sz = flux.z/scale;
+  const Real norm_scaled = sqrt(sx*sx + sy*sy + sz*sz);
+  if (scale >= q_sat) {
+    const Real denominator = norm_scaled + q_sat/scale;
+    const Real amplitude = q_sat/denominator;
+    const Real component[3] = {flux.x, flux.y, flux.z};
+    const Real normalized[3] = {sx, sy, sz};
+    Real result[3] = {sx*amplitude, sy*amplitude, sz*amplitude};
+    for (int d=0; d<3; ++d) {
+      // Normalized components can underflow even when the final flux does
+      // not. Preserve the ordinary arithmetic unless normalization loses
+      // relative precision; split exponents only for this rare fallback.
+      if (component[d] != 0.0 && fabs(normalized[d]) < kMinNormal) {
+        int ec, eq, es;
+        const Real mc = frexp(component[d], &ec);
+        const Real mq = frexp(q_sat, &eq);
+        const Real ms = frexp(scale, &es);
+        result[d] = ldexp((mc*mq/ms)/denominator, ec+eq-es);
+      }
+    }
+    return {result[0], result[1], result[2]};
+  }
+  const Real denominator = 1.0 + (scale/q_sat)*norm_scaled;
+  return {flux.x/denominator, flux.y/denominator, flux.z/denominator};
+}
+
+// Extra donor-pressure derivative at frozen density for whole-vector saturation:
+// a = 1.5*gm1*(q/P)*[r/(q+r)]^2*abs(C_normal)/r.
+// Retain a separate unsuppressed diffusion budget. Scaled/log evaluation avoids
+// forming r, q/P, or a suppression factor whose intermediate value overflows
+// or underflows even though the final speed is representable.
+KOKKOS_INLINE_FUNCTION
+Real SaturatedDonorSpeed(const HeatFluxVector &classical, const int dir,
+                         const Real q, const Real pressure, const Real gm1) {
+  if (!ValidHeatFlux(classical) || dir < 0 || dir > 2 ||
+      !IsFiniteNonNegative(q) || !IsFiniteNonNegative(pressure) ||
+      !IsFinitePositive(gm1)) return InvalidClosureValue();
+  const Real c[3] = {classical.x,classical.y,classical.z};
+  const Real scale = fmax(fabs(c[0]),fmax(fabs(c[1]),fabs(c[2])));
+  if (scale == 0.0 || c[dir] == 0.0 || q == 0.0) return 0.0;
+  if (pressure == 0.0) return InvalidClosureValue();
+  const Real x = c[0]/scale, y = c[1]/scale, z = c[2]/scale;
+  const Real norm = sqrt(x*x+y*y+z*z);
+  const Real log_r = log(scale)+log(norm);
+  const Real log_t = scale >= q ? -log1p((q/scale)/norm) :
+      log_r-log(q)-log1p((scale/q)*norm);
+  const Real exponent = log(1.5)+log(gm1)+log(q)-log(pressure)+
+                        2.0*log_t+log(fabs(c[dir]))-log_r;
+  const Real speed = exp(exponent);
+  return IsFinitePositive(speed) ? speed : InvalidClosureValue();
+}
+
+// Host-side dimensional conversion. Each member is the physical cgs scale of
+// one code unit. A units block is unnecessary when kappa0_code is supplied.
+struct ConductivityUnits {
+  Real pressure_cgs;
+  Real velocity_cgs;
+  Real length_cgs;
+  Real temperature_cgs;
+
+  bool IsValid() const {
+    return IsFinitePositive(pressure_cgs) && IsFinitePositive(velocity_cgs) &&
+           IsFinitePositive(length_cgs) && IsFinitePositive(temperature_cgs);
+  }
+};
+
+// kappa_phys = kappa0_cgs*T_kelvin^(5/2), where kappa0_cgs has units
+// erg s^-1 cm^-1 K^-7/2. Thus K_code = kappa0_code*theta^(5/2) and
+// kappa0_code = kappa0_cgs*T_unit^(7/2)/(P_unit*V_unit*L_unit).
+inline Real SpitzerCoefficientCode(const Real kappa0_cgs,
+                                   const ConductivityUnits &units) {
+  if (!IsFiniteNonNegative(kappa0_cgs) || !units.IsValid()) {
+    return InvalidClosureValue();
+  }
+  if (kappa0_cgs == 0.0) return 0.0;
+  const long double exponent = std::log(static_cast<long double>(kappa0_cgs)) +
+      3.5L*std::log(static_cast<long double>(units.temperature_cgs)) -
+      std::log(static_cast<long double>(units.pressure_cgs)) -
+      std::log(static_cast<long double>(units.velocity_cgs)) -
+      std::log(static_cast<long double>(units.length_cgs));
+  return static_cast<Real>(std::exp(exponent));
+}
+
+struct SaturatedFaceParameters {
+  Real gm1, alpha_iso, alpha_aniso, kappa0, phi;
+  int ndim;
+  bool spitzer_aligned, mc;
+};
+
+struct SaturatedFaceResult {
+  Real normal_flux;
+  Real donor_speed;
+  bool valid;
+};
+
+// Harmonic Spitzer reconstructs theta gradients themselves. Fail closed if a
+// nonzero gradient is not representable, rather than silently losing a flux
+// that multiplication by a large face conductivity could otherwise restore.
+KOKKOS_INLINE_FUNCTION
+Real SpitzerTemperatureSlope(const Real tl, const Real tr, const Real dx) {
+  if (!IsFiniteNonNegative(tl) || !IsFiniteNonNegative(tr) ||
+      !IsFinitePositive(dx)) return InvalidClosureValue();
+  const Real delta = tr-tl;
+  const Real gradient = delta/dx;
+  if (!IsFinite(gradient) || (delta != 0.0 && gradient == 0.0)) {
+    return InvalidClosureValue();
+  }
+  return gradient;
+}
+
+// Robust signed product for the density-weighted projected classical vector.
+KOKKOS_INLINE_FUNCTION
+Real SaturatedProduct5(const Real a, const Real b, const Real c,
+                       const Real d, const Real e) {
+  const Real values[5] = {a,b,c,d,e};
+  bool zero = false, negative = false, safe = true;
+  Real product = 1.0;
+  for (int n=0; n<5; ++n) {
+    if (!IsFinite(values[n])) return InvalidClosureValue();
+    zero = zero || values[n] == 0.0;
+    negative = negative != (values[n] < 0.0);
+    product *= fabs(values[n]);
+    safe = safe && product >= kMinNormal && IsFinite(product);
+  }
+  if (zero) return 0.0;
+  if (!safe) {
+    Real exponent = 0.0;
+    for (int n=0; n<5; ++n) exponent += log(fabs(values[n]));
+    product = exp(exponent);
+  }
+  return negative ? -product : product;
+}
+
+// Mignone et al. (2012), Appendix A: arithmetic face density and donor
+// pressure. Their RHS conduction vector has the OPPOSITE sign to our physical
+// energy flux; our positive normal flux selects the LEFT pressure.
+KOKKOS_INLINE_FUNCTION
+Real SaturatedDonorFlux(const Real rho_face, const Real pressure, const Real phi) {
+  if (!IsFinitePositive(rho_face) || !IsFiniteNonNegative(pressure) ||
+      !IsFiniteNonNegative(phi)) return InvalidClosureValue();
+  if (pressure == 0.0 || phi == 0.0) return 0.0;
+  const Real ratio = pressure/rho_face;
+  const Real prefactor = 5.0*phi;
+  Real value = prefactor*pressure*sqrt(ratio);
+  if (!(ratio >= kMinNormal && IsFinite(ratio) &&
+        prefactor >= kMinNormal && IsFinite(prefactor) &&
+        IsFinitePositive(value))) {
+    value = exp(log(5.0)+log(phi)+1.5*log(pressure)-0.5*log(rho_face));
+  }
+  // A positive unrepresentable cap is not silently converted to no conduction.
+  return IsFinitePositive(value) ? value : InvalidClosureValue();
+}
+
+// Face index names the cell on its right. Transverse theta slopes use the
+// nested limiter; inactive-coordinate gradients are zero. Spitzer's harmonic
+// endpoint conductivity multiplies the SAME limited theta gradient vector.
+// Even isotropic saturation consumes transverse edge ghosts to form |C|.
+// All three aligned vector components (including Bz in 2-D) enter that norm.
+KOKKOS_INLINE_FUNCTION
+SaturatedFaceResult SaturatedFace(const DvceArray5D<Real> &w,
+    const DvceArray5D<Real> &bcc, const DvceArray4D<Real> &bf,
+    const SaturatedFaceParameters &p, const Real dx[3], const int dir,
+    const int m, const int k, const int j, const int i) {
+  const SaturatedFaceResult invalid = {0.0,0.0,false};
+  if (p.ndim < 1 || p.ndim > 3 || dir < 0 || dir >= p.ndim ||
+      !IsFinitePositive(p.gm1) || !IsFiniteNonNegative(p.alpha_iso) ||
+      !IsFiniteNonNegative(p.alpha_aniso) || !IsFiniteNonNegative(p.kappa0) ||
+      !IsFiniteNonNegative(p.phi)) return invalid;
+  for (int d=0; d<p.ndim; ++d) {
+    if (!IsFinitePositive(dx[d])) return invalid;
+  }
+  const int il = i-(dir == 0), jl = j-(dir == 1), kl = k-(dir == 2);
+  const Real rho_l = w(m,IDN,kl,jl,il), rho_r = w(m,IDN,k,j,i);
+  const Real e_l = w(m,IEN,kl,jl,il), e_r = w(m,IEN,k,j,i);
+  const Real tl = SpitzerTemperature(rho_l,e_l,p.gm1);
+  const Real tr = SpitzerTemperature(rho_r,e_r,p.gm1);
+  if (!IsFiniteNonNegative(tl) || !IsFiniteNonNegative(tr)) return invalid;
+  const Real pl = SpitzerProduct3(p.gm1,e_l,1.0);
+  const Real pr = SpitzerProduct3(p.gm1,e_r,1.0);
+  if (!IsFiniteNonNegative(pl) || !IsFiniteNonNegative(pr) ||
+      (e_l > 0.0 && pl == 0.0) || (e_r > 0.0 && pr == 0.0)) return invalid;
+  const Real rho_a = 0.5*rho_l+0.5*rho_r;
+  const Real rho_h = HarmonicMeanPositive(rho_l,rho_r);
+  if (!IsFinitePositive(rho_a) || !IsFinitePositive(rho_h)) return invalid;
+  const Real kappal = SpitzerConductivity(tl,p.kappa0);
+  const Real kappar = SpitzerConductivity(tr,p.kappa0);
+  if (!IsFiniteNonNegative(kappal) || !IsFiniteNonNegative(kappar) ||
+      (p.kappa0 > 0.0 && tl > 0.0 && kappal == 0.0) ||
+      (p.kappa0 > 0.0 && tr > 0.0 && kappar == 0.0)) return invalid;
+  const Real kface = HarmonicMeanPositive(kappal,kappar);
+  if (!IsFiniteNonNegative(kface)) return invalid;
+  const bool aligned = p.alpha_aniso > 0.0 ||
+                       (p.kappa0 > 0.0 && p.spitzer_aligned);
+  Real b[3] = {0.0,0.0,0.0};
+  if (aligned) {
+    for (int d=0; d<3; ++d) {
+      b[d] = d == dir ? bf(m,k,j,i) :
+          0.5*bcc(m,d,k,j,i)+0.5*bcc(m,d,kl,jl,il);
+      if (!IsFinite(b[d])) return invalid;
+    }
+    const Real scale = fmax(fabs(b[0]),fmax(fabs(b[1]),fabs(b[2])));
+    if (scale > 0.0) {
+      for (int d=0; d<3; ++d) b[d] /= scale;
+      const Real norm = sqrt(b[0]*b[0]+b[1]*b[1]+b[2]*b[2]);
+      for (int d=0; d<3; ++d) b[d] /= norm;
+    }
+  }
+  Real gt[3] = {0.0,0.0,0.0};
+  const bool conducting = p.alpha_iso > 0.0 || p.alpha_aniso > 0.0 || p.kappa0 > 0.0;
+  if (conducting) {
+    gt[dir] = p.kappa0 > 0.0 ? SpitzerTemperatureSlope(tl,tr,dx[dir]) :
+                             (tr-tl)/dx[dir];
+  }
+  for (int d=0; d<p.ndim; ++d) {
+    if (d == dir) continue;
+    const int ti = d == 0, tj = d == 1, tk = d == 2;
+    const Real rp = SpitzerTemperature(w(m,IDN,k+tk,j+tj,i+ti),
+                                      w(m,IEN,k+tk,j+tj,i+ti),p.gm1);
+    const Real rm = SpitzerTemperature(w(m,IDN,k-tk,j-tj,i-ti),
+                                      w(m,IEN,k-tk,j-tj,i-ti),p.gm1);
+    const Real lp = SpitzerTemperature(w(m,IDN,kl+tk,jl+tj,il+ti),
+                                      w(m,IEN,kl+tk,jl+tj,il+ti),p.gm1);
+    const Real lm = SpitzerTemperature(w(m,IDN,kl-tk,jl-tj,il-ti),
+                                      w(m,IEN,kl-tk,jl-tj,il-ti),p.gm1);
+    if (!IsFiniteNonNegative(rp) || !IsFiniteNonNegative(rm) ||
+        !IsFiniteNonNegative(lp) || !IsFiniteNonNegative(lm)) return invalid;
+    if (p.kappa0 > 0.0) {
+      gt[d] = SpitzerLimited4(SpitzerTemperatureSlope(tr,rp,dx[d]),
+          SpitzerTemperatureSlope(rm,tr,dx[d]),SpitzerTemperatureSlope(tl,lp,dx[d]),
+          SpitzerTemperatureSlope(lm,tl,dx[d]),p.mc);
+    } else if (conducting) {
+      gt[d] = SpitzerLimited4((rp-tr)/dx[d],(tr-rm)/dx[d],
+                             (lp-tl)/dx[d],(tl-lm)/dx[d],p.mc);
+    }
+  }
+  for (int d=0; d<3; ++d) {
+    if (!IsFinite(gt[d])) return invalid;
+  }
+  const Real st = fmax(fabs(gt[0]),fmax(fabs(gt[1]),fabs(gt[2])));
+  Real dot_t = 0.0;
+  for (int d=0; d<p.ndim; ++d) {
+    if (st > 0.0) dot_t += b[d]*(gt[d]/st);
+  }
+  Real c[3];
+  for (int d=0; d<3; ++d) {
+    const Real iso = SpitzerProduct3(p.alpha_iso,rho_a,gt[d]);
+    const Real aniso = SaturatedProduct5(p.alpha_aniso,rho_h,st,b[d],dot_t);
+    const Real spitzer = p.spitzer_aligned ?
+        SaturatedProduct5(kface,st,b[d],dot_t,1.0) : SpitzerProduct3(kface,gt[d],1.0);
+    if (!IsFinite(iso) || !IsFinite(aniso) || !IsFinite(spitzer)) return invalid;
+    const Real scale = fmax(fabs(iso),fmax(fabs(aniso),fabs(spitzer)));
+    c[d] = scale == 0.0 ? 0.0 :
+        -SpitzerProduct3(scale,iso/scale+aniso/scale+spitzer/scale,1.0);
+    if (!IsFinite(c[d])) return invalid;
+  }
+  // Validate the entire consumed stencil even for phi=0 or an exactly zero B.
+  const Real pressure = c[dir] > 0.0 ? pl : pr;
+  const Real q = SaturatedDonorFlux(rho_a,pressure,p.phi);
+  if (!IsFiniteNonNegative(q)) return invalid;
+  const HeatFluxVector classical = {c[0],c[1],c[2]};
+  const HeatFluxVector flux = SaturateHeatFlux(classical,q);
+  const Real speed = SaturatedDonorSpeed(classical,dir,q,pressure,p.gm1);
+  if (!ValidHeatFlux(flux) || !IsFiniteNonNegative(speed)) return invalid;
+  const Real normal = dir == 0 ? flux.x : (dir == 1 ? flux.y : flux.z);
+  return {normal,speed,true};
+}
+
+} // namespace conduction
+
 
 parabolic::DiffusionSelection ParseConductivityIntegrator(const std::string &block,
                                                            ParameterInput *pin) {
@@ -725,4 +1155,265 @@ void Conduction::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_da
   }, Kokkos::Min<Real>(dtnew));
 
   return;
+}
+
+//----------------------------------------------------------------------------------------
+// Temperature-dependent and saturated conductive fluxes.
+
+// Interpolate K(theta)=K0*theta^(5/2) harmonically at each face. The SAME face
+// coefficient multiplies the normal and limited transverse theta gradients;
+// no direction-dependent nonlinear thermal-potential differences are used.
+// A truly zero endpoint K gives zero Spitzer flux at that face. This is the
+// harmonic closure's cold-endpoint limit, not a numerical temperature floor.
+void Conduction::AddHeatFluxSpitzer(const DvceArray5D<Real> &w0, const EOS_Data &eos,
+                                  DvceFaceFld5D<Real> &flx) {
+  const Real k0 = spitzer_kappa0_code;
+  if (!alpha_spitzer || k0 == 0.0) return;
+  const Real gm1 = eos.gamma-1.0;
+  FailIfInvalid(!eos.is_ideal || !conduction::IsFinitePositive(gm1) ||
+                !conduction::IsFinitePositive(k0),
+                "Spitzer equation of state/coefficient");
+  const bool aligned = spitzer_field_aligned;
+  FailIfInvalid(aligned && pmy_pack->pmhd == nullptr, "Spitzer magnetic geometry");
+  auto &ind = pmy_pack->pmesh->mb_indcs;
+  const int ndim = pmy_pack->pmesh->three_d ? 3 : (pmy_pack->pmesh->multi_d ? 2 : 1);
+  const int is = ind.is, js = ind.js, ks = ind.ks;
+  const int nmb = pmy_pack->nmb_thispack;
+  const bool mc = use_mc_limiter;
+  auto w = w0;
+  auto size = pmy_pack->pmb->mb_size;
+  DvceArray5D<Real> bcc;
+  if (aligned) bcc = pmy_pack->pmhd->bcc0;
+  for (int dir=0; dir<ndim; ++dir) {
+    const int di = dir == 0, dj = dir == 1, dk = dir == 2;
+    const int ni = ind.nx1+di, nj = ind.nx2+dj, nk = ind.nx3+dk;
+    const int nji = ni*nj, nface = nji*nk;
+    auto f = dir == 0 ? flx.x1f : (dir == 1 ? flx.x2f : flx.x3f);
+    DvceArray4D<Real> bf;
+    if (aligned) {
+      bf = dir == 0 ? pmy_pack->pmhd->b0.x1f :
+           (dir == 1 ? pmy_pack->pmhd->b0.x2f : pmy_pack->pmhd->b0.x3f);
+    }
+    int invalid_faces = 0;
+    Kokkos::parallel_reduce("conduct_spitzer_harmonic",
+      Kokkos::RangePolicy<>(DevExeSpace(),0,nmb*nface),
+    KOKKOS_LAMBDA(const int idx, int &invalid) {
+      const int m = idx/nface, cell = idx-m*nface;
+      const int kk = cell/nji, jj = (cell-kk*nji)/ni, ii = cell-kk*nji-jj*ni;
+      const int k = ks+kk, j = js+jj, i = is+ii;
+      const int il = i-di, jl = j-dj, kl = k-dk;
+      const Real dx[3] = {size.d_view(m).dx1,size.d_view(m).dx2,size.d_view(m).dx3};
+      Real b[3] = {0.0,0.0,0.0};
+      if (aligned) {
+        for (int d=0; d<3; ++d) {
+          b[d] = d == dir ? bf(m,k,j,i) :
+                 0.5*bcc(m,d,k,j,i)+0.5*bcc(m,d,kl,jl,il);
+          if (!conduction::IsFinite(b[d])) { ++invalid; return; }
+        }
+        const Real scale = fmax(fabs(b[0]),fmax(fabs(b[1]),fabs(b[2])));
+        // A zero field still consumes/validates the thermal stencil below.
+        if (scale > 0.0) {
+          for (int d=0; d<3; ++d) b[d] /= scale;
+          const Real norm = sqrt(b[0]*b[0]+b[1]*b[1]+b[2]*b[2]);
+          for (int d=0; d<3; ++d) b[d] /= norm;
+        }
+      }
+      const Real tr = conduction::SpitzerTemperature(w(m,IDN,k,j,i),w(m,IEN,k,j,i),gm1);
+      const Real tl = conduction::SpitzerTemperature(w(m,IDN,kl,jl,il),
+                                                     w(m,IEN,kl,jl,il),gm1);
+      if (!conduction::IsFiniteNonNegative(tl) ||
+          !conduction::IsFiniteNonNegative(tr)) { ++invalid; return; }
+      const Real kappal = conduction::SpitzerConductivity(tl,k0);
+      const Real kappar = conduction::SpitzerConductivity(tr,k0);
+      if (!conduction::IsFiniteNonNegative(kappal) ||
+          !conduction::IsFiniteNonNegative(kappar) ||
+          (tl > 0.0 && kappal == 0.0) || (tr > 0.0 && kappar == 0.0)) {
+        ++invalid;
+        return;
+      }
+      const Real kface = conduction::HarmonicMeanPositive(kappal,kappar);
+      if (!conduction::IsFiniteNonNegative(kface) ||
+          !conduction::IsFinitePositive(dx[dir])) { ++invalid; return; }
+      Real g[3] = {0.0,0.0,0.0};
+      g[dir] = conduction::SpitzerTemperatureSlope(tl,tr,dx[dir]);
+      if (!conduction::IsFinite(g[dir])) { ++invalid; return; }
+      if (aligned) {
+        for (int d=0; d<ndim; ++d) {
+          if (d == dir) continue;
+          const int ti = d == 0, tj = d == 1, tk = d == 2;
+          const Real rp = conduction::SpitzerTemperature(w(m,IDN,k+tk,j+tj,i+ti),
+                                                       w(m,IEN,k+tk,j+tj,i+ti),gm1);
+          const Real rm = conduction::SpitzerTemperature(w(m,IDN,k-tk,j-tj,i-ti),
+                                                       w(m,IEN,k-tk,j-tj,i-ti),gm1);
+          const Real lp = conduction::SpitzerTemperature(w(m,IDN,kl+tk,jl+tj,il+ti),
+                                                       w(m,IEN,kl+tk,jl+tj,il+ti),gm1);
+          const Real lm = conduction::SpitzerTemperature(w(m,IDN,kl-tk,jl-tj,il-ti),
+                                                       w(m,IEN,kl-tk,jl-tj,il-ti),gm1);
+          if (!conduction::IsFiniteNonNegative(rp) ||
+              !conduction::IsFiniteNonNegative(rm) ||
+              !conduction::IsFiniteNonNegative(lp) ||
+              !conduction::IsFiniteNonNegative(lm) ||
+              !conduction::IsFinitePositive(dx[d])) { ++invalid; return; }
+          // These are temperature slopes, not potential slopes. Positive
+          // homogeneity permits limiting gradients before the common K_face.
+          g[d] = conduction::SpitzerLimited4(
+              conduction::SpitzerTemperatureSlope(tr,rp,dx[d]),
+              conduction::SpitzerTemperatureSlope(rm,tr,dx[d]),
+              conduction::SpitzerTemperatureSlope(tl,lp,dx[d]),
+              conduction::SpitzerTemperatureSlope(lm,tl,dx[d]),mc);
+          if (!conduction::IsFinite(g[d])) { ++invalid; return; }
+        }
+        // Exactly perpendicular or zero face field: no flux, but no invalid
+        // thermal input was hidden by this exit. Retain all three B components.
+        if (b[dir] == 0.0) return;
+      }
+      Real flux = -conduction::SpitzerProduct3(kface,g[dir],1.0);
+      if (aligned) {
+        const Real scale = fmax(fabs(g[0]),fmax(fabs(g[1]),fabs(g[2])));
+        Real projected = 0.0;
+        if (scale > 0.0) {
+          for (int d=0; d<ndim; ++d) projected += b[d]*(g[d]/scale);
+        }
+        // Reuse the robust generic product without forming K_face*scale first.
+        flux = -conduction::SaturatedProduct5(kface,scale,b[dir],projected,1.0);
+      }
+      const Real updated = f(m,IEN,k,j,i)+flux;
+      if (!conduction::IsFinite(flux) || !conduction::IsFinite(updated)) {
+        ++invalid;
+        return;
+      }
+      f(m,IEN,k,j,i) = updated;
+    }, Kokkos::Sum<int>(invalid_faces));
+    // Every rank calls the coordinated check in every direction, including
+    // local zero-error/zero-block cases. This is rejection, not rollback/retry.
+    FailIfInvalid(invalid_faces,"Spitzer face thermal state, geometry, or flux");
+  }
+}
+
+void Conduction::AddHeatFluxSaturated(const DvceArray5D<Real> &w0,
+    const EOS_Data &eos, DvceFaceFld5D<Real> &flx) {
+  const Real gm1 = eos.gamma-1.0;
+  const Real k0 = alpha_spitzer ? spitzer_kappa0_code : 0.0;
+  const bool aligned = alpha_aniso > 0.0 || (k0 > 0.0 && spitzer_field_aligned);
+  FailIfInvalid(!eos.is_ideal || !conduction::IsFinitePositive(gm1) ||
+                (aligned && pmy_pack->pmhd == nullptr), "saturated conduction setup");
+  auto &ind = pmy_pack->pmesh->mb_indcs;
+  const int ndim = pmy_pack->pmesh->three_d ? 3 : (pmy_pack->pmesh->multi_d ? 2 : 1);
+  const conduction::SaturatedFaceParameters p = {gm1,alpha_iso,alpha_aniso,k0,
+      saturation_phi,ndim,spitzer_field_aligned,use_mc_limiter};
+  const int is = ind.is, js = ind.js, ks = ind.ks;
+  const int nmb = pmy_pack->nmb_thispack;
+  auto w = w0;
+  auto size = pmy_pack->pmb->mb_size;
+  DvceArray5D<Real> bcc;
+  if (aligned) bcc = pmy_pack->pmhd->bcc0;
+  for (int dir=0; dir<ndim; ++dir) {
+    const int ni = ind.nx1+(dir == 0), nj = ind.nx2+(dir == 1);
+    const int nk = ind.nx3+(dir == 2), nji = ni*nj, nface = nji*nk;
+    auto f = dir == 0 ? flx.x1f : (dir == 1 ? flx.x2f : flx.x3f);
+    DvceArray4D<Real> bf;
+    if (aligned) {
+      bf = dir == 0 ? pmy_pack->pmhd->b0.x1f :
+          (dir == 1 ? pmy_pack->pmhd->b0.x2f : pmy_pack->pmhd->b0.x3f);
+    }
+    int invalid_faces = 0;
+    Kokkos::parallel_reduce("conduct_saturated", Kokkos::RangePolicy<>(
+        DevExeSpace(),0,nmb*nface),
+    KOKKOS_LAMBDA(const int idx, int &invalid) {
+      const int m = idx/nface, cell = idx-m*nface;
+      const int k = ks+cell/nji, j = js+(cell%nji)/ni, i = is+cell%ni;
+      const Real dx[3] = {size.d_view(m).dx1,size.d_view(m).dx2,size.d_view(m).dx3};
+      const auto face = conduction::SaturatedFace(w,bcc,bf,p,dx,dir,m,k,j,i);
+      if (!face.valid) { ++invalid; return; }
+      const Real updated = f(m,IEN,k,j,i)+face.normal_flux;
+      if (!conduction::IsFinite(updated)) { ++invalid; return; }
+      // Only conduction is suppressed; existing hyperbolic flux is untouched.
+      f(m,IEN,k,j,i) = updated;
+    }, Kokkos::Sum<int>(invalid_faces));
+    FailIfInvalid(invalid_faces,"saturated face thermal state, geometry, or flux");
+  }
+}
+
+// The larger of the donor-pressure derivative rate and outgoing-energy drain
+// rate, summed over actual adjacent faces of each cell. The caller combines
+// this inverse timestep with the UNSUPPRESSED diffusion row bound. The drain
+// check bounds conduction alone; it does not promise coupled-MHD positivity.
+// With donor_only, omit the forward-Euler drain restriction: this returns only
+// the nonaccelerated donor-pressure rate needed by guarded nonlinear STS.
+Real Conduction::SaturationTimeStep(const DvceArray5D<Real> &w0,
+                                    const EOS_Data &eos, bool donor_only) const {
+  const Real gm1 = eos.gamma-1.0;
+  const Real k0 = alpha_spitzer ? spitzer_kappa0_code : 0.0;
+  const bool aligned = alpha_aniso > 0.0 || (k0 > 0.0 && spitzer_field_aligned);
+  FailIfInvalid(!eos.is_ideal || !conduction::IsFinitePositive(gm1) ||
+                (aligned && pmy_pack->pmhd == nullptr), "saturated timestep setup");
+  auto &ind = pmy_pack->pmesh->mb_indcs;
+  const int ndim = pmy_pack->pmesh->three_d ? 3 : (pmy_pack->pmesh->multi_d ? 2 : 1);
+  const conduction::SaturatedFaceParameters p = {gm1,alpha_iso,alpha_aniso,k0,
+      saturation_phi,ndim,spitzer_field_aligned,use_mc_limiter};
+  const int is = ind.is, js = ind.js, ks = ind.ks;
+  const int nmb = pmy_pack->nmb_thispack;
+  auto w = w0;
+  auto size = pmy_pack->pmb->mb_size;
+  DvceArray5D<Real> bcc;
+  if (aligned) bcc = pmy_pack->pmhd->bcc0;
+  DvceArray4D<Real> b1, b2, b3;
+  if (aligned) {
+    b1 = pmy_pack->pmhd->b0.x1f;
+    b2 = pmy_pack->pmhd->b0.x2f;
+    b3 = pmy_pack->pmhd->b0.x3f;
+  }
+  const int ni = ind.nx1, nj = ind.nx2, nji = ni*nj, ncell = nji*ind.nx3;
+  Real rate = 0.0;
+  int invalid_cells = 0;
+  Kokkos::parallel_reduce("saturated_donor_dt", Kokkos::RangePolicy<>(
+      DevExeSpace(),0,nmb*ncell),
+  KOKKOS_LAMBDA(const int idx, Real &max_rate, int &invalid) {
+    const int m = idx/ncell, cell = idx-m*ncell;
+    const int k = ks+cell/nji, j = js+(cell%nji)/ni, i = is+cell%ni;
+    const Real dx[3] = {size.d_view(m).dx1,size.d_view(m).dx2,size.d_view(m).dx3};
+    const Real eint = w(m,IEN,k,j,i);
+    if (!conduction::IsFiniteNonNegative(eint)) { ++invalid; return; }
+    Real advective = 0.0, drain = 0.0;
+    for (int dir=0; dir<ndim; ++dir) {
+      auto bf = dir == 0 ? b1 : (dir == 1 ? b2 : b3);
+      const auto left = conduction::SaturatedFace(w,bcc,bf,p,dx,dir,m,k,j,i);
+      const auto right = conduction::SaturatedFace(w,bcc,bf,p,dx,dir,m,
+          k+(dir == 2),j+(dir == 1),i+(dir == 0));
+      if (!left.valid || !right.valid) { ++invalid; return; }
+      // Evaluate divisions separately to avoid overflowing a sum of speeds.
+      const Real al = left.donor_speed/dx[dir];
+      const Real ar = right.donor_speed/dx[dir];
+      if (!conduction::IsFiniteNonNegative(al) ||
+          !conduction::IsFiniteNonNegative(ar) ||
+          (left.donor_speed > 0.0 && al == 0.0) ||
+          (right.donor_speed > 0.0 && ar == 0.0)) { ++invalid; return; }
+      advective += al+ar;
+      if (!donor_only) {
+        const Real outward[2] = {fmax(-left.normal_flux,0.0),
+                                 fmax(right.normal_flux,0.0)};
+        for (int side=0; side<2; ++side) {
+          if (outward[side] == 0.0) continue;
+          if (eint == 0.0) { ++invalid; return; }
+          // Log scaling avoids either dx*eint or outward/dx overflowing first.
+          const Real contribution = exp(log(outward[side])-log(dx[dir])-log(eint));
+          if (!conduction::IsFinitePositive(contribution)) { ++invalid; return; }
+          drain += contribution;
+        }
+      }
+    }
+    const Real local_rate = donor_only ? advective : fmax(advective,drain);
+    if (!conduction::IsFiniteNonNegative(local_rate)) { ++invalid; return; }
+    max_rate = fmax(max_rate,local_rate);
+  }, Kokkos::Max<Real>(rate), Kokkos::Sum<int>(invalid_cells));
+  if (nmb == 0) rate = 0.0;
+  // One combined kernel visits every direction; every rank joins this check,
+  // including zero-error and empty-pack ranks.
+  FailIfInvalid(invalid_cells || !conduction::IsFiniteNonNegative(rate),
+                "saturated donor-pressure or outgoing-energy timestep rate");
+  const Real bound = rate == 0.0 ?
+      static_cast<Real>(std::numeric_limits<float>::max()) : 1.0/rate;
+  FailIfInvalid(!conduction::IsFinitePositive(bound),
+                "unrepresentable saturated donor-pressure timestep");
+  return bound;
 }
