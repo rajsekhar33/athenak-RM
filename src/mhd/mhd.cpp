@@ -151,7 +151,12 @@ MHD::MHD(MeshBlockPack *ppack, ParameterInput *pin) :
   // Thermal conduction (only constructed if needed)
   if (pin->DoesParameterExist("mhd","alpha_iso") ||
       pin->DoesParameterExist("mhd","alpha_aniso") ||
-      pin->DoesParameterExist("mhd","alpha_spitzer")) {
+      pin->DoesParameterExist("mhd","alpha_spitzer") ||
+      pin->DoesParameterExist("mhd","spitzer_kappa0_code") ||
+      pin->DoesParameterExist("mhd","spitzer_kappa0_cgs") ||
+      pin->DoesParameterExist("mhd","spitzer_geometry") ||
+      pin->DoesParameterExist("mhd","conduction_saturation") ||
+      pin->DoesParameterExist("mhd","saturation_phi")) {
     if (peos->eos_data.is_ideal) {
       pcond = new Conduction("mhd", ppack, pin);
       const bool active = (pcond->alpha_iso != 0.0 || pcond->alpha_aniso != 0.0 ||

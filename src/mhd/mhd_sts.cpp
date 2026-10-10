@@ -6,6 +6,9 @@
 //! \file mhd_sts.cpp
 //! \brief MHD-owned helpers and task wrappers for RKL2 super time stepping.
 
+#include <cmath>
+#include <limits>
+
 #include "athena.hpp"
 #include "mesh/mesh.hpp"
 #include "driver/driver.hpp"
@@ -92,8 +95,17 @@ TaskStatus MHD::ClearSTSEField(Driver *pdrive, int stage) {
 //----------------------------------------------------------------------------------------
 
 TaskStatus MHD::STSFluxes(Driver *pdrive, int stage) {
-  (void) pdrive;
   (void) stage;
+  if (pdrive->sts.nonlinear && pcond != nullptr && pcond->UsesNonlinearSTS()) {
+    if (pdrive->sts.attempt_failed) return TaskStatus::complete;
+    if (!pcond->CheckSTSTransport(w0, peos->eos_data, pdrive->sts.dt_sweep)) {
+      pcond->RestoreSTSTrial(u0, w0, u_sts0);
+      pdrive->sts.attempt_failed = true;
+      pdrive->sts.rejection_reason = "current saturated transport cap";
+      // The cleared fluxes still traverse the normal exchange pipeline.
+      return TaskStatus::complete;
+    }
+  }
   if (has_any_sts_cell_update) {
     AddSelectedDiffusionFluxes(parabolic::DiffusionSelection::sts_only);
   }
@@ -115,12 +127,19 @@ TaskStatus MHD::STSEField(Driver *pdrive, int stage) {
 //! \brief Apply one RKL2 stage to the STS-managed cell-centered MHD variables.
 
 TaskStatus MHD::STSUpdateU(Driver *pdrive, int stage) {
-  if (!has_any_sts_cell_update || !(pdrive->sts.enabled)) {
+  if (!has_any_sts_cell_update || !(pdrive->sts.enabled) ||
+      (pdrive->sts.nonlinear && pdrive->sts.attempt_failed)) {
     return TaskStatus::complete;
   }
 
   if (stage == 1) {
-    Kokkos::deep_copy(DevExeSpace(), u_sts0, u0);
+    if (pdrive->sts.nonlinear) {
+      // Preserve BeginSTSTrial's rollback snapshot and discard a possibly
+      // nonfinite RHS left by the rejected attempt before its zero-weight use.
+      Kokkos::deep_copy(DevExeSpace(), u_sts_rhs, 0.0);
+    } else {
+      Kokkos::deep_copy(DevExeSpace(), u_sts0, u0);
+    }
     Kokkos::deep_copy(DevExeSpace(), u_sts1, u0);
     Kokkos::deep_copy(DevExeSpace(), u_sts2, u0);
   } else {
@@ -203,7 +222,8 @@ TaskStatus MHD::STSUpdateU(Driver *pdrive, int stage) {
 //! \brief Apply one constrained-transport RKL2 stage to the magnetic field.
 
 TaskStatus MHD::STSUpdateB(Driver *pdrive, int stage) {
-  if (!has_any_sts_field_update || !(pdrive->sts.enabled)) {
+  if (!has_any_sts_field_update || !(pdrive->sts.enabled) ||
+      (pdrive->sts.nonlinear && pdrive->sts.attempt_failed)) {
     return TaskStatus::complete;
   }
 
@@ -305,7 +325,33 @@ TaskStatus MHD::STSUpdateB(Driver *pdrive, int stage) {
 
 //----------------------------------------------------------------------------------------
 
+TaskStatus MHD::STSCheckState(Driver *pdrive, int stage) {
+  (void) stage;
+  if (!pdrive->sts.nonlinear || pcond == nullptr || !pcond->UsesNonlinearSTS() ||
+      pdrive->sts.attempt_failed) return TaskStatus::complete;
+  const auto state = pcond->InspectRawState(u0, peos->eos_data, &b0, true);
+  const Real scale = std::fmax(std::fabs(pdrive->sts.temperature_min),
+                               std::fabs(pdrive->sts.temperature_max));
+  const Real tolerance = 512.0*std::numeric_limits<Real>::epsilon()*scale;
+  const bool invalid = state.invalid || !std::isfinite(state.minimum) ||
+                       !std::isfinite(state.maximum);
+  const bool outside = state.minimum < pdrive->sts.temperature_min-tolerance ||
+                       state.maximum > pdrive->sts.temperature_max+tolerance;
+  if (invalid || outside) {
+    // The initial nonlinear configuration permits conduction-only STS: the
+    // current CT faces are inspected, but neither B nor momentum is advanced.
+    pcond->RestoreSTSTrial(u0, w0, u_sts0);
+    pdrive->sts.attempt_failed = true;
+    pdrive->sts.rejection_reason = invalid ? "raw thermal state before EOS" :
+                                            "thermal stage outside starting envelope";
+  }
+  return TaskStatus::complete;
+}
+
+//----------------------------------------------------------------------------------------
+
 TaskStatus MHD::STSRefreshTimeStep(Driver *pdrive, int stage) {
+  if (pdrive->sts.nonlinear && pdrive->sts.attempt_failed) return TaskStatus::complete;
   if (has_any_sts_diffusion && pdrive->sts.enabled &&
       pdrive->sts.sweep == Driver::STSSweep::post && stage == pdrive->sts.nstages) {
     RecomputeTimeStepFromCurrentState(pdrive);

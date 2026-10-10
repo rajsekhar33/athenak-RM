@@ -32,6 +32,10 @@ class Driver {
 
   struct STSController {
     bool enabled = false;
+    bool nonlinear = false;
+    bool attempt_failed = false;
+    Real temperature_min = 0.0, temperature_max = 0.0;
+    const char *rejection_reason = "none";
     parabolic::STSIntegrator integrator = parabolic::STSIntegrator::none;
     STSSweep sweep = STSSweep::none;
     Real dt_cycle = 0.0;
@@ -84,6 +88,7 @@ class Driver {
   void BeginSTSSweep(Mesh *pm, STSSweep sweep);
   void SetSTSStage(int stage);
   void EndSTSSweep();
+  void ExecuteSTSSweep(Mesh *pm, STSSweep sweep);
   void OutputCycleDiagnostics(Mesh *pm);
   Real UpdateWallClock();
 };

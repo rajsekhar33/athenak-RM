@@ -6,6 +6,8 @@
 //! \file mhd_tasks.cpp
 //! \brief functions that control MHD tasks stored in tasklists in MeshBlockPack
 
+#include <cmath>
+#include <limits>
 #include <map>
 #include <memory>
 #include <string>
@@ -16,6 +18,7 @@
 #include "parameter_input.hpp"
 #include "tasklist/task_list.hpp"
 #include "mesh/mesh.hpp"
+#include "driver/driver.hpp"
 #include "coordinates/coordinates.hpp"
 #include "eos/eos.hpp"
 #include "diffusion/viscosity.hpp"
@@ -104,6 +107,8 @@ void MHD::AssembleMHDTasks(std::map<std::string, std::shared_ptr<TaskList>> tl) 
     if (has_any_sts_field_update) {
       state_dependency = tl["parabolic_stagen"]->AddTask(&MHD::STSUpdateB, this, pupdt);
     }
+    state_dependency = tl["parabolic_stagen"]->AddTask(&MHD::STSCheckState, this,
+                                                        state_dependency);
     TaskID prestu = tl["parabolic_stagen"]->AddTask(&MHD::RestrictU, this,
                                                     state_dependency);
     TaskID psendu = tl["parabolic_stagen"]->AddTask(&MHD::SendU, this, prestu);
@@ -277,6 +282,7 @@ TaskStatus MHD::CopyCons(Driver *pdrive, int stage) {
 //! of conserved variables
 
 TaskStatus MHD::Fluxes(Driver *pdrive, int stage) {
+  if (has_explicit_conduction) pcond->CheckExplicitStage(w0, peos->eos_data);
   // select which calculate_flux function to call based on rsolver_method
   if (rsolver_method == MHD_RSolver::advect) {
     CalculateFluxes<MHD_RSolver::advect>(pdrive, stage);
@@ -653,6 +659,28 @@ TaskStatus MHD::Prolongate(Driver *pdrive, int stage) {
 //! \brief Wrapper task list function to call ConsToPrim over entire mesh (including gz)
 
 TaskStatus MHD::ConToPrim(Driver *pdrive, int stage) {
+  if (pdrive->sts.nonlinear && pdrive->sts.current_stage > 0 &&
+      pdrive->sts.sweep != Driver::STSSweep::none &&
+      pcond != nullptr && pcond->UsesNonlinearSTS()) {
+    const auto state = pcond->InspectRawState(u0, peos->eos_data, &b0);
+    const Real scale = std::fmax(std::fabs(pdrive->sts.temperature_min),
+                                 std::fabs(pdrive->sts.temperature_max));
+    const Real tolerance = 512.0*std::numeric_limits<Real>::epsilon()*scale;
+    const bool invalid = state.invalid || !std::isfinite(state.minimum) ||
+                         !std::isfinite(state.maximum);
+    const bool outside = state.minimum < pdrive->sts.temperature_min-tolerance ||
+                         state.maximum > pdrive->sts.temperature_max+tolerance;
+    if (invalid || outside) {
+      pcond->RestoreSTSTrial(u0, w0, u_sts0);
+      if (!pdrive->sts.attempt_failed) {
+        pdrive->sts.rejection_reason =
+            invalid ? "raw thermal stencil before EOS" :
+                      "thermal stencil outside starting envelope";
+      }
+      pdrive->sts.attempt_failed = true;
+    }
+  }
+  if (pcond != nullptr) pcond->ValidateRawState(u0, peos->eos_data, &b0);
   auto &indcs = pmy_pack->pmesh->mb_indcs;
   int &ng = indcs.ng;
   int n1m1 = indcs.nx1 + 2*ng - 1;

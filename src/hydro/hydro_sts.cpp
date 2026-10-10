@@ -6,6 +6,9 @@
 //! \file hydro_sts.cpp
 //! \brief Hydro-owned helpers and task wrappers for super time stepping.
 
+#include <cmath>
+#include <limits>
+
 #include "athena.hpp"
 #include "mesh/mesh.hpp"
 #include "driver/driver.hpp"
@@ -65,8 +68,18 @@ TaskStatus Hydro::ClearSTSFlux(Driver *pdrive, int stage) {
 //! \brief Accumulate only the STS-managed Hydro diffusion operators.
 
 TaskStatus Hydro::STSFluxes(Driver *pdrive, int stage) {
-  (void) pdrive;
   (void) stage;
+  if (pdrive->sts.nonlinear && pcond != nullptr && pcond->UsesNonlinearSTS()) {
+    if (pdrive->sts.attempt_failed) return TaskStatus::complete;
+    if (!pcond->CheckSTSTransport(w0, peos->eos_data, pdrive->sts.dt_sweep)) {
+      pcond->RestoreSTSTrial(u0, w0, u_sts0);
+      pdrive->sts.attempt_failed = true;
+      pdrive->sts.rejection_reason = "current saturated transport cap";
+      // ClearSTSFlux has already zeroed the fluxes. Keep the communication
+      // tasks running so every posted receive is completed before retry.
+      return TaskStatus::complete;
+    }
+  }
   AddSelectedDiffusionFluxes(parabolic::DiffusionSelection::sts_only);
   return TaskStatus::complete;
 }
@@ -76,12 +89,18 @@ TaskStatus Hydro::STSFluxes(Driver *pdrive, int stage) {
 //! \brief Apply one Hydro-owned RKL2 STS stage.
 
 TaskStatus Hydro::STSUpdate(Driver *pdrive, int stage) {
-  if (!pdrive->sts.enabled) {
+  if (!pdrive->sts.enabled || (pdrive->sts.nonlinear && pdrive->sts.attempt_failed)) {
     return TaskStatus::complete;
   }
 
   if (stage == 1) {
-    Kokkos::deep_copy(DevExeSpace(), u_sts0, u0);
+    if (pdrive->sts.nonlinear) {
+      // BeginSTSTrial owns the rollback snapshot. A rejected attempt may
+      // leave a nonfinite RHS, and even its zero stage-1 weight would be unsafe.
+      Kokkos::deep_copy(DevExeSpace(), u_sts_rhs, 0.0);
+    } else {
+      Kokkos::deep_copy(DevExeSpace(), u_sts0, u0);
+    }
     Kokkos::deep_copy(DevExeSpace(), u_sts1, u0);
     Kokkos::deep_copy(DevExeSpace(), u_sts2, u0);
   } else {
@@ -162,10 +181,38 @@ TaskStatus Hydro::STSUpdate(Driver *pdrive, int stage) {
 }
 
 //----------------------------------------------------------------------------------------
+//! \fn TaskStatus Hydro::STSCheckState()
+//! \brief Reject a nonlinear trial before restriction or EOS floors can repair it.
+
+TaskStatus Hydro::STSCheckState(Driver *pdrive, int stage) {
+  (void) stage;
+  if (!pdrive->sts.nonlinear || pcond == nullptr || !pcond->UsesNonlinearSTS() ||
+      pdrive->sts.attempt_failed) return TaskStatus::complete;
+  const auto state = pcond->InspectRawState(u0, peos->eos_data, nullptr, true);
+  const Real scale = std::fmax(std::fabs(pdrive->sts.temperature_min),
+                               std::fabs(pdrive->sts.temperature_max));
+  const Real tolerance = 512.0*std::numeric_limits<Real>::epsilon()*scale;
+  const bool invalid = state.invalid || !std::isfinite(state.minimum) ||
+                       !std::isfinite(state.maximum);
+  const bool outside = state.minimum < pdrive->sts.temperature_min-tolerance ||
+                       state.maximum > pdrive->sts.temperature_max+tolerance;
+  if (invalid || outside) {
+    // InspectRawState returns collective status/extrema. Every rank restores
+    // the same trial start before restriction and the posted boundary exchange.
+    pcond->RestoreSTSTrial(u0, w0, u_sts0);
+    pdrive->sts.attempt_failed = true;
+    pdrive->sts.rejection_reason = invalid ? "raw thermal state before EOS" :
+                                            "thermal stage outside starting envelope";
+  }
+  return TaskStatus::complete;
+}
+
+//----------------------------------------------------------------------------------------
 //! \fn TaskStatus Hydro::STSRefreshTimeStep()
 //! \brief Refresh Hydro-local timestep estimates after the post-sweep.
 
 TaskStatus Hydro::STSRefreshTimeStep(Driver *pdrive, int stage) {
+  if (pdrive->sts.nonlinear && pdrive->sts.attempt_failed) return TaskStatus::complete;
   if (pdrive->sts.sweep == Driver::STSSweep::post && stage == pdrive->sts.nstages) {
     return NewTimeStep(pdrive, pdrive->nexp_stages);
   }
