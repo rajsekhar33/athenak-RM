@@ -69,8 +69,9 @@ TaskStatus Hydro::ClearSTSFlux(Driver *pdrive, int stage) {
 
 TaskStatus Hydro::STSFluxes(Driver *pdrive, int stage) {
   (void) stage;
+  if ((pdrive->sts.nonlinear || pdrive->sts.viscosity_retry) &&
+      pdrive->sts.attempt_failed) return TaskStatus::complete;
   if (pdrive->sts.nonlinear && pcond != nullptr && pcond->UsesNonlinearSTS()) {
-    if (pdrive->sts.attempt_failed) return TaskStatus::complete;
     if (!pcond->CheckSTSTransport(w0, peos->eos_data, pdrive->sts.dt_sweep)) {
       pcond->RestoreSTSTrial(u0, w0, u_sts0);
       pdrive->sts.attempt_failed = true;
@@ -89,16 +90,21 @@ TaskStatus Hydro::STSFluxes(Driver *pdrive, int stage) {
 //! \brief Apply one Hydro-owned RKL2 STS stage.
 
 TaskStatus Hydro::STSUpdate(Driver *pdrive, int stage) {
-  if (!pdrive->sts.enabled || (pdrive->sts.nonlinear && pdrive->sts.attempt_failed)) {
+  if (!pdrive->sts.enabled ||
+      ((pdrive->sts.nonlinear || pdrive->sts.viscosity_retry) &&
+       pdrive->sts.attempt_failed)) {
     return TaskStatus::complete;
   }
 
   if (stage == 1) {
-    if (pdrive->sts.nonlinear) {
-      // BeginSTSTrial owns the rollback snapshot. A rejected attempt may
-      // leave a nonfinite RHS, and even its zero stage-1 weight would be unsafe.
+    if (pdrive->sts.nonlinear || pdrive->sts.viscosity_retry) {
+      // A rejected attempt may leave a nonfinite RHS, and even its zero
+      // stage-1 weight would be unsafe.
       Kokkos::deep_copy(DevExeSpace(), u_sts_rhs, 0.0);
-    } else {
+    }
+    if (!pdrive->sts.nonlinear) {
+      // Only nonlinear conduction's BeginSTSTrial owns u_sts0. Viscosity
+      // retries restore the live state before this recurrence is initialized.
       Kokkos::deep_copy(DevExeSpace(), u_sts0, u0);
     }
     Kokkos::deep_copy(DevExeSpace(), u_sts1, u0);
@@ -182,10 +188,14 @@ TaskStatus Hydro::STSUpdate(Driver *pdrive, int stage) {
 
 //----------------------------------------------------------------------------------------
 //! \fn TaskStatus Hydro::STSCheckState()
-//! \brief Reject a nonlinear trial before restriction or EOS floors can repair it.
+//! \brief Reject a guarded trial before restriction or EOS floors can repair it.
 
 TaskStatus Hydro::STSCheckState(Driver *pdrive, int stage) {
   (void) stage;
+  if (pdrive->sts.viscosity_retry) {
+    pdrive->CheckViscositySTSState(pmy_pack->pmesh);
+    return TaskStatus::complete;
+  }
   if (!pdrive->sts.nonlinear || pcond == nullptr || !pcond->UsesNonlinearSTS() ||
       pdrive->sts.attempt_failed) return TaskStatus::complete;
   const auto state = pcond->InspectRawState(u0, peos->eos_data, nullptr, true);
@@ -212,9 +222,15 @@ TaskStatus Hydro::STSCheckState(Driver *pdrive, int stage) {
 //! \brief Refresh Hydro-local timestep estimates after the post-sweep.
 
 TaskStatus Hydro::STSRefreshTimeStep(Driver *pdrive, int stage) {
-  if (pdrive->sts.nonlinear && pdrive->sts.attempt_failed) return TaskStatus::complete;
+  if ((pdrive->sts.nonlinear || pdrive->sts.viscosity_retry) &&
+      pdrive->sts.attempt_failed) return TaskStatus::complete;
   if (pdrive->sts.sweep == Driver::STSSweep::post && stage == pdrive->sts.nstages) {
-    return NewTimeStep(pdrive, pdrive->nexp_stages);
+    if (pdrive->sts.viscosity_retry) {
+      // User/source callbacks run only after the driver accepts the sweep.
+      RecomputeTimeStepFromCurrentState(pdrive, false);
+    } else {
+      return NewTimeStep(pdrive, pdrive->nexp_stages);
+    }
   }
   return TaskStatus::complete;
 }

@@ -43,6 +43,7 @@ void ProblemGenerator::HookTest(ParameterInput *pin, const bool restart) {
   phook->workinloop_calls = 0;
 
   user_time_step_func = UserTimeStep;
+  user_dt_retry_safe = true;
   user_work_in_loop_func = UserWorkInLoop;
   user_hist_func = UserHistOutput;
 

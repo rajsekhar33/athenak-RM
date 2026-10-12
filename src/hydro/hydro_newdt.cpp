@@ -32,6 +32,14 @@ TaskStatus Hydro::NewTimeStep(Driver *pdrive, int stage) {
     return TaskStatus::complete; // only execute last stage
   }
 
+  RecomputeTimeStepFromCurrentState(pdrive);
+  return TaskStatus::complete;
+}
+
+// Retryable parabolic trials refresh fluid/diffusion bounds without invoking
+// source or user callbacks whose external state cannot be rolled back.
+void Hydro::RecomputeTimeStepFromCurrentState(Driver *pdrive, bool update_sources) {
+
   auto &indcs = pmy_pack->pmesh->mb_indcs;
   int is = indcs.is, nx1 = indcs.nx1;
   int js = indcs.js, nx2 = indcs.nx2;
@@ -137,15 +145,15 @@ TaskStatus Hydro::NewTimeStep(Driver *pdrive, int stage) {
     pvisc->NewTimeStep(w0, peos->eos_data);
   }
   // compute source terms timestep
-  if (psrc != nullptr) {
+  if (update_sources && psrc != nullptr) {
     psrc->NewTimeStep(w0, peos->eos_data);
   }
 
   // compute user defined timestep
-  if (pmy_pack->pmesh->pgen->user_dt) {
+  if (update_sources && pmy_pack->pmesh->pgen->user_dt) {
     (pmy_pack->pmesh->pgen->user_time_step_func)(pmy_pack->pmesh);
   }
 
-  return TaskStatus::complete;
+  return;
 }
 } // namespace hydro

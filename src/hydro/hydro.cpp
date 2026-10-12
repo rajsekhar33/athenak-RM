@@ -82,7 +82,8 @@ Hydro::Hydro(MeshBlockPack *ppack, ParameterInput *pin) :
 
   // Viscosity (if requested in input file)
   if (pin->DoesParameterExist("hydro","nu_iso") ||
-      pin->DoesParameterExist("hydro","nu_aniso")) {
+      pin->DoesParameterExist("hydro","nu_aniso") ||
+      pin->DoesParameterExist("hydro","viscosity_integrator")) {
     pvisc = new Viscosity("hydro", ppack, pin);
     const bool active = (pvisc->nu_iso != 0.0 || pvisc->nu_aniso != 0.0);
     has_explicit_viscosity =

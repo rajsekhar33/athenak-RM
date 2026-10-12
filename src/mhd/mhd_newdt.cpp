@@ -40,7 +40,7 @@ TaskStatus MHD::NewTimeStep(Driver *pdriver, int stage) {
 //----------------------------------------------------------------------------------------
 //! \brief Recompute hyperbolic and parabolic timestep limits from the current state.
 
-void MHD::RecomputeTimeStepFromCurrentState(Driver *pdriver) {
+void MHD::RecomputeTimeStepFromCurrentState(Driver *pdriver, bool update_sources) {
   auto &indcs = pmy_pack->pmesh->mb_indcs;
   int is = indcs.is, nx1 = indcs.nx1;
   int js = indcs.js, nx2 = indcs.nx2;
@@ -179,12 +179,12 @@ void MHD::RecomputeTimeStepFromCurrentState(Driver *pdriver) {
     presist->NewTimeStep(w0, peos->eos_data);
   }
   // compute source terms timestep
-  if (psrc != nullptr) {
+  if (update_sources && psrc != nullptr) {
     psrc->NewTimeStep(w0, peos->eos_data);
   }
 
   // compute user defined timestep
-  if (pmy_pack->pmesh->pgen->user_dt) {
+  if (update_sources && pmy_pack->pmesh->pgen->user_dt) {
     (pmy_pack->pmesh->pgen->user_time_step_func)(pmy_pack->pmesh);
   }
 

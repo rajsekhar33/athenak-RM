@@ -41,6 +41,16 @@ class Viscosity {
                            DvceFaceFld5D<Real> &f);
   void NewTimeStep(const DvceArray5D<Real> &w, const EOS_Data &eos_data);
 
+  struct RawState {
+    bool admissible;
+    bool active_admissible;
+  };
+  // Inspect without repairing conserved variables or incrementing EOS counters.
+  // With include_ghosts, cover the complete fine-grid EOS conversion extent.
+  // For MHD, use current CT faces rather than potentially stale centered fields.
+  RawState InspectRawState(const DvceArray5D<Real> &u, const EOS_Data &eos,
+      const DvceFaceFld4D<Real> *b = nullptr, bool include_ghosts = false) const;
+
  private:
   MeshBlockPack* pmy_pack;
 };
