@@ -7,8 +7,8 @@
 //========================================================================================
 //! \file viscosity.hpp
 //  \brief Contains data and functions that implement various formulations for
-//  viscosity. Currently only Navier-Stokes (uniform, isotropic) shear viscosity
-//  is implemented. TODO: add Braginskii viscosity
+//  viscosity: isotropic Navier-Stokes shear and explicit uniform-grid MHD
+//  Braginskii stress. Anisotropic integration is under development/validation.
 
 #include <string>
 
@@ -37,8 +37,11 @@ class Viscosity {
                         DvceFaceFld5D<Real> &f);
   void AddViscousFluxIso(const DvceArray5D<Real> &w,const EOS_Data &eos,
                          DvceFaceFld5D<Real> &f);
-  void AddViscousFluxAniso(const DvceArray5D<Real> &w,const EOS_Data &eos,
-                           DvceFaceFld5D<Real> &f);
+  // Explicit fields prevent reading centered B from a different RK stage.
+  // Explicit and RKL2 use the same uniform-grid operator; refinement is rejected.
+  void AddViscousFluxAniso(const DvceArray5D<Real> &w, const EOS_Data &eos,
+      const DvceFaceFld4D<Real> &b, const DvceArray5D<Real> &bcc,
+      DvceFaceFld5D<Real> &f);
   void NewTimeStep(const DvceArray5D<Real> &w, const EOS_Data &eos_data);
 
   struct RawState {

@@ -52,6 +52,11 @@ void MHD::AddSelectedDiffusionFluxes(parabolic::DiffusionSelection selection) {
   }
   if (add_viscosity && pvisc != nullptr) {
     pvisc->AddViscousFluxes(w0, peos->eos_data, uflx);
+    if (pvisc->nu_aniso > 0.0) {
+      // Current-stage CT faces and centered field. Viscosity-only STS freezes
+      // the magnetic field while updating momentum and conservative energy.
+      pvisc->AddViscousFluxAniso(w0, peos->eos_data, b0, bcc0, uflx);
+    }
   }
   if (add_resistivity && presist != nullptr && peos->eos_data.is_ideal) {
     presist->AddResistiveFluxes(b0, uflx);

@@ -32,6 +32,18 @@
 
 namespace {
 
+// Monotonized central limiter for Parrish et al. (2012), Appendix A4-A5.
+// Test signs without products; form the mean without overflowing a+b.
+KOKKOS_INLINE_FUNCTION
+Real ViscosityMC(const Real a, const Real b) {
+  if (!((a > 0.0 && b > 0.0) || (a < 0.0 && b < 0.0))) return 0.0;
+  const Real lo = fmin(fabs(a), fabs(b));
+  const Real hi = fmax(fabs(a), fabs(b));
+  const Real mean = 0.5*lo+0.5*hi;
+  const Real limited = lo < 0.5*mean ? 2.0*lo : mean;
+  return a > 0.0 ? limited : -limited;
+}
+
 KOKKOS_INLINE_FUNCTION
 bool ViscosityFinite(const Real value) {
   const Real largest = std::numeric_limits<Real>::max();
@@ -153,12 +165,13 @@ Viscosity::Viscosity(std::string block, MeshBlockPack *pp, ParameterInput *pin) 
   nu_iso = ReadViscosityCoefficient(block, "nu_iso", pin);
   nu_aniso = ReadViscosityCoefficient(block, "nu_aniso", pin);
   mode = ParseViscosityIntegrator(block, pin);
-  if (nu_aniso != 0.0) {
+  if (nu_aniso > 0.0 && (block != "mhd" || pmy_pack->pmesh->multilevel)) {
     std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
-              << "Anisotropic viscosity is not implemented" << std::endl;
+              << "Braginskii validation currently requires uniform-grid MHD; "
+              << "hydro and refinement are not supported" << std::endl;
     std::exit(EXIT_FAILURE);
   }
-  if (nu_iso > 0.0 &&
+  if ((nu_iso > 0.0 || nu_aniso > 0.0) &&
       (pmy_pack->pcoord->is_special_relativistic ||
        pmy_pack->pcoord->is_general_relativistic ||
        pmy_pack->pcoord->is_dynamical_relativistic)) {
@@ -166,9 +179,10 @@ Viscosity::Viscosity(std::string block, MeshBlockPack *pp, ParameterInput *pin) 
               << "Viscosity requires Newtonian physics" << std::endl;
     std::exit(EXIT_FAILURE);
   }
-  if (mode == parabolic::DiffusionSelection::sts_only && nu_iso <= 0.0) {
+  if (mode == parabolic::DiffusionSelection::sts_only &&
+      nu_iso <= 0.0 && nu_aniso <= 0.0) {
     std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
-              << "STS requires positive constant isotropic viscosity" << std::endl;
+              << "STS requires a positive constant viscosity coefficient" << std::endl;
     std::exit(EXIT_FAILURE);
   }
 }
@@ -232,7 +246,8 @@ Viscosity::RawState Viscosity::InspectRawState(const DvceArray5D<Real> &u,
 //! \fn void AddViscousFluxes()
 //! \brief Wrapper function that adds viscous fluxes for different types of viscosity
 //! to face-centered fluxes of conserved variables
-//! Currently only isotropic viscosity with constant coefficient implemented
+//! Isotropic entry point shared by hydro and MHD. The MHD caller separately
+//! adds Braginskii fluxes with explicit current-stage magnetic fields.
 
 void Viscosity::AddViscousFluxes(const DvceArray5D<Real> &w0, const EOS_Data &eos,
     DvceFaceFld5D<Real> &flx) {
@@ -400,11 +415,75 @@ void Viscosity::AddViscousFluxIso(const DvceArray5D<Real> &w0, const EOS_Data &e
 
 //----------------------------------------------------------------------------------------
 //! \fn void AddViscousFluxAniso
-//  \brief Currently no-op function, to be added later
+//  \brief Centered parallel Braginskii stress and conservative face work.
+// DIAGNOSTIC centered transverse reconstruction: Kempf, Rincon & Clerc (2023),
+// Appendix B, https://arxiv.org/abs/2306.12460. This is a local candidate, not
+// an unconditional positivity guarantee. Conservative face stress/work retain
+// the Athena-C form; no pairwise work veto or heating redistribution is added.
+// Explicit and RKL2 uniform-grid MHD integration are under validation.
+// The constructor continues to reject mesh refinement.
 
 void Viscosity::AddViscousFluxAniso(const DvceArray5D<Real> &w0, const EOS_Data &eos,
+    const DvceFaceFld4D<Real> &bface, const DvceArray5D<Real> &bcc,
     DvceFaceFld5D<Real> &flx) {
-  return;
+  if (nu_aniso == 0.0) return;
+  const auto &idx = pmy_pack->pmesh->mb_indcs;
+  const int ndim = pmy_pack->pmesh->three_d ? 3 : (pmy_pack->pmesh->multi_d ? 2 : 1);
+  const auto size = pmy_pack->pmb->mb_size;
+  const Real nu = nu_aniso;
+  const bool energy = eos.is_ideal;
+  for (int dir=0; dir<ndim; ++dir) {
+    const auto normal_b = dir == 0 ? bface.x1f : (dir == 1 ? bface.x2f : bface.x3f);
+    auto flux = dir == 0 ? flx.x1f : (dir == 1 ? flx.x2f : flx.x3f);
+    par_for("braginskii_face_flux", DevExeSpace(), 0, pmy_pack->nmb_thispack-1,
+      idx.ks, idx.ke+(dir == 2), idx.js, idx.je+(dir == 1),
+      idx.is, idx.ie+(dir == 0),
+    KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
+      const int il = i-(dir == 0), jl = j-(dir == 1), kl = k-(dir == 2);
+      const Real dx[3] = {size.d_view(m).dx1, size.d_view(m).dx2, size.d_view(m).dx3};
+      Real b[3];
+      for (int c=0; c<3; ++c) {
+        b[c] = c == dir ? normal_b(m,k,j,i) :
+            0.5*bcc(m,c,k,j,i)+0.5*bcc(m,c,kl,jl,il);
+      }
+      // Scale before normalization to avoid squaring very large/small fields.
+      const Real scale = fmax(fabs(b[0]),fmax(fabs(b[1]),fabs(b[2])));
+      // Diagnostic convention only: no directional stress at exactly zero B.
+      // This does not model a physical transition to unmagnetized viscosity.
+      if (scale == 0.0) return;
+      for (int c=0; c<3; ++c) b[c] /= scale;
+      const Real norm = sqrt(SQR(b[0])+SQR(b[1])+SQR(b[2]));
+      for (int c=0; c<3; ++c) b[c] /= norm;
+      Real grad[3][3] = {};
+      for (int c=0; c<3; ++c) {
+        const int v = IVX+c;
+        grad[c][dir] = (w0(m,v,k,j,i)-w0(m,v,kl,jl,il))/dx[dir];
+        for (int d=0; d<ndim; ++d) {
+          if (d == dir) continue;
+          const int ti = d == 0, tj = d == 1, tk = d == 2;
+          // Centered asymmetric face gradient, without nonlinear limiting.
+          // IDEFIX's Cartesian nolimiter form; not a positivity guarantee.
+          const Real upper = 0.5*(w0(m,v,k+tk,j+tj,i+ti)-w0(m,v,k,j,i))+
+              0.5*(w0(m,v,kl+tk,jl+tj,il+ti)-w0(m,v,kl,jl,il));
+          const Real lower = 0.5*(w0(m,v,k,j,i)-w0(m,v,k-tk,j-tj,i-ti))+
+              0.5*(w0(m,v,kl,jl,il)-w0(m,v,kl-tk,jl-tj,il-ti));
+          grad[c][d] = (0.5*upper+0.5*lower)/dx[d];
+        }
+      }
+      Real strain = -(grad[0][0]+grad[1][1]+grad[2][2])/3.0;
+      for (int c=0; c<3; ++c) {
+        for (int d=0; d<ndim; ++d) strain += b[c]*b[d]*grad[c][d];
+      }
+      const Real mu = nu*(0.5*w0(m,IDN,k,j,i)+0.5*w0(m,IDN,kl,jl,il));
+      Real work = 0.0;
+      for (int c=0; c<3; ++c) {
+        const Real stress = mu*strain*(3.0*b[c]*b[dir]-(c == dir ? 1.0 : 0.0));
+        flux(m,IM1+c,k,j,i) -= stress;
+        work += (0.5*w0(m,IVX+c,k,j,i)+0.5*w0(m,IVX+c,kl,jl,il))*stress;
+      }
+      if (energy) flux(m,IEN,k,j,i) -= work;
+    });
+  }
 }
 
 //----------------------------------------------------------------------------------------
@@ -412,9 +491,9 @@ void Viscosity::AddViscousFluxAniso(const DvceArray5D<Real> &w0, const EOS_Data 
 //! \brief Compute new time step for viscosity
 
 void Viscosity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_data) {
-  // viscous timestep on MeshBlock(s) in this pack for constant isotropic viscosity
+  // Constant-coefficient viscous timestep. The nu_aniso=0 path is unchanged.
   dtnew = std::numeric_limits<float>::max();
-  if (nu_iso <= 0.0) return;
+  if (nu_iso <= 0.0 && nu_aniso <= 0.0) return;
   auto size = pmy_pack->pmb->mb_size;
   for (int m=0; m<(pmy_pack->nmb_thispack); ++m) {
     Real inv_dx2_sum = 1.0/SQR(size.h_view(m).dx1);
@@ -430,6 +509,14 @@ void Viscosity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_dat
       inv_dx2_max = std::max(inv_dx2_max, inv_dx2);
     }
     Real rate = 2.0*nu_iso*(inv_dx2_sum + inv_dx2_max/3.0);
+    if (nu_aniso > 0.0) {
+      // Berlok et al. (2020), eq. 52: 2*d*nu/dx_min^2; include the
+      // longitudinal eigenvalue factor 4/3. Mesh::NewTimeStep applies CFL.
+      // Add rates when both viscosities act, rather than taking separate minima.
+      const int ndim = pmy_pack->pmesh->three_d ? 3 :
+                       (pmy_pack->pmesh->multi_d ? 2 : 1);
+      rate += (8.0/3.0)*ndim*nu_aniso*inv_dx2_max;
+    }
     dtnew = std::min(dtnew, 1.0/rate);
   }
   return;

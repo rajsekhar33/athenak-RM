@@ -1,10 +1,13 @@
-# Isotropic viscosity
+# Viscosity
 
 Newtonian Hydro and MHD support constant isotropic kinematic shear viscosity.
-Set `nu_iso` in the fluid block, in code units of length squared per time.
+Uniform-grid Newtonian MHD also supports leading parallel Braginskii viscosity
+with ideal or isothermal equations of state. Set `nu_iso` and/or `nu_aniso`
+in the fluid block, in code units of length squared per time.
 For a dimensional coefficient, use
 `nu_code = nu_cgs * time_cgs / length_cgs^2`; the input is not converted
-automatically. Dynamic viscosity is `rho * nu_iso`.
+automatically. The corresponding dynamic coefficients are `rho * nu_iso`
+and `rho * nu_aniso`.
 
 ## Configuration
 
@@ -29,10 +32,22 @@ sts_integrator = rkl2
 sts_max_dt_ratio = 1
 ```
 
-Use `<mhd>` instead for MHD. STS requires positive `nu_iso`.
-Malformed, negative or nonfinite coefficients are rejected. Nonzero
-`nu_aniso` is rejected: Braginskii viscosity is not implemented.
-There is no hyperviscosity or temperature-dependent viscosity closure.
+Use `<mhd>` instead for MHD. For parallel Braginskii viscosity, for example:
+
+```ini
+<mhd>
+nu_iso = 0
+nu_aniso = 0.01
+viscosity_integrator = explicit
+```
+
+Set `viscosity_integrator = sts` and use the same `<time>` settings above for
+RKL2. Both coefficients may be positive and share `viscosity_integrator`;
+STS requires at least one positive coefficient. Malformed, negative or
+nonfinite coefficients are rejected.
+Nonzero `nu_aniso` requires MHD without SMR/AMR, in either integration mode.
+There is no hyperviscosity, temperature-dependent viscosity, gyroviscosity,
+or mirror/firehose pressure-anisotropy clipping.
 
 The positive `sts_max_dt_ratio` caps the full cycle relative to the combined
 CFL-scaled STS diffusion bound; `-1` removes that cap. Start conservatively and
@@ -49,10 +64,45 @@ momentum flux receives `-tau_ij`; ideal-gas total energy receives the stress
 work using the arithmetic face velocity. Isothermal fluids have no evolved
 energy equation. The same spatial flux is used in explicit and STS modes.
 
-`Viscosity::NewTimeStep` supplies the geometric bound
-`1 / [2*nu_iso*(sum_d dx_d^-2 + max_d(dx_d^-2)/3)]`, minimized over blocks.
-The mesh applies the CFL factor. This bound is not a variable-density
-positivity guarantee.
+`Viscosity::AddViscousFluxAniso` evaluates the parallel Braginskii stress:
+
+```text
+b = B / |B|
+S = b_i*b_j*dv_i/dx_j - div(v)/3
+Delta_p = 3*rho*nu_aniso*S
+tau_ij = Delta_p*(b_i*b_j - delta_ij/3)
+```
+
+Here `Delta_p = p_perpendicular - p_parallel`; papers using `Pi` in the
+momentum flux write `Pi = -tau`. The implementation uses centered normal and
+transverse velocity derivatives without a slope limiter, following the
+Cartesian centered approach described by
+[Kempf, Rincon & Clerc, Appendix B](https://arxiv.org/html/2306.12460v2#A2).
+At each face, density and velocity are arithmetic averages, normal B is the
+current CT face field, and transverse B is averaged from adjacent cell-centered
+fields. The momentum flux receives `-tau`; ideal-gas total energy receives
+the matching conservative work flux `-v_face dot tau`. Explicit and RKL2 use the same
+operator with current-stage fields. Braginskii damping, heating and RKL2
+benchmarks are also described by
+[Berlok, Pakmor & Pfrommer (2020)](https://arxiv.org/abs/1911.05694);
+their moving-mesh reconstruction and energy time integration are not copied here.
+
+The continuum heating rate is `3*rho*nu_aniso*S^2`, but the centered discrete
+operator does not guarantee local thermal positivity for arbitrary states.
+At exactly zero reconstructed face B, the anisotropic stress is skipped;
+this is not a physical transition to unmagnetized viscosity.
+
+`Viscosity::NewTimeStep` supplies `1/(rate_iso + rate_aniso)`, minimized over
+blocks, where the sums and dimension count include only active directions:
+
+```text
+rate_iso   = 2*nu_iso*(sum_d dx_d^-2 + max_d(dx_d^-2)/3)
+rate_aniso = (8/3)*ndim*nu_aniso*max_d(dx_d^-2)
+```
+
+The mesh applies the CFL factor. Adding rates accounts for simultaneous
+isotropic and parallel viscosity. This geometric bound is not a
+variable-density positivity guarantee.
 
 The driver places an RKL2 half-sweep on either side of the fluid update.
 Hydro/MHD STS tasks reuse the conservative flux and boundary exchange paths.
@@ -61,7 +111,7 @@ RKL methods and their application to viscosity are described by
 see also [Vaidya et al. (2017)](https://arxiv.org/abs/1702.05487)
 for anisotropic-diffusion STS.
 
-The implementation adds safeguards, not a new stress discretization:
+STS adds safeguards, not a new stress discretization:
 
 - `Viscosity::InspectRawState` checks finite density, momentum and, where
   applicable, positive internal energy and the configured EOS floors before
@@ -78,6 +128,9 @@ These checks do not estimate time-integration error or guarantee dissipation
 for arbitrary density contrasts.
 
 ## Refinement and callbacks
+
+The refinement support below is for isotropic viscosity only. Parallel
+Braginskii viscosity currently rejects both static and adaptive refinement.
 
 For Newtonian ideal Hydro with viscosity STS and conserved prolongation,
 `HydroProlongTheta` contracts inadmissible reconstructed siblings toward their
