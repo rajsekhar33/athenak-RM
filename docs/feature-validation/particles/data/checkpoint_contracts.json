@@ -1,0 +1,23 @@
+{
+  "epoch": "integration_candidate",
+  "source_sha256": "e14220a77a410f969b0d1a6aa6167c1ad04ded59cbd10c72d3cc1da5b405ee69",
+  "result": {
+    "mismatched_cycle": "PASS",
+    "mixed_versions": "PASS",
+    "bad_particle_version": "PASS (rejected)",
+    "bad_particle_topology": "PASS (rejected)",
+    "truncated_particle_header": "PASS (rejected)",
+    "legacy_terminal": "PASS (read compatibility, not exact legacy restart)",
+    "legacy_regular": "PASS (read compatibility, not exact legacy restart)",
+    "tighter_cfl": {
+      "status": "PASS",
+      "saved_dt": 0.15625,
+      "new_dt": 0.0625
+    },
+    "tighter_tlim": {
+      "status": "PASS",
+      "new_dt": 0.030000000000000027
+    },
+    "counter_continuity": "PASS (existing files unchanged)"
+  }
+}

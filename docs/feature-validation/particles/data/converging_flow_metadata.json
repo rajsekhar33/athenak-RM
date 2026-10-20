@@ -1,0 +1,13 @@
+{
+  "epoch": "historical post-RK-repair uniform-grid diagnostic",
+  "source_sha256": "3496fb1476249552d5903f2844be5e932724c38a8817f5871ef3f9f76338fa14",
+  "cases": 45,
+  "strain_rate": 1.0,
+  "time": 0.3,
+  "valid_margin": 0.85,
+  "valid_region": "abs(x) <= valid_margin * 0.5 * exp(-strain_rate*time)",
+  "normalization": "Gas and tracer profiles separately normalized by their valid-region means.",
+  "central_region": "Four cells closest to x=0.",
+  "error_bars": "Sample standard deviation across five seeds, ddof=1; not standard error.",
+  "accuracy_assertion": "No numerical acceptance threshold was predeclared for this study."
+}

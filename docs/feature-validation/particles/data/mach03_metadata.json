@@ -1,0 +1,38 @@
+{
+  "epoch": "historical post-CIC uniform-grid diagnostic",
+  "cases": {
+    "classical": {
+      "source_sha256": "b4c349b926740aba10176f9fd4f01ced428213e66acdf423a056091ceacea9db",
+      "response_lowk": 1.0059327829137372,
+      "coherence_lowk": 0.9988537489496577,
+      "mu_cic": -3.8791681744028286e-06,
+      "sigma_cic": 0.0018290689017129028,
+      "mu_ngp": -1.5045522660911474e-05,
+      "sigma_ngp": 0.003611834257880703,
+      "nparticles": 134217728,
+      "time": 0.09999999999999962
+    },
+    "ito": {
+      "source_sha256": "fb89b86880a82ddc7762e9146061cd751de3460be6694630960fb27bc5c67866",
+      "response_lowk": 1.0034064803860405,
+      "coherence_lowk": 0.9864610038387229,
+      "mu_cic": -1.0294707892762691e-05,
+      "sigma_cic": 0.0029860367066783197,
+      "mu_ngp": -2.4797888917261017e-05,
+      "sigma_ngp": 0.00463795281611516,
+      "nparticles": 134217728,
+      "time": 0.09999999999999962
+    },
+    "lagrangian_mc": {
+      "source_sha256": "378a6a92746aa3cf4261e4b547de5cfb026907940cefdb373b17400e179e4105",
+      "response_lowk": 0.9914504289455973,
+      "coherence_lowk": 0.9838740110296206,
+      "mu_cic": -2.297153122451561e-05,
+      "sigma_cic": 0.004465123106257639,
+      "mu_ngp": -2.297153122451561e-05,
+      "sigma_ngp": 0.004465123106257639,
+      "nparticles": 134217728,
+      "time": 0.09999999999999962
+    }
+  }
+}

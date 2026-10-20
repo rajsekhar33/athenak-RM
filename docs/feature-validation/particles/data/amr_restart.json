@@ -1,0 +1,708 @@
+{
+  "epoch": "earlier_candidate",
+  "source_sha256": "32401c4cab09d762bbae5b618f2773a302c3f66f4851b3a4111d7456a8c1a407",
+  "cases": {
+    "classical": {
+      "status": "PASS",
+      "failures": [],
+      "snapshots": [
+        {
+          "output": 0,
+          "cycle": 0,
+          "time": 0.0,
+          "dt": 0.125,
+          "blocks": 8,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 1,
+          "cycle": 1,
+          "time": 0.125,
+          "dt": 0.125,
+          "blocks": 8,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 2,
+          "cycle": 2,
+          "time": 0.1875,
+          "dt": 0.0625,
+          "blocks": 15,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 3,
+          "cycle": 3,
+          "time": 0.25,
+          "dt": 0.0625,
+          "blocks": 15,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 4,
+          "cycle": 4,
+          "time": 0.375,
+          "dt": 0.125,
+          "blocks": 8,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 5,
+          "cycle": 5,
+          "time": 0.5,
+          "dt": 0.125,
+          "blocks": 8,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 6,
+          "cycle": 6,
+          "time": 0.5625,
+          "dt": 0.0625,
+          "blocks": 15,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 7,
+          "cycle": 7,
+          "time": 0.625,
+          "dt": 0.0625,
+          "blocks": 15,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 8,
+          "cycle": 8,
+          "time": 0.75,
+          "dt": 0.125,
+          "blocks": 8,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 9,
+          "cycle": 8,
+          "time": 0.75,
+          "dt": 0.125,
+          "blocks": 8,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        }
+      ],
+      "restart": {
+        "split": [
+          {
+            "output": 0,
+            "cycle": 0,
+            "time": 0.0,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 1,
+            "cycle": 1,
+            "time": 0.125,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 2,
+            "cycle": 2,
+            "time": 0.1875,
+            "dt": 0.0625,
+            "blocks": 15,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 3,
+            "cycle": 3,
+            "time": 0.25,
+            "dt": 0.0625,
+            "blocks": 15,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 4,
+            "cycle": 3,
+            "time": 0.25,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          }
+        ],
+        "reload": [
+          {
+            "output": 0,
+            "cycle": 3,
+            "time": 0.25,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          }
+        ],
+        "resumed": [
+          {
+            "output": 0,
+            "cycle": 4,
+            "time": 0.375,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 1,
+            "cycle": 5,
+            "time": 0.5,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 2,
+            "cycle": 6,
+            "time": 0.5625,
+            "dt": 0.0625,
+            "blocks": 15,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 3,
+            "cycle": 7,
+            "time": 0.625,
+            "dt": 0.0625,
+            "blocks": 15,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 4,
+            "cycle": 8,
+            "time": 0.75,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 5,
+            "cycle": 8,
+            "time": 0.75,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          }
+        ]
+      }
+    },
+    "lagrangian_mc": {
+      "status": "PASS",
+      "failures": [],
+      "snapshots": [
+        {
+          "output": 0,
+          "cycle": 0,
+          "time": 0.0,
+          "dt": 0.125,
+          "blocks": 8,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 1,
+          "cycle": 1,
+          "time": 0.125,
+          "dt": 0.125,
+          "blocks": 8,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 2,
+          "cycle": 2,
+          "time": 0.1875,
+          "dt": 0.0625,
+          "blocks": 15,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 3,
+          "cycle": 3,
+          "time": 0.25,
+          "dt": 0.0625,
+          "blocks": 15,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 4,
+          "cycle": 4,
+          "time": 0.375,
+          "dt": 0.125,
+          "blocks": 8,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 5,
+          "cycle": 5,
+          "time": 0.5,
+          "dt": 0.125,
+          "blocks": 8,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 6,
+          "cycle": 6,
+          "time": 0.5625,
+          "dt": 0.0625,
+          "blocks": 15,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 7,
+          "cycle": 7,
+          "time": 0.625,
+          "dt": 0.0625,
+          "blocks": 15,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 8,
+          "cycle": 8,
+          "time": 0.75,
+          "dt": 0.125,
+          "blocks": 8,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 9,
+          "cycle": 8,
+          "time": 0.75,
+          "dt": 0.125,
+          "blocks": 8,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        }
+      ],
+      "restart": {
+        "split": [
+          {
+            "output": 0,
+            "cycle": 0,
+            "time": 0.0,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 1,
+            "cycle": 1,
+            "time": 0.125,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 2,
+            "cycle": 2,
+            "time": 0.1875,
+            "dt": 0.0625,
+            "blocks": 15,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 3,
+            "cycle": 3,
+            "time": 0.25,
+            "dt": 0.0625,
+            "blocks": 15,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 4,
+            "cycle": 3,
+            "time": 0.25,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          }
+        ],
+        "reload": [
+          {
+            "output": 0,
+            "cycle": 3,
+            "time": 0.25,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          }
+        ],
+        "resumed": [
+          {
+            "output": 0,
+            "cycle": 4,
+            "time": 0.375,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 1,
+            "cycle": 5,
+            "time": 0.5,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 2,
+            "cycle": 6,
+            "time": 0.5625,
+            "dt": 0.0625,
+            "blocks": 15,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 3,
+            "cycle": 7,
+            "time": 0.625,
+            "dt": 0.0625,
+            "blocks": 15,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 4,
+            "cycle": 8,
+            "time": 0.75,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 5,
+            "cycle": 8,
+            "time": 0.75,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          }
+        ]
+      }
+    },
+    "ito_2": {
+      "status": "PASS",
+      "failures": [],
+      "snapshots": [
+        {
+          "output": 0,
+          "cycle": 0,
+          "time": 0.0,
+          "dt": 0.125,
+          "blocks": 8,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 1,
+          "cycle": 1,
+          "time": 0.125,
+          "dt": 0.125,
+          "blocks": 8,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 2,
+          "cycle": 2,
+          "time": 0.1875,
+          "dt": 0.0625,
+          "blocks": 15,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 3,
+          "cycle": 3,
+          "time": 0.25,
+          "dt": 0.0625,
+          "blocks": 15,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 4,
+          "cycle": 4,
+          "time": 0.375,
+          "dt": 0.125,
+          "blocks": 8,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 5,
+          "cycle": 5,
+          "time": 0.5,
+          "dt": 0.125,
+          "blocks": 8,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 6,
+          "cycle": 6,
+          "time": 0.5625,
+          "dt": 0.0625,
+          "blocks": 15,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 7,
+          "cycle": 7,
+          "time": 0.625,
+          "dt": 0.0625,
+          "blocks": 15,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 8,
+          "cycle": 8,
+          "time": 0.75,
+          "dt": 0.125,
+          "blocks": 8,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        },
+        {
+          "output": 9,
+          "cycle": 8,
+          "time": 0.75,
+          "dt": 0.125,
+          "blocks": 8,
+          "count": 512,
+          "frozen": 0,
+          "invalid_owner_tags": []
+        }
+      ],
+      "restart": {
+        "split": [
+          {
+            "output": 0,
+            "cycle": 0,
+            "time": 0.0,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 1,
+            "cycle": 1,
+            "time": 0.125,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 2,
+            "cycle": 2,
+            "time": 0.1875,
+            "dt": 0.0625,
+            "blocks": 15,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 3,
+            "cycle": 3,
+            "time": 0.25,
+            "dt": 0.0625,
+            "blocks": 15,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 4,
+            "cycle": 3,
+            "time": 0.25,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          }
+        ],
+        "reload": [
+          {
+            "output": 0,
+            "cycle": 3,
+            "time": 0.25,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          }
+        ],
+        "resumed": [
+          {
+            "output": 0,
+            "cycle": 4,
+            "time": 0.375,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 1,
+            "cycle": 5,
+            "time": 0.5,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 2,
+            "cycle": 6,
+            "time": 0.5625,
+            "dt": 0.0625,
+            "blocks": 15,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 3,
+            "cycle": 7,
+            "time": 0.625,
+            "dt": 0.0625,
+            "blocks": 15,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 4,
+            "cycle": 8,
+            "time": 0.75,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          },
+          {
+            "output": 5,
+            "cycle": 8,
+            "time": 0.75,
+            "dt": 0.125,
+            "blocks": 8,
+            "count": 512,
+            "frozen": 0,
+            "invalid_owner_tags": []
+          }
+        ]
+      }
+    }
+  }
+}

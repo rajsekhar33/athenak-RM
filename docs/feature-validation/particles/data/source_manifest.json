@@ -1,0 +1,1238 @@
+{
+  "source_revision": "886ab25ae0a58e4cbb12e44158987872eafcdf07",
+  "particle_port_parent": "62892d08acdc297a282d8c1feaa1e2428351c0ca",
+  "note": "Explicit implementation series; excludes unrelated merged main changes.",
+  "commits": [
+    {
+      "revision": "96f0e50fb124b28311e33bf79c289df137d24047",
+      "subject": "Port Lagrangian tracer particle subsystem with restart support",
+      "role": "particle implementation"
+    },
+    {
+      "revision": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+      "subject": "Fix isothermal-EOS OOB read and reimplement MC pusher per Genel+2013",
+      "role": "particle implementation"
+    },
+    {
+      "revision": "743f3e4598b68a85e66781b148a3765e4c84ef2a",
+      "subject": "Initialize Lagrangian tracer particles in turbulence pgen",
+      "role": "particle implementation"
+    },
+    {
+      "revision": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+      "subject": "Add CIC interpolation, generalized saved-flux, and locality-dt option to Ito-2 tracer",
+      "role": "particle implementation"
+    },
+    {
+      "revision": "1707b212da8b8ddd2c204afdf6e0528fc5e7368f",
+      "subject": "Remove internal-narrative language from particle pusher comments",
+      "role": "particle implementation"
+    },
+    {
+      "revision": "8445dcc906c122e77255a67690434f3acca3cd78",
+      "subject": "Add converging/diverging flow validation pgen for Lagrangian tracers",
+      "role": "particle implementation"
+    },
+    {
+      "revision": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+      "subject": "Fix particle boundaries, dynamic AMR redistribution and checkpoint lifecycle",
+      "role": "particle implementation"
+    }
+  ],
+  "files": {
+    "src/mhd/mhd_tasks.cpp": {
+      "sha256_at_source_revision": "940dd63da583534dd65b978c31cf206702e180babe684c661e5eb43c72880e29",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -54 +54,2 @@ void MHD::AssembleMHDTasks(std::map<std::string, std::shared_ptr<TaskList>> tl)"
+        }
+      ]
+    },
+    "src/CMakeLists.txt": {
+      "sha256_at_source_revision": "98ceb6de20ba8fe3e50e3a3ee7697bb01f5b60d3f6cd42e79963fb3719d8cbae",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -117,0 +118,2 @@ add_executable("
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -121,0 +122 @@ add_executable("
+        }
+      ]
+    },
+    "src/athena.hpp": {
+      "sha256_at_source_revision": "632f272f2c755e3c9489cc45cee4306603dd10f8cc042b06a1324a4299d00df6",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -72 +72,2 @@ enum MetricIndex {I00=0, I01=1, I02=2, I03=3, I11=4, I12=5, I13=6, I22=7, I23=8,"
+        }
+      ]
+    },
+    "src/bvals/bvals_part.cpp": {
+      "sha256_at_source_revision": "6f085cc26fe4e25aed3e8a001824e9fc5d1d32736fa993bbd2740cafeafdb8b1",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -46,0 +47,18 @@ void UpdateGID(int &newgid, NeighborBlock nghbr, int myrank, int *pcounter,"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -64 +82,2 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -68 +87,7 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -70,31 +95,64 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -102,7 +160,5 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -110,7 +166,12 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -118,2 +178,0 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -121,6 +180,5 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -128,7 +186,5 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -136,2 +191,0 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -139,6 +193,82 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -146,2 +275,0 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -149,3 +277,50 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -153 +327,0 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -155,15 +329,18 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -172,0 +350,2 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -175 +354 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -252,0 +432,3 @@ TaskStatus ParticlesBoundaryValues::InitPrtclRecv() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -267 +448,0 @@ TaskStatus ParticlesBoundaryValues::InitPrtclRecv() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -272,5 +452,0 @@ TaskStatus ParticlesBoundaryValues::InitPrtclRecv() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -278,6 +454,12 @@ TaskStatus ParticlesBoundaryValues::InitPrtclRecv() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -285,31 +467,34 @@ TaskStatus ParticlesBoundaryValues::InitPrtclRecv() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -353,0 +539 @@ TaskStatus ParticlesBoundaryValues::PackAndSendPrtcls() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -355 +541 @@ TaskStatus ParticlesBoundaryValues::PackAndSendPrtcls() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -422,2 +607,0 @@ TaskStatus ParticlesBoundaryValues::RecvAndUnpackPrtcls() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -425,4 +608,0 @@ TaskStatus ParticlesBoundaryValues::RecvAndUnpackPrtcls() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -429,0 +610,8 @@ TaskStatus ParticlesBoundaryValues::RecvAndUnpackPrtcls() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -431 +618,0 @@ TaskStatus ParticlesBoundaryValues::RecvAndUnpackPrtcls() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -461,0 +649,10 @@ TaskStatus ParticlesBoundaryValues::RecvAndUnpackPrtcls() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -471 +668,3 @@ TaskStatus ParticlesBoundaryValues::RecvAndUnpackPrtcls() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -474,2 +673,2 @@ TaskStatus ParticlesBoundaryValues::RecvAndUnpackPrtcls() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -477 +676 @@ TaskStatus ParticlesBoundaryValues::RecvAndUnpackPrtcls() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -493 +691,0 @@ TaskStatus ParticlesBoundaryValues::RecvAndUnpackPrtcls() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -512,0 +711 @@ TaskStatus ParticlesBoundaryValues::RecvAndUnpackPrtcls() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -513,0 +713,6 @@ TaskStatus ParticlesBoundaryValues::RecvAndUnpackPrtcls() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -518,2 +722,0 @@ TaskStatus ParticlesBoundaryValues::RecvAndUnpackPrtcls() {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -522,3 +724,0 @@ TaskStatus ParticlesBoundaryValues::RecvAndUnpackPrtcls() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -8,0 +9 @@"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -25,0 +27,48 @@ namespace particles {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -91,0 +141 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -114,4 +164,30 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -119,4 +195,8 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -149,45 +229,2 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -202 +239,5 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -210 +251,5 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -218,6 +263,4 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -227,2 +270,3 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -235,2 +279,3 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -239,0 +285,5 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -250 +300,5 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -258,2 +312,2 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -262,2 +316,3 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -268,2 +323,3 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -272,0 +329,5 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -283,2 +344,2 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -287,2 +348,3 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -293,2 +355,3 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -297,0 +361,5 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -303,19 +371,14 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -324,0 +388,4 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -329,5 +396,10 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -336,4 +408,6 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -342,4 +416,6 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {"
+        }
+      ]
+    },
+    "src/hydro/hydro.cpp": {
+      "sha256_at_source_revision": "ce5f2d102783e8766d93a5481b28df9790db909d57b6c9b4fa40fc97ee5f979d",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -39,0 +40 @@ Hydro::Hydro(MeshBlockPack *ppack, ParameterInput *pin) :"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -348,0 +350,19 @@ Hydro::~Hydro() {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -40,0 +41 @@ Hydro::Hydro(MeshBlockPack *ppack, ParameterInput *pin) :"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -364,0 +366 @@ void Hydro::SetSaveUFlxIdn() {"
+        }
+      ]
+    },
+    "src/hydro/hydro.hpp": {
+      "sha256_at_source_revision": "1ebd3d555603424dc4ee326131043009a313fa828f77092af170f4b08a7686d9",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -47,0 +48 @@ struct HydroTaskIDs {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -107,0 +109,5 @@ class Hydro {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -135,0 +142 @@ class Hydro {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -146,0 +154 @@ class Hydro {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -112,0 +113 @@ class Hydro {"
+        }
+      ]
+    },
+    "src/hydro/hydro_fluxes.cpp": {
+      "sha256_at_source_revision": "972d6af243942858b2fe2689a078d2fae81dc0fbd1a1c2829762f45969d7f34a",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -242,0 +243,60 @@ template void Hydro::CalculateFluxes<Hydro_RSolver::hlle_gr>(Driver *pdriver, in"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -263,0 +264,2 @@ TaskStatus Hydro::SaveFlux(Driver *pdrive, int stage) {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -266,3 +268,27 @@ TaskStatus Hydro::SaveFlux(Driver *pdrive, int stage) {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -280,0 +307,8 @@ TaskStatus Hydro::SaveFlux(Driver *pdrive, int stage) {"
+        }
+      ]
+    },
+    "src/hydro/hydro_tasks.cpp": {
+      "sha256_at_source_revision": "9fc6a7c400aa9f974beab8242534ef40000800c9d60180531cfaaa54aab85980",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -61 +61,2 @@ void Hydro::AssembleHydroTasks(std::map<std::string, std::shared_ptr<TaskList>>"
+        }
+      ]
+    },
+    "src/main.cpp": {
+      "sha256_at_source_revision": "76241ae9f862e5305063407641859d8b656706b283c57cecaec294a4bab70c67",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -62 +62 @@ int main(int argc, char *argv[]) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -69,0 +70 @@ int main(int argc, char *argv[]) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -166,0 +168,4 @@ int main(int argc, char *argv[]) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -204,0 +210 @@ int main(int argc, char *argv[]) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -354,0 +361,24 @@ int main(int argc, char *argv[]) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -359 +389,2 @@ int main(int argc, char *argv[]) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -360,0 +392,3 @@ int main(int argc, char *argv[]) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -361,0 +396 @@ int main(int argc, char *argv[]) {"
+        }
+      ]
+    },
+    "src/mesh/mesh.cpp": {
+      "sha256_at_source_revision": "ae842ff99ed9b289ca55411fd981f666a9071027a90adf10bb68bd90427687cd",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -714,0 +715 @@ void Mesh::AddCoordinatesAndPhysics(ParameterInput *pinput) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -716 +717,10 @@ void Mesh::AddCoordinatesAndPhysics(ParameterInput *pinput) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -732,3 +742,11 @@ void Mesh::AddCoordinatesAndPhysics(ParameterInput *pinput) {"
+        }
+      ]
+    },
+    "src/mesh/mesh.hpp": {
+      "sha256_at_source_revision": "750829dc9299c6e99be2bc76a4468aebb70c3aab35e2671f818b3f84643ecff5",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -138 +138 @@ class Mesh {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -159,0 +160,5 @@ class Mesh {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -16,0 +17 @@"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -143,0 +145,4 @@ class Mesh {"
+        }
+      ]
+    },
+    "src/mhd/mhd.cpp": {
+      "sha256_at_source_revision": "007bad865b3b1c057e63b80c6827091a3666501555f69bb311e075da0bbf94da",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -61,0 +62 @@ MHD::MHD(MeshBlockPack *ppack, ParameterInput *pin) :"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -481,0 +483,19 @@ void MHD::SetSaveWBcc() {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -62,0 +63 @@ MHD::MHD(MeshBlockPack *ppack, ParameterInput *pin) :"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -497,0 +499 @@ void MHD::SetSaveUFlxIdn() {"
+        }
+      ]
+    },
+    "src/mhd/mhd.hpp": {
+      "sha256_at_source_revision": "9f73550152e5a603629dc0eb42e864aa815094568d5a71640c37a1f886cb6bb2",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -56,0 +57 @@ struct MHDTaskIDs {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -154,0 +156,5 @@ class MHD {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -174,0 +181 @@ class MHD {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -187,0 +195 @@ class MHD {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -159,0 +160 @@ class MHD {"
+        }
+      ]
+    },
+    "src/mhd/mhd_fluxes.cpp": {
+      "sha256_at_source_revision": "ed1a380704d2b236bb4e02d62dcb7c514762bd6a4fd0101f200cb21a950923b6",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -277,0 +278,60 @@ template void MHD::CalculateFluxes<MHD_RSolver::hlle_gr>(Driver *pdriver, int st"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -298,0 +299,2 @@ TaskStatus MHD::SaveFlux(Driver *pdrive, int stage) {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -301,3 +303,27 @@ TaskStatus MHD::SaveFlux(Driver *pdrive, int stage) {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -315,0 +342,6 @@ TaskStatus MHD::SaveFlux(Driver *pdrive, int stage) {"
+        }
+      ]
+    },
+    "src/outputs/basetype_output.cpp": {
+      "sha256_at_source_revision": "3d68f28ef7bff443c636dcd6dafb88e36abaac229eb3e636b18cf37c0d43e729",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -47 +47 @@ BaseTypeOutput::BaseTypeOutput(ParameterInput *pin, Mesh *pm, OutputParameters o"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -51 +51,3 @@ BaseTypeOutput::BaseTypeOutput(ParameterInput *pin, Mesh *pm, OutputParameters o"
+        }
+      ]
+    },
+    "src/outputs/bin_prtcl.cpp": {
+      "sha256_at_source_revision": "dbfbc72507ca2169cd176b44a65aa5ac2909c27235a12ba0191918c4b7fee244",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -0,0 +1,542 @@"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -187,0 +188,15 @@ void ParticleBinaryOutput::LoadOutputData(Mesh *pm) {"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -257,0 +273,14 @@ void ParticleBinaryOutput::LoadOutputData(Mesh *pm) {"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -259,3 +288,3 @@ void ParticleBinaryOutput::LoadOutputData(Mesh *pm) {"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -270 +299 @@ void ParticleBinaryOutput::LoadOutputData(Mesh *pm) {"
+        }
+      ]
+    },
+    "src/outputs/outputs.cpp": {
+      "sha256_at_source_revision": "192d7bf613a5cdc0d0ee59f481b401d868af69981021f00aae73fab8ae1e546f",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -21 +21 @@"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -124,0 +125,2 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -129,0 +132,7 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -215,0 +225,2 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -271,0 +283,8 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {"
+        }
+      ]
+    },
+    "src/outputs/outputs.hpp": {
+      "sha256_at_source_revision": "77147d2ff330f787fc24d0f55e15d2d8a617f1f3ed9e3849d8420282729e03a2",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -438,0 +439,39 @@ class ParticleVTKOutput : public BaseTypeOutput {"
+        }
+      ]
+    },
+    "src/outputs/res_prtcl.cpp": {
+      "sha256_at_source_revision": "d39541b16a449297f908dfd72c06f40bb033e6ad0ee047c5855c8b889dac5465",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -0,0 +1,392 @@"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -9 +9,2 @@"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -36,0 +38 @@"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -85,4 +87,3 @@ void ParticleRestartOutput::LoadOutputData(Mesh *pm) {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -98,0 +100 @@ void ParticleRestartOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -149 +151,2 @@ void ParticleRestartOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -151,7 +154,6 @@ void ParticleRestartOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -164 +166 @@ void ParticleRestartOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {"
+        }
+      ]
+    },
+    "src/particles/particles.cpp": {
+      "sha256_at_source_revision": "8e05cafbfcce3508ebb73334f2bcc539c05f070064f5a19a7adb642cd1479324",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -11,0 +12 @@"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -16,0 +18,2 @@"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -32,0 +36,16 @@ Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -47,0 +67,4 @@ Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -60,0 +84,40 @@ Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -78,3 +141,3 @@ Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -83,0 +147,11 @@ Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -89,0 +164,2 @@ Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -90,0 +167 @@ Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -99,0 +177,13 @@ Particles::~Particles() {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -28,0 +29,9 @@ Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -123,0 +133,5 @@ Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :"
+        },
+        {
+          "commit": "1707b212da8b8ddd2c204afdf6e0528fc5e7368f",
+          "hunk": "@@ -49,3 +49,3 @@ Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :"
+        },
+        {
+          "commit": "1707b212da8b8ddd2c204afdf6e0528fc5e7368f",
+          "hunk": "@@ -53,6 +53,6 @@ Particles::Particles(MeshBlockPack *ppack, ParameterInput *pin) :"
+        }
+      ]
+    },
+    "src/particles/particles.hpp": {
+      "sha256_at_source_revision": "7f89706bdab7e64b2e90cf4531390f1eb42fb9870690f92cbf17e257679ac02e",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -19,0 +20,2 @@"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -23 +25 @@"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -26 +28 @@ enum class ParticlesPusher {drift, leap_frog, lagrangian_tracer, lagrangian_mc};"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -40,0 +43 @@ struct ParticlesTaskIDs {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -64,0 +68,7 @@ class Particles {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -73,0 +84 @@ class Particles {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -83,0 +95,7 @@ class Particles {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -86,0 +105 @@ class Particles {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -43,0 +44 @@ struct ParticlesTaskIDs {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -76,0 +78,9 @@ class Particles {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -95,0 +106 @@ class Particles {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -13,0 +14 @@"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -21,0 +23,2 @@"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -95,0 +99,11 @@ class Particles {"
+        }
+      ]
+    },
+    "src/particles/particles_pushers.cpp": {
+      "sha256_at_source_revision": "370468c45fe0773069c451677c111e6439246e352abcc324a378172e7fd47cd0",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -10,0 +11,2 @@"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -12,0 +15,41 @@"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -17 +60 @@ namespace particles {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -20,4 +63,33 @@ TaskStatus Particles::Push(Driver *pdriver, int stage) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -26,2 +98,2 @@ TaskStatus Particles::Push(Driver *pdriver, int stage) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -29,2 +101,3 @@ TaskStatus Particles::Push(Driver *pdriver, int stage) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -32,2 +105,55 @@ TaskStatus Particles::Push(Driver *pdriver, int stage) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -35,5 +161,416 @@ TaskStatus Particles::Push(Driver *pdriver, int stage) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -42,2 +579 @@ TaskStatus Particles::Push(Driver *pdriver, int stage) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -47,2 +583 @@ TaskStatus Particles::Push(Driver *pdriver, int stage) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -50 +584,0 @@ TaskStatus Particles::Push(Driver *pdriver, int stage) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -52,4 +586,156 @@ TaskStatus Particles::Push(Driver *pdriver, int stage) {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -58,0 +745 @@ TaskStatus Particles::Push(Driver *pdriver, int stage) {"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -37,2 +37,3 @@ KOKKOS_INLINE_FUNCTION"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -45,0 +47,7 @@ Real LagrangianMCUniform01(const int tag, const int ncycle, const int64_t base_s"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -52,2 +60 @@ Real Ito2Displacement(const Real pleft, const Real pright, const Real dx,"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -316,0 +324,5 @@ void Particles::PushLagrangianMC() {"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -318,23 +330,17 @@ void Particles::PushLagrangianMC() {"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -348 +354,35 @@ void Particles::PushLagrangianMC() {"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -351 +391 @@ void Particles::PushLagrangianMC() {"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -354 +394 @@ void Particles::PushLagrangianMC() {"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -357 +397 @@ void Particles::PushLagrangianMC() {"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -360,2 +400 @@ void Particles::PushLagrangianMC() {"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -364,2 +403 @@ void Particles::PushLagrangianMC() {"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -450,0 +489,47 @@ void Particles::PushIto2() {"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -452,2 +537,8 @@ void Particles::PushIto2() {"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -455,3 +546,13 @@ void Particles::PushIto2() {"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -459,0 +561,4 @@ void Particles::PushIto2() {"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -461,2 +566 @@ void Particles::PushIto2() {"
+        },
+        {
+          "commit": "69f0ea7deb97c84118cc5d55b273434dbaa59ef3",
+          "hunk": "@@ -585,0 +690,18 @@ TaskStatus Particles::AdjustMeshRefinement(Driver *pdriver, int stage) {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -8,0 +9,2 @@"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -53,9 +54,0 @@ Real Ito2DisplacementFromMoments(const Real cminus, const Real variance, const R"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -271 +264,2 @@ void Particles::PushLagrangianMC() {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -323 +317 @@ void Particles::PushLagrangianMC() {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -413 +407,8 @@ void Particles::PushLagrangianMC() {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -428 +429,2 @@ void Particles::PushIto2() {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -451,3 +453,3 @@ void Particles::PushIto2() {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -454,0 +457,21 @@ void Particles::PushIto2() {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -456 +479,11 @@ void Particles::PushIto2() {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -458,0 +492,2 @@ void Particles::PushIto2() {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -460 +495,11 @@ void Particles::PushIto2() {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -463,6 +508,22 @@ void Particles::PushIto2() {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -470,2 +531,36 @@ void Particles::PushIto2() {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -475,14 +569,0 @@ void Particles::PushIto2() {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -492,5 +573,5 @@ void Particles::PushIto2() {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -511,9 +591,0 @@ void Particles::PushIto2() {"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -867,0 +940,79 @@ TaskStatus Particles::AdjustMeshRefinement(Driver *pdriver, int stage) {"
+        },
+        {
+          "commit": "1707b212da8b8ddd2c204afdf6e0528fc5e7368f",
+          "hunk": "@@ -356,4 +356,3 @@ void Particles::PushLagrangianMC() {"
+        },
+        {
+          "commit": "1707b212da8b8ddd2c204afdf6e0528fc5e7368f",
+          "hunk": "@@ -583,2 +582,2 @@ void Particles::PushIto2() {"
+        }
+      ]
+    },
+    "src/particles/particles_tasks.cpp": {
+      "sha256_at_source_revision": "04c43801de80cc508f417e5124c2360572791efbd0643d50f7fda25cf1ed2485",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -31,9 +31,56 @@ void Particles::AssembleTasks(std::map<std::string, std::shared_ptr<TaskList>> t"
+        },
+        {
+          "commit": "735f74838bb113f6288bb002f9b62ec355d1cadd",
+          "hunk": "@@ -80,0 +81,5 @@ void Particles::AssembleTasks(std::map<std::string, std::shared_ptr<TaskList>> t"
+        }
+      ]
+    },
+    "src/pgen/pgen.cpp": {
+      "sha256_at_source_revision": "830f80860b69d668c47b074ec061ddeca2b11f4e5ebd9ec1ca0abbc2541b3868",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -16,0 +17 @@"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -30,0 +32,2 @@"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -32,0 +36,21 @@"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -119 +143 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -693,0 +718,147 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -1050,0 +1222,249 @@ void ProblemGenerator::CallProblemGenerator(ParameterInput *pin, bool is_restart"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -17,0 +18 @@"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -32,0 +34 @@"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -745 +747 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -748 +750 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -766,0 +769,25 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -775,2 +801,0 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf"
+        }
+      ]
+    },
+    "src/pgen/pgen.hpp": {
+      "sha256_at_source_revision": "af16e42ddc002116e0d115089cc38cd6743a0d5e97868f350ed0aeb64fd66f5e",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -14,0 +15 @@"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -17,0 +19,5 @@"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -35 +41 @@ class ProblemGenerator {"
+        },
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -101,0 +108,22 @@ class ProblemGenerator {"
+        }
+      ]
+    },
+    "src/pgen/tests/advection.cpp": {
+      "sha256_at_source_revision": "a11d088d00c973e9051effd0df23a3d28d6352a62587bb4ba240cc8795c2ddcb",
+      "changes": [
+        {
+          "commit": "96f0e50fb124b28311e33bf79c289df137d24047",
+          "hunk": "@@ -257,0 +258,5 @@ void ProblemGenerator::Advection(ParameterInput *pin, const bool restart) {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -21,0 +22,22 @@"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -31,0 +54,3 @@ void ProblemGenerator::Advection(ParameterInput *pin, const bool restart) {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -257,0 +283,13 @@ void ProblemGenerator::Advection(ParameterInput *pin, const bool restart) {"
+        }
+      ]
+    },
+    "src/pgen/fluids/turb.cpp": {
+      "sha256_at_source_revision": "857d79dde3315d350a279ba121ef245ad9ed00128d590de30797f3be27813774",
+      "changes": [
+        {
+          "commit": "743f3e4598b68a85e66781b148a3765e4c84ef2a",
+          "hunk": "@@ -233,0 +234,5 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {"
+        }
+      ]
+    },
+    "src/pgen/tests/converging_flow.cpp": {
+      "sha256_at_source_revision": "61282616b4ac9091c44547e81920295b8ddf471dc15410078a59439d97d347a5",
+      "changes": [
+        {
+          "commit": "8445dcc906c122e77255a67690434f3acca3cd78",
+          "hunk": "@@ -0,0 +1,132 @@"
+        }
+      ]
+    },
+    "src/driver/driver.cpp": {
+      "sha256_at_source_revision": "68bd37766fdee4cfbc483bbde7ea0f6b85ca7248242e0606fad787074ba5bda9",
+      "changes": [
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -14,0 +15 @@"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -38,0 +40,12 @@ namespace {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -463,0 +477,2 @@ void Driver::Initialize(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool re"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -490,0 +506,7 @@ void Driver::Initialize(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool re"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -492,0 +515 @@ void Driver::Initialize(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool re"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -495,0 +519 @@ void Driver::Initialize(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool re"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -549,0 +574 @@ void Driver::Execute(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool wdfla"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -613,0 +639,4 @@ void Driver::Execute(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool wdfla"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -631,2 +660,6 @@ void Driver::Execute(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool wdfla"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -640,0 +674,6 @@ void Driver::Execute(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool wdfla"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -656,0 +696 @@ void Driver::Finalize(Mesh *pmesh, ParameterInput *pin, Outputs *pout) {"
+        }
+      ]
+    },
+    "src/mesh/build_tree.cpp": {
+      "sha256_at_source_revision": "7720206e0aa0b1d50217d069dec21ee4976b26a495227a7700ad4e97efdb6f17",
+      "changes": [
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -12,0 +13 @@"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -20,0 +22 @@"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -429,0 +432,52 @@ void Mesh::BuildTreeFromRestart(ParameterInput *pin, IOWrapper &resfile,"
+        }
+      ]
+    },
+    "src/mesh/mesh_refinement.cpp": {
+      "sha256_at_source_revision": "aa21c10dffc86b9ccb8eecef016cd142e63d4b5ee09ab25360d239c941f49d63",
+      "changes": [
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -30,0 +31 @@"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -86 +87 @@ MeshRefinement::MeshRefinement(Mesh *pm, ParameterInput *pin) :"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -182,0 +184,3 @@ void MeshRefinement::AdaptiveMeshRefinement(Driver *pdriver, ParameterInput *pin"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -511,0 +516,6 @@ void MeshRefinement::RedistAndRefineMeshBlocks(ParameterInput *pin, int nnew, in"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -661,0 +672,6 @@ void MeshRefinement::RedistAndRefineMeshBlocks(ParameterInput *pin, int nnew, in"
+        }
+      ]
+    },
+    "src/outputs/checkpoint_metadata.hpp": {
+      "sha256_at_source_revision": "0a44adcfdfcdb94bbf0d56a2fe1c0a311d2fa8e401cbb8e22fa323a441eb24ce",
+      "changes": [
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -0,0 +1,50 @@"
+        }
+      ]
+    },
+    "src/outputs/restart.cpp": {
+      "sha256_at_source_revision": "848a904e77c8e5255021a1652122f484f218b49e6241322bdbe756b3165cbef4",
+      "changes": [
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -31,0 +32 @@"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -160,0 +162,2 @@ void RestartOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -264,0 +268,14 @@ void RestartOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {"
+        },
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -331,0 +349,2 @@ void RestartOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {"
+        }
+      ]
+    },
+    "src/particles/particles_amr.cpp": {
+      "sha256_at_source_revision": "dc61387f76dac6b8903de2db1cd345e400e35cf907c4edde430f3e3fd2965df2",
+      "changes": [
+        {
+          "commit": "366a172a3de2688d7c6c09856cf59f84c5b7b430",
+          "hunk": "@@ -0,0 +1,358 @@"
+        }
+      ]
+    }
+  }
+}

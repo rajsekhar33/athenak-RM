@@ -1,0 +1,1338 @@
+{
+  "epoch": "integration_candidate",
+  "source_sha256": "643778a65a31e98a618a40b254ccfb5dfd1d3642ebadf7d544729f832c18dd85",
+  "cases": {
+    "classical_periodic": {
+      "status": "PASS",
+      "failures": [],
+      "snapshots": [
+        {
+          "cycle": 0,
+          "time": 0.0,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 1,
+          "time": 0.125,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 2,
+          "time": 0.25,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 3,
+          "time": 0.375,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 4,
+          "time": 0.5,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 5,
+          "time": 0.625,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 6,
+          "time": 0.75,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 7,
+          "time": 0.875,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 8,
+          "time": 1.0,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 9,
+          "time": 1.125,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 10,
+          "time": 1.25,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 11,
+          "time": 1.375,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 12,
+          "time": 1.5,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        }
+      ],
+      "restart_differences": []
+    },
+    "classical_outflow": {
+      "status": "PASS",
+      "failures": [],
+      "snapshots": [
+        {
+          "cycle": 0,
+          "time": 0.0,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 1,
+          "time": 0.125,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 2,
+          "time": 0.25,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 3,
+          "time": 0.375,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 4,
+          "time": 0.5,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 5,
+          "time": 0.625,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 6,
+          "time": 0.75,
+          "count": 256,
+          "frozen": 32,
+          "outside": 32,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 7,
+          "time": 0.875,
+          "count": 256,
+          "frozen": 32,
+          "outside": 32,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 8,
+          "time": 1.0,
+          "count": 256,
+          "frozen": 32,
+          "outside": 32,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 9,
+          "time": 1.125,
+          "count": 256,
+          "frozen": 32,
+          "outside": 32,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 10,
+          "time": 1.25,
+          "count": 256,
+          "frozen": 32,
+          "outside": 32,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 11,
+          "time": 1.375,
+          "count": 256,
+          "frozen": 32,
+          "outside": 32,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 12,
+          "time": 1.5,
+          "count": 256,
+          "frozen": 32,
+          "outside": 32,
+          "invalid_active_owner_tags": []
+        }
+      ],
+      "restart_differences": []
+    },
+    "classical_reflect": {
+      "status": "PASS",
+      "failures": [],
+      "snapshots": [
+        {
+          "cycle": 0,
+          "time": 0.0,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 1,
+          "time": 0.125,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 2,
+          "time": 0.25,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 3,
+          "time": 0.3750000000401508,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 4,
+          "time": 0.5000000027433852,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 5,
+          "time": 0.625000050576149,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 6,
+          "time": 0.750000417709339,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 7,
+          "time": 0.8750021549281513,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 8,
+          "time": 1.0000081406912207,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 9,
+          "time": 1.125024698001798,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 10,
+          "time": 1.2500639389474923,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 11,
+          "time": 1.3751472389383568,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 12,
+          "time": 1.5003102285164724,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        }
+      ],
+      "restart_differences": []
+    },
+    "classical_diode": {
+      "status": "PASS",
+      "failures": [],
+      "snapshots": [
+        {
+          "cycle": 0,
+          "time": 0.0,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 1,
+          "time": 0.125,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 2,
+          "time": 0.25,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 3,
+          "time": 0.375,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 4,
+          "time": 0.5,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 5,
+          "time": 0.625,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 6,
+          "time": 0.75,
+          "count": 256,
+          "frozen": 32,
+          "outside": 32,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 7,
+          "time": 0.875,
+          "count": 256,
+          "frozen": 32,
+          "outside": 32,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 8,
+          "time": 1.0,
+          "count": 256,
+          "frozen": 32,
+          "outside": 32,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 9,
+          "time": 1.125,
+          "count": 256,
+          "frozen": 32,
+          "outside": 32,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 10,
+          "time": 1.25,
+          "count": 256,
+          "frozen": 32,
+          "outside": 32,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 11,
+          "time": 1.375,
+          "count": 256,
+          "frozen": 32,
+          "outside": 32,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 12,
+          "time": 1.5000000000000002,
+          "count": 256,
+          "frozen": 32,
+          "outside": 32,
+          "invalid_active_owner_tags": []
+        }
+      ],
+      "restart_differences": []
+    },
+    "lagrangian_mc_periodic": {
+      "status": "PASS",
+      "failures": [],
+      "snapshots": [
+        {
+          "cycle": 0,
+          "time": 0.0,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 1,
+          "time": 0.125,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 2,
+          "time": 0.25,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 3,
+          "time": 0.375,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 4,
+          "time": 0.5,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 5,
+          "time": 0.625,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 6,
+          "time": 0.75,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 7,
+          "time": 0.875,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 8,
+          "time": 1.0,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 9,
+          "time": 1.125,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 10,
+          "time": 1.25,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 11,
+          "time": 1.375,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 12,
+          "time": 1.5,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        }
+      ],
+      "restart_differences": []
+    },
+    "lagrangian_mc_outflow": {
+      "status": "PASS",
+      "failures": [],
+      "snapshots": [
+        {
+          "cycle": 0,
+          "time": 0.0,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 1,
+          "time": 0.125,
+          "count": 256,
+          "frozen": 5,
+          "outside": 5,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 2,
+          "time": 0.25,
+          "count": 256,
+          "frozen": 10,
+          "outside": 10,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 3,
+          "time": 0.375,
+          "count": 256,
+          "frozen": 12,
+          "outside": 12,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 4,
+          "time": 0.5,
+          "count": 256,
+          "frozen": 14,
+          "outside": 14,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 5,
+          "time": 0.625,
+          "count": 256,
+          "frozen": 15,
+          "outside": 15,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 6,
+          "time": 0.75,
+          "count": 256,
+          "frozen": 22,
+          "outside": 22,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 7,
+          "time": 0.875,
+          "count": 256,
+          "frozen": 24,
+          "outside": 24,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 8,
+          "time": 1.0,
+          "count": 256,
+          "frozen": 26,
+          "outside": 26,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 9,
+          "time": 1.125,
+          "count": 256,
+          "frozen": 32,
+          "outside": 32,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 10,
+          "time": 1.25,
+          "count": 256,
+          "frozen": 34,
+          "outside": 34,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 11,
+          "time": 1.375,
+          "count": 256,
+          "frozen": 36,
+          "outside": 36,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 12,
+          "time": 1.5,
+          "count": 256,
+          "frozen": 41,
+          "outside": 41,
+          "invalid_active_owner_tags": []
+        }
+      ],
+      "restart_differences": []
+    },
+    "lagrangian_mc_reflect": {
+      "status": "PASS",
+      "failures": [],
+      "snapshots": [
+        {
+          "cycle": 0,
+          "time": 0.0,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 1,
+          "time": 0.125,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 2,
+          "time": 0.25,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 3,
+          "time": 0.3750000000401508,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 4,
+          "time": 0.5000000027433852,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 5,
+          "time": 0.625000050576149,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 6,
+          "time": 0.750000417709339,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 7,
+          "time": 0.8750021549281513,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 8,
+          "time": 1.0000081406912207,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 9,
+          "time": 1.125024698001798,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 10,
+          "time": 1.2500639389474923,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 11,
+          "time": 1.3751472389383568,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 12,
+          "time": 1.5003102285164724,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        }
+      ],
+      "restart_differences": []
+    },
+    "lagrangian_mc_diode": {
+      "status": "PASS",
+      "failures": [],
+      "snapshots": [
+        {
+          "cycle": 0,
+          "time": 0.0,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 1,
+          "time": 0.125,
+          "count": 256,
+          "frozen": 5,
+          "outside": 5,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 2,
+          "time": 0.25,
+          "count": 256,
+          "frozen": 10,
+          "outside": 10,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 3,
+          "time": 0.375,
+          "count": 256,
+          "frozen": 12,
+          "outside": 12,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 4,
+          "time": 0.5,
+          "count": 256,
+          "frozen": 14,
+          "outside": 14,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 5,
+          "time": 0.625,
+          "count": 256,
+          "frozen": 15,
+          "outside": 15,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 6,
+          "time": 0.75,
+          "count": 256,
+          "frozen": 22,
+          "outside": 22,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 7,
+          "time": 0.875,
+          "count": 256,
+          "frozen": 24,
+          "outside": 24,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 8,
+          "time": 1.0,
+          "count": 256,
+          "frozen": 26,
+          "outside": 26,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 9,
+          "time": 1.125,
+          "count": 256,
+          "frozen": 32,
+          "outside": 32,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 10,
+          "time": 1.25,
+          "count": 256,
+          "frozen": 34,
+          "outside": 34,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 11,
+          "time": 1.375,
+          "count": 256,
+          "frozen": 36,
+          "outside": 36,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 12,
+          "time": 1.5000000000000002,
+          "count": 256,
+          "frozen": 41,
+          "outside": 41,
+          "invalid_active_owner_tags": []
+        }
+      ],
+      "restart_differences": []
+    },
+    "ito_2_periodic": {
+      "status": "PASS",
+      "failures": [],
+      "snapshots": [
+        {
+          "cycle": 0,
+          "time": 0.0,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 1,
+          "time": 0.125,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 2,
+          "time": 0.25,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 3,
+          "time": 0.375,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 4,
+          "time": 0.5,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 5,
+          "time": 0.625,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 6,
+          "time": 0.75,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 7,
+          "time": 0.875,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 8,
+          "time": 1.0,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 9,
+          "time": 1.125,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 10,
+          "time": 1.25,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 11,
+          "time": 1.375,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 12,
+          "time": 1.5,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        }
+      ],
+      "restart_differences": []
+    },
+    "ito_2_outflow": {
+      "status": "PASS",
+      "failures": [],
+      "snapshots": [
+        {
+          "cycle": 0,
+          "time": 0.0,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 1,
+          "time": 0.125,
+          "count": 256,
+          "frozen": 3,
+          "outside": 3,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 2,
+          "time": 0.25,
+          "count": 256,
+          "frozen": 7,
+          "outside": 7,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 3,
+          "time": 0.375,
+          "count": 256,
+          "frozen": 12,
+          "outside": 12,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 4,
+          "time": 0.5,
+          "count": 256,
+          "frozen": 20,
+          "outside": 20,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 5,
+          "time": 0.625,
+          "count": 256,
+          "frozen": 25,
+          "outside": 25,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 6,
+          "time": 0.75,
+          "count": 256,
+          "frozen": 28,
+          "outside": 28,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 7,
+          "time": 0.875,
+          "count": 256,
+          "frozen": 32,
+          "outside": 32,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 8,
+          "time": 1.0,
+          "count": 256,
+          "frozen": 37,
+          "outside": 37,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 9,
+          "time": 1.125,
+          "count": 256,
+          "frozen": 42,
+          "outside": 42,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 10,
+          "time": 1.25,
+          "count": 256,
+          "frozen": 47,
+          "outside": 47,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 11,
+          "time": 1.375,
+          "count": 256,
+          "frozen": 52,
+          "outside": 52,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 12,
+          "time": 1.5,
+          "count": 256,
+          "frozen": 58,
+          "outside": 58,
+          "invalid_active_owner_tags": []
+        }
+      ],
+      "restart_differences": []
+    },
+    "ito_2_reflect": {
+      "status": "PASS",
+      "failures": [],
+      "snapshots": [
+        {
+          "cycle": 0,
+          "time": 0.0,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 1,
+          "time": 0.125,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 2,
+          "time": 0.25,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 3,
+          "time": 0.3750000000401508,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 4,
+          "time": 0.5000000027433852,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 5,
+          "time": 0.625000050576149,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 6,
+          "time": 0.750000417709339,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 7,
+          "time": 0.8750021549281513,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 8,
+          "time": 1.0000081406912207,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 9,
+          "time": 1.125024698001798,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 10,
+          "time": 1.2500639389474923,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 11,
+          "time": 1.3751472389383568,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 12,
+          "time": 1.5003102285164724,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        }
+      ],
+      "restart_differences": []
+    },
+    "ito_2_diode": {
+      "status": "PASS",
+      "failures": [],
+      "snapshots": [
+        {
+          "cycle": 0,
+          "time": 0.0,
+          "count": 256,
+          "frozen": 0,
+          "outside": 0,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 1,
+          "time": 0.125,
+          "count": 256,
+          "frozen": 3,
+          "outside": 3,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 2,
+          "time": 0.25,
+          "count": 256,
+          "frozen": 7,
+          "outside": 7,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 3,
+          "time": 0.375,
+          "count": 256,
+          "frozen": 12,
+          "outside": 12,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 4,
+          "time": 0.5,
+          "count": 256,
+          "frozen": 20,
+          "outside": 20,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 5,
+          "time": 0.625,
+          "count": 256,
+          "frozen": 24,
+          "outside": 24,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 6,
+          "time": 0.75,
+          "count": 256,
+          "frozen": 27,
+          "outside": 27,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 7,
+          "time": 0.875,
+          "count": 256,
+          "frozen": 31,
+          "outside": 31,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 8,
+          "time": 1.0,
+          "count": 256,
+          "frozen": 36,
+          "outside": 36,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 9,
+          "time": 1.125,
+          "count": 256,
+          "frozen": 42,
+          "outside": 42,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 10,
+          "time": 1.25,
+          "count": 256,
+          "frozen": 47,
+          "outside": 47,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 11,
+          "time": 1.375,
+          "count": 256,
+          "frozen": 52,
+          "outside": 52,
+          "invalid_active_owner_tags": []
+        },
+        {
+          "cycle": 12,
+          "time": 1.5000000000000002,
+          "count": 256,
+          "frozen": 58,
+          "outside": 58,
+          "invalid_active_owner_tags": []
+        }
+      ],
+      "restart_differences": []
+    }
+  }
+}
