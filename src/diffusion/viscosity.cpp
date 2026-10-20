@@ -50,6 +50,40 @@ bool ViscosityFinite(const Real value) {
   return value >= -largest && value <= largest;
 }
 
+// Trace-free symmetric velocity gradient. normal=-1 denotes a cell center;
+// otherwise (k,j,i) is the cell on the positive side of that face. Normal
+// differences and centered transverse averages match the existing face strain.
+// Composing its Laplacian below needs two primitive ghost cells, not a new halo.
+KOKKOS_INLINE_FUNCTION
+void Hyper4Strain(const DvceArray5D<Real> &w, const int m, const int k,
+    const int j, const int i, const int ndim, const int normal,
+    const Real inv_dx[3], Real strain[3][3]) {
+  Real grad[3][3] = {};
+  const int ni = (normal == 0), nj = (normal == 1), nk = (normal == 2);
+  for (int a=0; a<3; ++a) {
+    for (int d=0; d<ndim; ++d) {
+      const int di = (d == 0), dj = (d == 1), dk = (d == 2);
+      if (d == normal) {
+        grad[a][d] = (w(m,IVX+a,k,j,i)-w(m,IVX+a,k-nk,j-nj,i-ni))*inv_dx[d];
+      } else if (normal < 0) {
+        grad[a][d] = 0.5*inv_dx[d]*(w(m,IVX+a,k+dk,j+dj,i+di)-
+                                   w(m,IVX+a,k-dk,j-dj,i-di));
+      } else {
+        grad[a][d] = 0.25*inv_dx[d]*(
+            (w(m,IVX+a,k+dk,j+dj,i+di)+w(m,IVX+a,k-nk+dk,j-nj+dj,i-ni+di))-
+            (w(m,IVX+a,k-dk,j-dj,i-di)+w(m,IVX+a,k-nk-dk,j-nj-dj,i-ni-di)));
+      }
+    }
+  }
+  const Real trace_third = (grad[0][0]+grad[1][1]+grad[2][2])/3.0;
+  for (int a=0; a<3; ++a) {
+    for (int b=0; b<3; ++b) {
+      strain[a][b] = 0.5*(grad[a][b]+grad[b][a]);
+      if (a == b) strain[a][b] -= trace_third;
+    }
+  }
+}
+
 // Apply the production EOS to local copies only. Isothermal states have no
 // energy component, so return before attempting to access one.
 KOKKOS_INLINE_FUNCTION
@@ -164,6 +198,7 @@ Viscosity::Viscosity(std::string block, MeshBlockPack *pp, ParameterInput *pin) 
   // Read parameters for viscosity (if any)
   nu_iso = ReadViscosityCoefficient(block, "nu_iso", pin);
   nu_aniso = ReadViscosityCoefficient(block, "nu_aniso", pin);
+  mu_hyper4 = ReadViscosityCoefficient(block, "mu_hyper4", pin);
   mode = ParseViscosityIntegrator(block, pin);
   if (nu_aniso > 0.0 && (block != "mhd" || pmy_pack->pmesh->multilevel)) {
     std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
@@ -171,7 +206,7 @@ Viscosity::Viscosity(std::string block, MeshBlockPack *pp, ParameterInput *pin) 
               << "hydro and refinement are not supported" << std::endl;
     std::exit(EXIT_FAILURE);
   }
-  if ((nu_iso > 0.0 || nu_aniso > 0.0) &&
+  if ((nu_iso > 0.0 || nu_aniso > 0.0 || mu_hyper4 > 0.0) &&
       (pmy_pack->pcoord->is_special_relativistic ||
        pmy_pack->pcoord->is_general_relativistic ||
        pmy_pack->pcoord->is_dynamical_relativistic)) {
@@ -179,8 +214,26 @@ Viscosity::Viscosity(std::string block, MeshBlockPack *pp, ParameterInput *pin) 
               << "Viscosity requires Newtonian physics" << std::endl;
     std::exit(EXIT_FAILURE);
   }
+  if (mu_hyper4 > 0.0) {
+    const auto *mesh = pmy_pack->pmesh;
+    const int ndim = mesh->three_d ? 3 : (mesh->multi_d ? 2 : 1);
+    bool periodic = true;
+    for (int face=0; face<2*ndim; ++face) {
+      periodic = periodic && mesh->mesh_bcs[face] == BoundaryFlag::periodic;
+    }
+    if (pin->GetString(block, "eos") != "ideal" || mesh->multilevel ||
+        !periodic || mesh->mb_indcs.ng < 2 ||
+        pin->GetOrAddBoolean(block, "fofc", false)) {
+      std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+                << std::endl
+                << "mu_hyper4 requires ideal-gas, uniform-periodic Newtonian "
+                << "Hydro/MHD with nghost >= 2 and fofc=false; "
+                << "refinement is not supported" << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
+  }
   if (mode == parabolic::DiffusionSelection::sts_only &&
-      nu_iso <= 0.0 && nu_aniso <= 0.0) {
+      nu_iso <= 0.0 && nu_aniso <= 0.0 && mu_hyper4 <= 0.0) {
     std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
               << "STS requires a positive constant viscosity coefficient" << std::endl;
     std::exit(EXIT_FAILURE);
@@ -254,7 +307,67 @@ void Viscosity::AddViscousFluxes(const DvceArray5D<Real> &w0, const EOS_Data &eo
   if (nu_iso != 0.0) {
     AddViscousFluxIso(w0, eos, flx);
   }
+  if (mu_hyper4 != 0.0) {
+    AddViscousFluxHyper4(w0, flx);
+  }
   return;
+}
+
+//----------------------------------------------------------------------------------------
+//! \brief Fourth-order constant-dynamic hyperstress and ideal-gas energy flux.
+// Continuum multipolar work balance: Necas, Novotny & Silhavy (1989),
+// eqs. 2.12/2.26. This centered FV adaptation is not a copied published scheme.
+// tau_ij=-2*mu*Lap(S_ij), J_j=2*mu*S_ab*partial_j(S_ab), with summed a,b.
+// Add -tau_ij to momentum flux and -(v_i*tau_ij+J_j) to total-energy flux.
+// The periodic force is globally dissipative. The matched semidiscrete heat
+// is nonnegative in 1D; multidimensional local heating positivity is NOT claimed.
+void Viscosity::AddViscousFluxHyper4(const DvceArray5D<Real> &w0,
+    DvceFaceFld5D<Real> &flx) {
+  const auto &indcs = pmy_pack->pmesh->mb_indcs;
+  const int is = indcs.is, ie = indcs.ie, js = indcs.js, je = indcs.je;
+  const int ks = indcs.ks, ke = indcs.ke;
+  const int ndim = pmy_pack->pmesh->three_d ? 3 :
+                   (pmy_pack->pmesh->multi_d ? 2 : 1);
+  const int nmb = pmy_pack->nmb_thispack;
+  const Real mu = mu_hyper4;
+  auto size = pmy_pack->pmb->mb_size;
+  for (int normal=0; normal<ndim; ++normal) {
+    auto flux = normal == 0 ? flx.x1f : (normal == 1 ? flx.x2f : flx.x3f);
+    const int ni = (normal == 0), nj = (normal == 1), nk = (normal == 2);
+    par_for("hyper4_flux", DevExeSpace(), 0, nmb-1, ks, ke+nk, js, je+nj, is, ie+ni,
+    KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
+      const Real inv_dx[3] = {1.0/size.d_view(m).dx1,
+                             ndim > 1 ? 1.0/size.d_view(m).dx2 : 0.0,
+                             ndim > 2 ? 1.0/size.d_view(m).dx3 : 0.0};
+      Real sf[3][3], sl[3][3], sr[3][3];
+      Hyper4Strain(w0, m, k, j, i, ndim, normal, inv_dx, sf);
+      Real lap_strain[3] = {};
+      for (int d=0; d<ndim; ++d) {
+        const int di = (d == 0), dj = (d == 1), dk = (d == 2);
+        Real sp[3][3], sm[3][3];
+        Hyper4Strain(w0, m, k+dk, j+dj, i+di, ndim, normal, inv_dx, sp);
+        Hyper4Strain(w0, m, k-dk, j-dj, i-di, ndim, normal, inv_dx, sm);
+        for (int a=0; a<3; ++a) {
+          lap_strain[a] += (sp[a][normal]-2.0*sf[a][normal]+sm[a][normal])*
+                          SQR(inv_dx[d]);
+        }
+      }
+      Hyper4Strain(w0, m, k-nk, j-nj, i-ni, ndim, -1, inv_dx, sl);
+      Hyper4Strain(w0, m, k, j, i, ndim, -1, inv_dx, sr);
+      Real work = 0.0;
+      for (int a=0; a<3; ++a) {
+        const Real traction = -2.0*mu*lap_strain[a];
+        flux(m,IVX+a,k,j,i) -= traction;
+        work += 0.5*(w0(m,IVX+a,k,j,i)+w0(m,IVX+a,k-nk,j-nj,i-ni))*traction;
+      }
+      for (int a=0; a<3; ++a) {
+        for (int b=0; b<3; ++b) {
+          work += 2.0*mu*sf[a][b]*(sr[a][b]-sl[a][b])*inv_dx[normal];
+        }
+      }
+      flux(m,IEN,k,j,i) -= work;
+    });
+  }
 }
 
 //----------------------------------------------------------------------------------------
@@ -491,10 +604,40 @@ void Viscosity::AddViscousFluxAniso(const DvceArray5D<Real> &w0, const EOS_Data 
 //! \brief Compute new time step for viscosity
 
 void Viscosity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_data) {
-  // Constant-coefficient viscous timestep. The nu_aniso=0 path is unchanged.
+  // Preserve the previous constant-kinematic arithmetic when mu_hyper4=0.
+  // Constant-dynamic hyperviscosity additionally depends on current density.
   dtnew = std::numeric_limits<float>::max();
-  if (nu_iso <= 0.0 && nu_aniso <= 0.0) return;
+  if (nu_iso <= 0.0 && nu_aniso <= 0.0 && mu_hyper4 <= 0.0) return;
+  Real rho_min = std::numeric_limits<Real>::max();
+  if (mu_hyper4 > 0.0) {
+    const auto &indcs = pmy_pack->pmesh->mb_indcs;
+    const int is = indcs.is, js = indcs.js, ks = indcs.ks;
+    const int nx1 = indcs.nx1, nx2 = indcs.nx2;
+    const int nji = nx1*nx2, ncell = nji*indcs.nx3;
+    int invalid = 0;
+    Kokkos::parallel_reduce("hyper4_density_dt", Kokkos::RangePolicy<>(
+        DevExeSpace(), 0, pmy_pack->nmb_thispack*ncell),
+    KOKKOS_LAMBDA(const int n, Real &minimum, int &bad) {
+      const int m = n/ncell, cell = n-m*ncell;
+      const int k = ks+cell/nji, j = js+(cell%nji)/nx1, i = is+cell%nx1;
+      const Real density = w0(m,IDN,k,j,i);
+      if (!ViscosityFinite(density) || !(density > 0.0)) {
+        ++bad;
+      } else {
+        minimum = fmin(minimum, density);
+      }
+    }, Kokkos::Min<Real>(rho_min), Kokkos::Sum<int>(invalid));
+#if MPI_PARALLEL_ENABLED
+    MPI_Allreduce(MPI_IN_PLACE, &invalid, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+#endif
+    if (invalid != 0) {
+      std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+                << ": mu_hyper4 requires finite positive active density" << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
+  }
   auto size = pmy_pack->pmb->mb_size;
+  int invalid_hyper_dt = 0;
   for (int m=0; m<(pmy_pack->nmb_thispack); ++m) {
     Real inv_dx2_sum = 1.0/SQR(size.h_view(m).dx1);
     Real inv_dx2_max = inv_dx2_sum;
@@ -517,7 +660,29 @@ void Viscosity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_dat
                        (pmy_pack->pmesh->multi_d ? 2 : 1);
       rate += (8.0/3.0)*ndim*nu_aniso*inv_dx2_max;
     }
+    if (mu_hyper4 > 0.0) {
+      // Conservative norm bound for the composed centered hyperstress:
+      // lambda_max <= (4/3)*(mu/rho_min)*(4*sum_d dx_d^-2)^2.
+      // This rate is lambda_max/2, i.e. the inverse forward-Euler limit.
+      // The minimum is local to this pack; Mesh reduces the timestep over ranks.
+      const Real hyper_rate = (32.0/3.0)*(mu_hyper4/rho_min)*SQR(inv_dx2_sum);
+      rate += hyper_rate;
+      if (!std::isfinite(hyper_rate) || !(hyper_rate > 0.0) ||
+          !std::isfinite(rate) || !(1.0/rate > 0.0)) {
+        invalid_hyper_dt = 1;
+      }
+    }
     dtnew = std::min(dtnew, 1.0/rate);
+  }
+  if (mu_hyper4 > 0.0) {
+#if MPI_PARALLEL_ENABLED
+    MPI_Allreduce(MPI_IN_PLACE, &invalid_hyper_dt, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+#endif
+    if (invalid_hyper_dt != 0) {
+      std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+                << ": unrepresentable mu_hyper4 timestep" << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
   }
   return;
 }

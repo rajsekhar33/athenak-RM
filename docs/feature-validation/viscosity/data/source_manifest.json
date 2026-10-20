@@ -1,0 +1,92 @@
+{
+  "base_commit": "02b50eca0bb01364636dcaa36d650175a10db5f5",
+  "feature_branch": "feature/viscosity",
+  "snapshot_kind": "Base commit plus content-hashed implementation/test/guide files",
+  "files": [
+    {
+      "path": "docs/viscosity.md",
+      "sha256": "a94df41480f411dc8918a12ccfeb9f9a561b19772291c7c526b06b8f2f7bc9c4",
+      "lines": 251,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -11,0 +12,6 @@ and `rho * nu_aniso`.",
+        "@@ -45 +51 @@ Set `viscosity_integrator = sts` and use the same `<time>` settings above for",
+        "@@ -49,2 +55,18 @@ Nonzero `nu_aniso` requires MHD without SMR/AMR, in either integration mode.",
+        "@@ -95,2 +117,47 @@ this is not a physical transition to unmagnetized viscosity.",
+        "@@ -100,0 +168 @@ rate_aniso = (8/3)*ndim*nu_aniso*max_d(dx_d^-2)",
+        "@@ -104,2 +172,5 @@ The mesh applies the CFL factor. Adding rates accounts for simultaneous",
+        "@@ -128 +199,4 @@ These checks do not estimate time-integration error or guarantee dissipation",
+        "@@ -133 +207,3 @@ The refinement support below is for isotropic viscosity only. Parallel",
+        "@@ -154,0 +231,21 @@ own restrictions."
+      ]
+    },
+    {
+      "path": "src/diffusion/viscosity.cpp",
+      "sha256": "e6d9caf4fe592cfd94015bb1087279102e81ddd2c8cda72a4d2112be2c4c53c8",
+      "lines": 688,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -52,0 +53,34 @@ bool ViscosityFinite(const Real value) {",
+        "@@ -166,0 +201 @@ Viscosity::Viscosity(std::string block, MeshBlockPack *pp, ParameterInput *pin)",
+        "@@ -174 +209 @@ Viscosity::Viscosity(std::string block, MeshBlockPack *pp, ParameterInput *pin)",
+        "@@ -181,0 +217,18 @@ Viscosity::Viscosity(std::string block, MeshBlockPack *pp, ParameterInput *pin)",
+        "@@ -183 +236 @@ Viscosity::Viscosity(std::string block, MeshBlockPack *pp, ParameterInput *pin)",
+        "@@ -256,0 +310,3 @@ void Viscosity::AddViscousFluxes(const DvceArray5D<Real> &w0, const EOS_Data &eo",
+        "@@ -259,0 +316,57 @@ void Viscosity::AddViscousFluxes(const DvceArray5D<Real> &w0, const EOS_Data &eo",
+        "@@ -494 +607,2 @@ void Viscosity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_dat",
+        "@@ -496 +610,29 @@ void Viscosity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_dat",
+        "@@ -497,0 +640 @@ void Viscosity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_dat",
+        "@@ -519,0 +663,12 @@ void Viscosity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_dat",
+        "@@ -521,0 +677,10 @@ void Viscosity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_dat"
+      ]
+    },
+    {
+      "path": "src/diffusion/viscosity.hpp",
+      "sha256": "e9a8df184c8f14e8383806ef030b86f2c5d167d2fb07d5776560d01fa258af5c",
+      "lines": 64,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -32,0 +33 @@ class Viscosity {",
+        "@@ -39,0 +41,2 @@ class Viscosity {"
+      ]
+    },
+    {
+      "path": "src/hydro/hydro.cpp",
+      "sha256": "c4a9201835692e5e2653264b1e5dbfb9c3eb36ac2963946c1219c978f0f4e17a",
+      "lines": 385,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -85,0 +86 @@ Hydro::Hydro(MeshBlockPack *ppack, ParameterInput *pin) :",
+        "@@ -88 +89,2 @@ Hydro::Hydro(MeshBlockPack *ppack, ParameterInput *pin) :"
+      ]
+    },
+    {
+      "path": "src/mhd/mhd.cpp",
+      "sha256": "61b071ef2cca75b0fe57b3cb24b23633bd268f1bc6f8083a2f9b47d16afced61",
+      "lines": 512,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -115,0 +116 @@ MHD::MHD(MeshBlockPack *ppack, ParameterInput *pin) :",
+        "@@ -118 +119,2 @@ MHD::MHD(MeshBlockPack *ppack, ParameterInput *pin) :"
+      ]
+    },
+    {
+      "path": "src/pgen/tests/hyperviscosity_probe.cpp",
+      "sha256": "5dcbbfb2ab453a85ac3774ebbb83823c274bd61d2c2ae93be381bdd6b1c249eb",
+      "lines": 324,
+      "change": "new",
+      "changed_hunks": [
+        "entire file added"
+      ]
+    },
+    {
+      "path": "tst/functional/hyperviscosity.py",
+      "sha256": "1b8a0d0727eacb0aca14970181a8a6f7ea3f661fb2529f1b8cef4379ec48e341",
+      "lines": 405,
+      "change": "new",
+      "changed_hunks": [
+        "entire file added"
+      ]
+    }
+  ]
+}

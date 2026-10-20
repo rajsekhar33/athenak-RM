@@ -113,9 +113,11 @@ MHD::MHD(MeshBlockPack *ppack, ParameterInput *pin) :
   // Viscosity (only constructed if needed)
   if (pin->DoesParameterExist("mhd","nu_iso") ||
       pin->DoesParameterExist("mhd","nu_aniso") ||
+      pin->DoesParameterExist("mhd","mu_hyper4") ||
       pin->DoesParameterExist("mhd","viscosity_integrator")) {
     pvisc = new Viscosity("mhd", ppack, pin);
-    const bool active = (pvisc->nu_iso != 0.0 || pvisc->nu_aniso != 0.0);
+    const bool active = (pvisc->nu_iso != 0.0 || pvisc->nu_aniso != 0.0 ||
+                         pvisc->mu_hyper4 != 0.0);
     has_sts_viscosity = active &&
         (pvisc->mode == parabolic::DiffusionSelection::sts_only);
     has_explicit_viscosity = active &&

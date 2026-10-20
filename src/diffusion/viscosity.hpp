@@ -30,6 +30,7 @@ class Viscosity {
   Real dtnew;
   Real nu_iso;      // coefficient of isotropic kinematic shear viscosity
   Real nu_aniso;    // coefficient of anisotropic kinematic shear viscosity
+  Real mu_hyper4;   // constant dynamic fourth-order coefficient, code units rho*L^4/t
   parabolic::DiffusionSelection mode = parabolic::DiffusionSelection::explicit_only;
 
   // function to add viscous fluxes to Hydro and/or MHD fluxes
@@ -37,6 +38,8 @@ class Viscosity {
                         DvceFaceFld5D<Real> &f);
   void AddViscousFluxIso(const DvceArray5D<Real> &w,const EOS_Data &eos,
                          DvceFaceFld5D<Real> &f);
+  // Guarded ideal-gas, uniform-periodic hyperstress and energy-work flux.
+  void AddViscousFluxHyper4(const DvceArray5D<Real> &w, DvceFaceFld5D<Real> &f);
   // Explicit fields prevent reading centered B from a different RK stage.
   // Explicit and RKL2 use the same uniform-grid operator; refinement is rejected.
   void AddViscousFluxAniso(const DvceArray5D<Real> &w, const EOS_Data &eos,

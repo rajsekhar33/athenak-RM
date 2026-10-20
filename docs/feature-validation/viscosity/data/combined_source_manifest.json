@@ -1,0 +1,314 @@
+{
+  "base_commit": "40b40183336ef09c26070084ce6b235cf10b8cb1",
+  "feature_branch": "feature/viscosity",
+  "physical_viscosity_sts_commit": "31556aa884b1d9ebaac13285a009c21f95c6ee3b",
+  "braginskii_commit": "02b50eca0bb01364636dcaa36d650175a10db5f5",
+  "snapshot_kind": "Committed physical/parallel viscosity plus content-hashed hyperviscosity changes",
+  "files": [
+    {
+      "path": "docs/viscosity.md",
+      "sha256": "a94df41480f411dc8918a12ccfeb9f9a561b19772291c7c526b06b8f2f7bc9c4",
+      "lines": 251,
+      "change": "new",
+      "changed_hunks": [
+        "entire file added"
+      ]
+    },
+    {
+      "path": "inputs/hydro/viscosity.athinput",
+      "sha256": "497790a750a7a70519d0c8456cba766eb12b5cc2932269cc56165122b8c76c20",
+      "lines": 99,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -45 +45 @@ eos         = ideal    # EOS type",
+        "@@ -52 +52 @@ gamma       = 1.4      # gamma = C_p/C_v"
+      ]
+    },
+    {
+      "path": "src/bvals/bvals.hpp",
+      "sha256": "0d0697703228855371ca5e7b1679c8648a4e567ff56c140d00dbe0ac174630eb",
+      "lines": 347,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -33,0 +34 @@ class MeshBlockPack;",
+        "@@ -234,0 +236,2 @@ class MeshBoundaryValuesCC : public MeshBoundaryValues {"
+      ]
+    },
+    {
+      "path": "src/bvals/prolongation.cpp",
+      "sha256": "cf9c7b3522f1170cdf5ed18cbb13a57eafa4a69bfeee547394e2acf696efd2ae",
+      "lines": 880,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -13,0 +14 @@",
+        "@@ -15,0 +17,3 @@",
+        "@@ -19,0 +24,2 @@",
+        "@@ -26,0 +33 @@ namespace {",
+        "@@ -548,0 +556,88 @@ void MeshBoundaryValuesCC::ProlongateCC(DvceArray5D<Real> &a, DvceArray5D<Real>"
+      ]
+    },
+    {
+      "path": "src/diffusion/viscosity.cpp",
+      "sha256": "e6d9caf4fe592cfd94015bb1087279102e81ddd2c8cda72a4d2112be2c4c53c8",
+      "lines": 688,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -12,0 +13,2 @@",
+        "@@ -20,0 +23,3 @@",
+        "@@ -23,0 +29,2 @@",
+        "@@ -27,0 +35,135 @@ namespace {",
+        "@@ -57,2 +199,3 @@ Viscosity::Viscosity(std::string block, MeshBlockPack *pp, ParameterInput *pin)",
+        "@@ -59,0 +203,32 @@ Viscosity::Viscosity(std::string block, MeshBlockPack *pp, ParameterInput *pin)",
+        "@@ -61,2 +236 @@ Viscosity::Viscosity(std::string block, MeshBlockPack *pp, ParameterInput *pin)",
+        "@@ -64 +238 @@ Viscosity::Viscosity(std::string block, MeshBlockPack *pp, ParameterInput *pin)",
+        "@@ -74,0 +249,49 @@ Viscosity::~Viscosity() {",
+        "@@ -79 +302,2 @@ Viscosity::~Viscosity() {",
+        "@@ -86,2 +310,2 @@ void Viscosity::AddViscousFluxes(const DvceArray5D<Real> &w0, const EOS_Data &eo",
+        "@@ -91,0 +316,57 @@ void Viscosity::AddViscousFluxes(const DvceArray5D<Real> &w0, const EOS_Data &eo",
+        "@@ -250 +531,7 @@ void Viscosity::AddViscousFluxIso(const DvceArray5D<Real> &w0, const EOS_Data &e",
+        "@@ -252,0 +540 @@ void Viscosity::AddViscousFluxAniso(const DvceArray5D<Real> &w0, const EOS_Data",
+        "@@ -254 +542,58 @@ void Viscosity::AddViscousFluxAniso(const DvceArray5D<Real> &w0, const EOS_Data",
+        "@@ -262 +607,2 @@ void Viscosity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_dat",
+        "@@ -264 +610,29 @@ void Viscosity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_dat",
+        "@@ -265,0 +640 @@ void Viscosity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_dat",
+        "@@ -279,0 +655,20 @@ void Viscosity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_dat",
+        "@@ -281,0 +677,10 @@ void Viscosity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_dat"
+      ]
+    },
+    {
+      "path": "src/diffusion/viscosity.hpp",
+      "sha256": "e9a8df184c8f14e8383806ef030b86f2c5d167d2fb07d5776560d01fa258af5c",
+      "lines": 64,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -10,2 +10,2 @@",
+        "@@ -32,0 +33 @@ class Viscosity {",
+        "@@ -40,2 +41,7 @@ class Viscosity {",
+        "@@ -43,0 +50,10 @@ class Viscosity {"
+      ]
+    },
+    {
+      "path": "src/driver/driver.cpp",
+      "sha256": "4575b20fb524c318d33de7a0f88cda8276f04b573939a45670a7a3fb93c54ba9",
+      "lines": 1286,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -23,0 +24 @@",
+        "@@ -32,0 +34 @@",
+        "@@ -74,0 +77,27 @@ Conduction *NonlinearSTSConduction(Mesh *pm) {",
+        "@@ -343,0 +373 @@ void Driver::ResetSTSController() {",
+        "@@ -437,0 +468,20 @@ void Driver::ValidateSTSConfiguration(Mesh *pm) {",
+        "@@ -489,0 +540 @@ void Driver::EndSTSSweep() {",
+        "@@ -492,0 +544,217 @@ void Driver::EndSTSSweep() {",
+        "@@ -499,0 +768,4 @@ void Driver::ExecuteSTSSweep(Mesh *pm, STSSweep sweep) {",
+        "@@ -730 +1002 @@ void Driver::Execute(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool wdfla"
+      ]
+    },
+    {
+      "path": "src/driver/driver.hpp",
+      "sha256": "6f5905f66b7b2ab4584371b0c76d6b816d4c74cb292a6ccbcbf5b641d473db44",
+      "lines": 109,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -35,0 +36 @@ class Driver {",
+        "@@ -78,0 +80,2 @@ class Driver {",
+        "@@ -80,0 +84,9 @@ class Driver {",
+        "@@ -91,0 +104,2 @@ class Driver {"
+      ]
+    },
+    {
+      "path": "src/hydro/hydro.cpp",
+      "sha256": "c4a9201835692e5e2653264b1e5dbfb9c3eb36ac2963946c1219c978f0f4e17a",
+      "lines": 385,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -85 +85,3 @@ Hydro::Hydro(MeshBlockPack *ppack, ParameterInput *pin) :",
+        "@@ -87 +89,2 @@ Hydro::Hydro(MeshBlockPack *ppack, ParameterInput *pin) :"
+      ]
+    },
+    {
+      "path": "src/hydro/hydro.hpp",
+      "sha256": "2a79e5be05746aaa2334c17483ea40cb99ec7023c4c0e88219ab34862c25fcb5",
+      "lines": 191,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -166,0 +167 @@ class Hydro {"
+      ]
+    },
+    {
+      "path": "src/hydro/hydro_newdt.cpp",
+      "sha256": "faf257b090d5e70e879c6d29b1b130a2545a663b76f78b7822760318227e31a4",
+      "lines": 159,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -34,0 +35,8 @@ TaskStatus Hydro::NewTimeStep(Driver *pdrive, int stage) {",
+        "@@ -140 +148 @@ TaskStatus Hydro::NewTimeStep(Driver *pdrive, int stage) {",
+        "@@ -145 +153 @@ TaskStatus Hydro::NewTimeStep(Driver *pdrive, int stage) {",
+        "@@ -149 +157 @@ TaskStatus Hydro::NewTimeStep(Driver *pdrive, int stage) {"
+      ]
+    },
+    {
+      "path": "src/hydro/hydro_sts.cpp",
+      "sha256": "43c480bd658a6924f77c27d3958b8d77e481ef8e9cf72d344ff380f379d53d4b",
+      "lines": 238,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -71,0 +72,2 @@ TaskStatus Hydro::STSFluxes(Driver *pdrive, int stage) {",
+        "@@ -73 +74,0 @@ TaskStatus Hydro::STSFluxes(Driver *pdrive, int stage) {",
+        "@@ -92 +93,3 @@ TaskStatus Hydro::STSUpdate(Driver *pdrive, int stage) {",
+        "@@ -97,3 +100,3 @@ TaskStatus Hydro::STSUpdate(Driver *pdrive, int stage) {",
+        "@@ -101 +104,4 @@ TaskStatus Hydro::STSUpdate(Driver *pdrive, int stage) {",
+        "@@ -185 +191 @@ TaskStatus Hydro::STSUpdate(Driver *pdrive, int stage) {",
+        "@@ -188,0 +195,4 @@ TaskStatus Hydro::STSCheckState(Driver *pdrive, int stage) {",
+        "@@ -215 +225,2 @@ TaskStatus Hydro::STSRefreshTimeStep(Driver *pdrive, int stage) {",
+        "@@ -217 +228,6 @@ TaskStatus Hydro::STSRefreshTimeStep(Driver *pdrive, int stage) {"
+      ]
+    },
+    {
+      "path": "src/hydro/hydro_tasks.cpp",
+      "sha256": "a9e45314e274662592443f8ee067d24c4c37c11549676349cd958f5a71d82fd4",
+      "lines": 605,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -438 +438,14 @@ TaskStatus Hydro::Prolongate(Driver *pdrive, int stage) {",
+        "@@ -448,0 +462,7 @@ TaskStatus Hydro::ConToPrim(Driver *pdrive, int stage) {"
+      ]
+    },
+    {
+      "path": "src/mesh/mesh_refinement.cpp",
+      "sha256": "86cdd0e8557aca6c3c3d60b1c6888a77fcbab9b60f4fc85017d778af9d8d7687",
+      "lines": 1580,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -33,0 +34 @@",
+        "@@ -623 +624,13 @@ void MeshRefinement::RedistAndRefineMeshBlocks(ParameterInput *pin, int nnew, in",
+        "@@ -1123,0 +1137,85 @@ void MeshRefinement::RefineCC(DualArray1D<int> &n2o, DvceArray5D<Real> &a,"
+      ]
+    },
+    {
+      "path": "src/mesh/mesh_refinement.hpp",
+      "sha256": "37cfdec4e88c5088157529b6b38fd187b8ebc9d3509d7dc361da811558a5dc0c",
+      "lines": 144,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -38,0 +39 @@ class RefinementCriteria;",
+        "@@ -116,0 +118,2 @@ class MeshRefinement {"
+      ]
+    },
+    {
+      "path": "src/mesh/prolongation.hpp",
+      "sha256": "4414d89922beda24cd9601bf7987fd98bc1e634cc538a102575bf15a167af56e",
+      "lines": 388,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -11,0 +12,5 @@",
+        "@@ -13,0 +19,95 @@"
+      ]
+    },
+    {
+      "path": "src/mhd/mhd.cpp",
+      "sha256": "61b071ef2cca75b0fe57b3cb24b23633bd268f1bc6f8083a2f9b47d16afced61",
+      "lines": 512,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -115 +115,3 @@ MHD::MHD(MeshBlockPack *ppack, ParameterInput *pin) :",
+        "@@ -117 +119,2 @@ MHD::MHD(MeshBlockPack *ppack, ParameterInput *pin) :"
+      ]
+    },
+    {
+      "path": "src/mhd/mhd.hpp",
+      "sha256": "f85f4e455ed7dbee4b47e316d6d10abde8ac0da2ea57c677bbb423c3ab12ad6a",
+      "lines": 252,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -220 +220 @@ class MHD {"
+      ]
+    },
+    {
+      "path": "src/mhd/mhd_newdt.cpp",
+      "sha256": "b9fd390f2953b5e9ba552a5827a0b1b118fa4f46809e223d9fd1e159ff9343c6",
+      "lines": 193,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -43 +43 @@ TaskStatus MHD::NewTimeStep(Driver *pdriver, int stage) {",
+        "@@ -182 +182 @@ void MHD::RecomputeTimeStepFromCurrentState(Driver *pdriver) {",
+        "@@ -187 +187 @@ void MHD::RecomputeTimeStepFromCurrentState(Driver *pdriver) {"
+      ]
+    },
+    {
+      "path": "src/mhd/mhd_sts.cpp",
+      "sha256": "b5324a173f7f48290c103a5a525aace9af1b013edddae4e1534bec68a15144bb",
+      "lines": 379,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -54,0 +55,5 @@ void MHD::AddSelectedDiffusionFluxes(parabolic::DiffusionSelection selection) {",
+        "@@ -98,0 +104,2 @@ TaskStatus MHD::STSFluxes(Driver *pdrive, int stage) {",
+        "@@ -100 +106,0 @@ TaskStatus MHD::STSFluxes(Driver *pdrive, int stage) {",
+        "@@ -131 +137,2 @@ TaskStatus MHD::STSUpdateU(Driver *pdrive, int stage) {",
+        "@@ -136,3 +143,3 @@ TaskStatus MHD::STSUpdateU(Driver *pdrive, int stage) {",
+        "@@ -140 +147,4 @@ TaskStatus MHD::STSUpdateU(Driver *pdrive, int stage) {",
+        "@@ -226 +236,2 @@ TaskStatus MHD::STSUpdateB(Driver *pdrive, int stage) {",
+        "@@ -329,0 +341,4 @@ TaskStatus MHD::STSCheckState(Driver *pdrive, int stage) {",
+        "@@ -354 +369,2 @@ TaskStatus MHD::STSRefreshTimeStep(Driver *pdrive, int stage) {",
+        "@@ -357 +373,2 @@ TaskStatus MHD::STSRefreshTimeStep(Driver *pdrive, int stage) {"
+      ]
+    },
+    {
+      "path": "src/mhd/mhd_tasks.cpp",
+      "sha256": "c0321dedf02cf069586d4d028215a3ba5e9d97e734ed3657381ec6c127e4040d",
+      "lines": 843,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -661,0 +662,7 @@ TaskStatus MHD::ConToPrim(Driver *pdrive, int stage) {"
+      ]
+    },
+    {
+      "path": "src/pgen/pgen.hpp",
+      "sha256": "346079f9d026ca9b3b08c1f5a2f1b8f6dfe36f290c73ca3d1fb5db2c8e6ff7ab",
+      "lines": 149,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -46,0 +47,6 @@ class ProblemGenerator {",
+        "@@ -51,0 +58,5 @@ class ProblemGenerator {"
+      ]
+    },
+    {
+      "path": "src/pgen/tests/diffusion.cpp",
+      "sha256": "0047b4abaf7d220bc907816121f2f1272bbdf9df9a7d573bb37a4c5b30a2f51f",
+      "lines": 466,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -134 +134,2 @@ void ProblemGenerator::Diffusion(ParameterInput *pin, const bool restart) {",
+        "@@ -136 +137 @@ void ProblemGenerator::Diffusion(ParameterInput *pin, const bool restart) {",
+        "@@ -157,0 +159,4 @@ void ProblemGenerator::Diffusion(ParameterInput *pin, const bool restart) {"
+      ]
+    },
+    {
+      "path": "src/pgen/tests/hook_test.cpp",
+      "sha256": "d904f89039ee6d8b27330db5236da6997b2acc9d1cd970a0ff19659dff64458f",
+      "lines": 130,
+      "change": "modified",
+      "changed_hunks": [
+        "@@ -45,0 +46 @@ void ProblemGenerator::HookTest(ParameterInput *pin, const bool restart) {"
+      ]
+    },
+    {
+      "path": "src/pgen/tests/hyperviscosity_probe.cpp",
+      "sha256": "5dcbbfb2ab453a85ac3774ebbb83823c274bd61d2c2ae93be381bdd6b1c249eb",
+      "lines": 324,
+      "change": "new",
+      "changed_hunks": [
+        "entire file added"
+      ]
+    },
+    {
+      "path": "tst/functional/hyperviscosity.py",
+      "sha256": "1b8a0d0727eacb0aca14970181a8a6f7ea3f661fb2529f1b8cef4379ec48e341",
+      "lines": 405,
+      "change": "new",
+      "changed_hunks": [
+        "entire file added"
+      ]
+    }
+  ]
+}

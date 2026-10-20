@@ -1,0 +1,2340 @@
+{
+  "schema_version": 1,
+  "feature_commit": "31556aa884b1d9ebaac13285a009c21f95c6ee3b",
+  "parent_commit": "40b40183336ef09c26070084ce6b235cf10b8cb1",
+  "scope": "Constant isotropic kinematic viscosity; standard arithmetic-density centered stress. Historical standard-operator and final selected-source integration checks are distinguished. No alternative spatial-operator results are included.",
+  "explicit_modes": {
+    "cpu": {
+      "provenance": {
+        "report_id": "standard-modes-cpu-01",
+        "report_sha256": "30e68eabf40e6b0ef29c6926f974053d3fb04c140ce9c24b8816c3f0a31dbd64",
+        "binary_sha256": "0cf011aeccb12e4ac4222eedcfcdd93e16908c7a557f03f3477555a9c4325817",
+        "selected_source_sha256": {}
+      },
+      "epoch": "standard-operator follow-up, preceding final source selection",
+      "cases": {
+        "shear1d_n32_v3_m1": {
+          "status": "PASS",
+          "kind": "shear",
+          "cycles": 53,
+          "final_time": 0.07623549969713192,
+          "max_rk2_modal_relative_error": 1.7583227861336377e-15,
+          "measured_decay_rate": 3.9351527038961844,
+          "discrete_decay_rate": 3.935174573418405,
+          "continuum_shear_or_axis_rate": 3.947841760435743,
+          "relative_temporal_rate_error": 0.0000055574465154467605,
+          "relative_continuum_rate_error": 0.0032141755697316014,
+          "relative_total_energy_drift": 0,
+          "heating_balance_error": -1.734723475976807e-18,
+          "zero_floor_fofc_events": true
+        },
+        "shear2d_n16_diagonal": {
+          "status": "PASS",
+          "kind": "shear",
+          "cycles": 12,
+          "final_time": 0.038487513235969016,
+          "max_rk2_modal_relative_error": 1.2954652957946576e-15,
+          "measured_decay_rate": 7.793862929263484,
+          "discrete_decay_rate": 7.794735870844234,
+          "continuum_shear_or_axis_rate": 7.895683520871486,
+          "relative_temporal_rate_error": 0.00011199116881120398,
+          "relative_continuum_rate_error": 0.012895728576107386,
+          "relative_total_energy_drift": 1.5419757377679454e-16,
+          "heating_balance_error": 0,
+          "zero_floor_fofc_events": true
+        },
+        "tensor3d_n8_a1e-07": {
+          "status": "PASS",
+          "kind": "tensor",
+          "cycles": 3,
+          "final_time": 0.018367061968801324,
+          "max_rk2_modal_relative_error": 3.7218863280296676e-11,
+          "measured_decay_rate": 16.285203899664452,
+          "discrete_decay_rate": 16.333586749453257,
+          "continuum_shear_or_axis_rate": 17.98461246420727,
+          "relative_temporal_rate_error": 0.0029621693343272783,
+          "relative_continuum_rate_error": 0.09449236495503907,
+          "relative_total_energy_drift": 2.2204460492503082e-16,
+          "heating_balance_error": -1.5307207504646347e-17,
+          "zero_floor_fofc_events": true
+        },
+        "acoustic_n32_nu0.01_cfl0.3": {
+          "status": "PASS",
+          "kind": "acoustic",
+          "cycles": 27,
+          "final_time": 0.25,
+          "measured_lambda": [
+            -0.2626890564252448,
+            -6.280742996673443
+          ],
+          "continuum_lambda": [
+            -0.2631894506957162,
+            -6.27767066015731
+          ],
+          "damping_absolute_error": 0.0005003942704713826,
+          "frequency_relative_error": 0.0004894070878284336,
+          "relative_total_energy_drift": 0,
+          "heating_balance_error": -1.7922173736571917e-17,
+          "zero_floor_fofc_events": true
+        }
+      }
+    },
+    "gpu": {
+      "provenance": {
+        "report_id": "standard-modes-gpu-01",
+        "report_sha256": "bbd29fcdd1f905c09f5fc5a214301ec76a0b7d16d6d381fbde7b3f5f55ebd5a1",
+        "binary_sha256": "a5696f342d8e60ae967943943826f1e698a3b66d99d4af217774a44517687b9f",
+        "selected_source_sha256": {}
+      },
+      "epoch": "standard-operator follow-up, preceding final source selection",
+      "cases": {
+        "shear1d_n32_v3_m1": {
+          "status": "PASS",
+          "kind": "shear",
+          "cycles": 53,
+          "final_time": 0.07623549969713192,
+          "max_rk2_modal_relative_error": 1.7583227861336377e-15,
+          "measured_decay_rate": 3.9351527038961844,
+          "discrete_decay_rate": 3.935174573418405,
+          "continuum_shear_or_axis_rate": 3.947841760435743,
+          "relative_temporal_rate_error": 0.0000055574465154467605,
+          "relative_continuum_rate_error": 0.0032141755697316014,
+          "relative_total_energy_drift": 0,
+          "heating_balance_error": 0,
+          "zero_floor_fofc_events": true
+        },
+        "shear2d_n16_diagonal": {
+          "status": "PASS",
+          "kind": "shear",
+          "cycles": 12,
+          "final_time": 0.038487513235969016,
+          "max_rk2_modal_relative_error": 1.2953753068462108e-15,
+          "measured_decay_rate": 7.793862929263484,
+          "discrete_decay_rate": 7.794735870844234,
+          "continuum_shear_or_axis_rate": 7.895683520871486,
+          "relative_temporal_rate_error": 0.00011199116881120398,
+          "relative_continuum_rate_error": 0.012895728576107386,
+          "relative_total_energy_drift": 1.5419757377679454e-16,
+          "heating_balance_error": 0,
+          "zero_floor_fofc_events": true
+        },
+        "tensor3d_n8_a1e-07": {
+          "status": "PASS",
+          "kind": "tensor",
+          "cycles": 3,
+          "final_time": 0.018367061968801324,
+          "max_rk2_modal_relative_error": 3.721885803570153e-11,
+          "measured_decay_rate": 16.285203899664452,
+          "discrete_decay_rate": 16.333586749453257,
+          "continuum_shear_or_axis_rate": 17.98461246420727,
+          "relative_temporal_rate_error": 0.0029621693343272783,
+          "relative_continuum_rate_error": 0.09449236495503907,
+          "relative_total_energy_drift": 2.2204460492503082e-16,
+          "heating_balance_error": -1.5307207504646347e-17,
+          "zero_floor_fofc_events": true
+        },
+        "acoustic_n32_nu0.01_cfl0.3": {
+          "status": "PASS",
+          "kind": "acoustic",
+          "cycles": 27,
+          "final_time": 0.25,
+          "measured_lambda": [
+            -0.26268905629645223,
+            -6.2807429967067
+          ],
+          "continuum_lambda": [
+            -0.2631894506957162,
+            -6.27767066015731
+          ],
+          "damping_absolute_error": 0.0005003943992639703,
+          "frequency_relative_error": 0.0004894070931260917,
+          "relative_total_energy_drift": 0,
+          "heating_balance_error": 9.310014284342374e-17,
+          "zero_floor_fofc_events": true
+        }
+      }
+    },
+    "mpi2": {
+      "provenance": {
+        "report_id": "standard-modes-mpi2-01",
+        "report_sha256": "bbed86950124e55a273afe58c8c817eb5d277090393a2b7e8fdae297a4ea0676",
+        "binary_sha256": "0cf011aeccb12e4ac4222eedcfcdd93e16908c7a557f03f3477555a9c4325817",
+        "selected_source_sha256": {}
+      },
+      "epoch": "standard-operator follow-up, preceding final source selection",
+      "cases": {
+        "shear1d_n32_v3_m1": {
+          "status": "PASS",
+          "kind": "shear",
+          "cycles": 53,
+          "final_time": 0.07623549969713192,
+          "max_rk2_modal_relative_error": 1.7583227861336377e-15,
+          "measured_decay_rate": 3.9351527038961844,
+          "discrete_decay_rate": 3.935174573418405,
+          "continuum_shear_or_axis_rate": 3.947841760435743,
+          "relative_temporal_rate_error": 0.0000055574465154467605,
+          "relative_continuum_rate_error": 0.0032141755697316014,
+          "relative_total_energy_drift": 0,
+          "heating_balance_error": -1.734723475976807e-18,
+          "zero_floor_fofc_events": true
+        },
+        "shear2d_n16_diagonal": {
+          "status": "PASS",
+          "kind": "shear",
+          "cycles": 12,
+          "final_time": 0.038487513235969016,
+          "max_rk2_modal_relative_error": 1.2954652957946576e-15,
+          "measured_decay_rate": 7.793862929263484,
+          "discrete_decay_rate": 7.794735870844234,
+          "continuum_shear_or_axis_rate": 7.895683520871486,
+          "relative_temporal_rate_error": 0.00011199116881120398,
+          "relative_continuum_rate_error": 0.012895728576107386,
+          "relative_total_energy_drift": 1.5419757377679454e-16,
+          "heating_balance_error": 0,
+          "zero_floor_fofc_events": true
+        },
+        "tensor3d_n8_a1e-07": {
+          "status": "PASS",
+          "kind": "tensor",
+          "cycles": 3,
+          "final_time": 0.018367061968801324,
+          "max_rk2_modal_relative_error": 3.7218863280296676e-11,
+          "measured_decay_rate": 16.285203899664452,
+          "discrete_decay_rate": 16.333586749453257,
+          "continuum_shear_or_axis_rate": 17.98461246420727,
+          "relative_temporal_rate_error": 0.0029621693343272783,
+          "relative_continuum_rate_error": 0.09449236495503907,
+          "relative_total_energy_drift": 2.2204460492503082e-16,
+          "heating_balance_error": -1.5307207504646347e-17,
+          "zero_floor_fofc_events": true
+        },
+        "acoustic_n32_nu0.01_cfl0.3": {
+          "status": "PASS",
+          "kind": "acoustic",
+          "cycles": 27,
+          "final_time": 0.25,
+          "measured_lambda": [
+            -0.2626890564252448,
+            -6.280742996673443
+          ],
+          "continuum_lambda": [
+            -0.2631894506957162,
+            -6.27767066015731
+          ],
+          "damping_absolute_error": 0.0005003942704713826,
+          "frequency_relative_error": 0.0004894070878284336,
+          "relative_total_energy_drift": 0,
+          "heating_balance_error": -1.7922173736571917e-17,
+          "zero_floor_fofc_events": true
+        }
+      }
+    }
+  },
+  "scalar_sts": {
+    "cpu": {
+      "provenance": {
+        "report_id": "standard-sts-cpu-01",
+        "report_sha256": "6fdc83e382c51dd84b76458ecb431b83839e18859d9fbfdac8371bfb912b7129",
+        "binary_sha256": "0cf011aeccb12e4ac4222eedcfcdd93e16908c7a557f03f3477555a9c4325817",
+        "source_manifest_sha256": "7eda3abf3915e05a6928c8e049584b0ea3d3ef70d8a3960f274914ad9793b93a",
+        "selected_source_sha256": {}
+      },
+      "epoch": "standard-operator follow-up, preceding final source selection",
+      "gates": {
+        "sts_velocity_semidiscrete_initial_amplitude_scaled": 0.0005,
+        "sts_internal_energy_generated_heat_scaled": 0.01,
+        "implementation_velocity_initial_amplitude_scaled": 2e-10,
+        "implementation_energy_initial_kinetic_scaled": 2e-10
+      },
+      "cases": {
+        "warm_explicit_fine": {
+          "status": "PASS",
+          "cycles": 120,
+          "final_time": 0.1,
+          "actual_dt_max": 0.0008370535714285754,
+          "actual_cycle_parabolic_ratio_max": 1.0000000000000049,
+          "implementation_velocity_error": 3.7007434154171886e-16,
+          "implementation_energy_error": 2.4671622769447924e-14,
+          "velocity_semidiscrete_time_error": 0.000002541178211005561,
+          "internal_energy_generated_heat_scaled_error": 0.0000029170930403294663,
+          "native_min_final_raw_eint": 1.0013524239599638,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 3.691695143007855e-15,
+          "momentum_absolute_drift": 1.3444106938820255e-17,
+          "heat_balance_residual": -1.1796119636642288e-16
+        },
+        "warm_rkl2_ratio1": {
+          "status": "PASS",
+          "cycles": 30,
+          "final_time": 0.1,
+          "actual_dt_max": 0.0033482142857142877,
+          "actual_cycle_parabolic_ratio_max": 1.0000000000000007,
+          "implementation_velocity_error": 1.942890293094024e-15,
+          "implementation_energy_error": 1.1842378929335004e-13,
+          "velocity_semidiscrete_time_error": 0.000006089763867622722,
+          "internal_energy_generated_heat_scaled_error": 0.0000545382215569592,
+          "native_min_final_raw_eint": 1.0013540419660434,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 3.2573780673598727e-15,
+          "momentum_absolute_drift": 4.954803928258755e-17,
+          "heat_balance_residual": -1.2524703496552547e-15
+        },
+        "warm_rkl2_ratio4": {
+          "status": "PASS",
+          "cycles": 8,
+          "final_time": 0.1,
+          "actual_dt_max": 0.013392857142857144,
+          "actual_cycle_parabolic_ratio_max": 4.000000000000001,
+          "implementation_velocity_error": 5.551115123125783e-16,
+          "implementation_energy_error": 5.921189464667502e-14,
+          "velocity_semidiscrete_time_error": 0.00009549090835392349,
+          "internal_energy_generated_heat_scaled_error": 0.0008709284170971263,
+          "native_min_final_raw_eint": 1.0013782566639355,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 2.605902453887898e-15,
+          "momentum_absolute_drift": 3.230922474006803e-17,
+          "heat_balance_residual": 7.979727989493313e-17
+        },
+        "warm_rkl2_ratio16": {
+          "status": "FAIL",
+          "cycles": 2,
+          "final_time": 0.1,
+          "actual_dt_max": 0.053571428571428555,
+          "actual_cycle_parabolic_ratio_max": 15.999999999999996,
+          "implementation_velocity_error": 5.551115123125783e-16,
+          "implementation_energy_error": 2.4671622769447924e-14,
+          "velocity_semidiscrete_time_error": 0.0010201879138514263,
+          "internal_energy_generated_heat_scaled_error": 0.00981688209791276,
+          "native_min_final_raw_eint": 1.0016458263485184,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 2.171585378239915e-15,
+          "momentum_absolute_drift": 3.165870343657673e-17,
+          "heat_balance_residual": 3.677613769070831e-16
+        },
+        "cold_explicit_fine": {
+          "status": "PASS",
+          "cycles": 120,
+          "final_time": 0.1,
+          "actual_dt_max": 0.0008370535714285754,
+          "actual_cycle_parabolic_ratio_max": 1.0000000000000049,
+          "implementation_velocity_error": 3.7007434154171886e-16,
+          "implementation_energy_error": 1.6576246548222823e-15,
+          "velocity_semidiscrete_time_error": 0.000002541178211005561,
+          "internal_energy_generated_heat_scaled_error": 0.0000029170930782907433,
+          "native_min_final_raw_eint": 0.0013524339599650034,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 2.621358754205507e-15,
+          "momentum_absolute_drift": 1.3444106938820255e-17,
+          "heat_balance_residual": 6.938893903907228e-18
+        },
+        "cold_rkl2_ratio1": {
+          "status": "PASS",
+          "cycles": 30,
+          "final_time": 0.1,
+          "actual_dt_max": 0.0033482142857142877,
+          "actual_cycle_parabolic_ratio_max": 1.0000000000000007,
+          "implementation_velocity_error": 1.942890293094024e-15,
+          "implementation_energy_error": 6.2450045135165055e-15,
+          "velocity_semidiscrete_time_error": 0.000006089763867622722,
+          "internal_energy_generated_heat_scaled_error": 0.00005453822149930661,
+          "native_min_final_raw_eint": 0.001354051966046101,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 2.158766032875123e-15,
+          "momentum_absolute_drift": 4.954803928258755e-17,
+          "heat_balance_residual": 3.469446951953614e-18
+        },
+        "cold_rkl2_ratio4": {
+          "status": "PASS",
+          "cycles": 8,
+          "final_time": 0.1,
+          "actual_dt_max": 0.013392857142857144,
+          "actual_cycle_parabolic_ratio_max": 4.000000000000001,
+          "implementation_velocity_error": 5.551115123125783e-16,
+          "implementation_energy_error": 2.8141069721401536e-15,
+          "velocity_semidiscrete_time_error": 0.00009549090835392349,
+          "internal_energy_generated_heat_scaled_error": 0.0008709284171894895,
+          "native_min_final_raw_eint": 0.0013782666639372103,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 2.312963606651918e-15,
+          "momentum_absolute_drift": 3.230922474006803e-17,
+          "heat_balance_residual": 3.469446951953614e-18
+        },
+        "cold_rkl2_ratio16": {
+          "status": "FAIL",
+          "cycles": 2,
+          "final_time": 0.1,
+          "actual_dt_max": 0.053571428571428555,
+          "actual_cycle_parabolic_ratio_max": 15.999999999999996,
+          "implementation_velocity_error": 5.551115123125783e-16,
+          "implementation_energy_error": 3.006854025026466e-15,
+          "velocity_semidiscrete_time_error": 0.0010201879138514263,
+          "internal_energy_generated_heat_scaled_error": 0.009816882097896695,
+          "native_min_final_raw_eint": 0.0016458363485181548,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 9.25185442660767e-16,
+          "momentum_absolute_drift": 3.165870343657673e-17,
+          "heat_balance_residual": 1.3877787807814457e-17
+        }
+      }
+    },
+    "gpu": {
+      "provenance": {
+        "report_id": "standard-sts-gpu-01",
+        "report_sha256": "ccfdf5d5adf1af8f50bef23d52235df089a4a7033ac8381368a874606e9011e4",
+        "binary_sha256": "a5696f342d8e60ae967943943826f1e698a3b66d99d4af217774a44517687b9f",
+        "source_manifest_sha256": "7eda3abf3915e05a6928c8e049584b0ea3d3ef70d8a3960f274914ad9793b93a",
+        "selected_source_sha256": {}
+      },
+      "epoch": "standard-operator follow-up, preceding final source selection",
+      "gates": {
+        "sts_velocity_semidiscrete_initial_amplitude_scaled": 0.0005,
+        "sts_internal_energy_generated_heat_scaled": 0.01,
+        "implementation_velocity_initial_amplitude_scaled": 2e-10,
+        "implementation_energy_initial_kinetic_scaled": 2e-10
+      },
+      "cases": {
+        "warm_explicit_fine": {
+          "status": "PASS",
+          "cycles": 120,
+          "final_time": 0.1,
+          "actual_dt_max": 0.0008370535714285754,
+          "actual_cycle_parabolic_ratio_max": 1.0000000000000049,
+          "implementation_velocity_error": 3.7007434154171886e-16,
+          "implementation_energy_error": 2.4671622769447924e-14,
+          "velocity_semidiscrete_time_error": 0.000002541178211005561,
+          "internal_energy_generated_heat_scaled_error": 0.0000029170930403294663,
+          "native_min_final_raw_eint": 1.0013524239599638,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 0,
+          "momentum_absolute_drift": 8.348356728138384e-18,
+          "heat_balance_residual": -1.1796119636642288e-16
+        },
+        "warm_rkl2_ratio1": {
+          "status": "PASS",
+          "cycles": 30,
+          "final_time": 0.1,
+          "actual_dt_max": 0.0033482142857142877,
+          "actual_cycle_parabolic_ratio_max": 1.0000000000000007,
+          "implementation_velocity_error": 1.2027416100105863e-15,
+          "implementation_energy_error": 9.86864910777917e-14,
+          "velocity_semidiscrete_time_error": 0.000006089763867252648,
+          "internal_energy_generated_heat_scaled_error": 0.00005453822142703822,
+          "native_min_final_raw_eint": 1.0013540419660412,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 1.0857926891199576e-15,
+          "momentum_absolute_drift": 1.5937771935536915e-17,
+          "heat_balance_residual": -1.0408340855860843e-15
+        },
+        "warm_rkl2_ratio4": {
+          "status": "PASS",
+          "cycles": 8,
+          "final_time": 0.1,
+          "actual_dt_max": 0.013392857142857144,
+          "actual_cycle_parabolic_ratio_max": 4.000000000000001,
+          "implementation_velocity_error": 9.251858538542972e-16,
+          "implementation_energy_error": 5.4277570092785434e-14,
+          "velocity_semidiscrete_time_error": 0.00009549090835373845,
+          "internal_energy_generated_heat_scaled_error": 0.0008709284171425987,
+          "native_min_final_raw_eint": 1.001378256663935,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 0,
+          "momentum_absolute_drift": 2.938187887435717e-17,
+          "heat_balance_residual": 7.632783294297951e-17
+        },
+        "warm_rkl2_ratio16": {
+          "status": "FAIL",
+          "cycles": 2,
+          "final_time": 0.1,
+          "actual_dt_max": 0.053571428571428555,
+          "actual_cycle_parabolic_ratio_max": 15.999999999999996,
+          "implementation_velocity_error": 1.3877787807814457e-15,
+          "implementation_energy_error": 6.41462192005646e-14,
+          "velocity_semidiscrete_time_error": 0.001020187913852259,
+          "internal_energy_generated_heat_scaled_error": 0.009816882097932248,
+          "native_min_final_raw_eint": 1.0016458263485164,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 4.3431707564798303e-16,
+          "momentum_absolute_drift": 1.0950441942103595e-17,
+          "heat_balance_residual": -5.065392549852277e-16
+        },
+        "cold_explicit_fine": {
+          "status": "PASS",
+          "cycles": 120,
+          "final_time": 0.1,
+          "actual_dt_max": 0.0008370535714285754,
+          "actual_cycle_parabolic_ratio_max": 1.0000000000000049,
+          "implementation_velocity_error": 3.7007434154171886e-16,
+          "implementation_energy_error": 1.6576246548222823e-15,
+          "velocity_semidiscrete_time_error": 0.000002541178211005561,
+          "internal_energy_generated_heat_scaled_error": 0.0000029170930782907433,
+          "native_min_final_raw_eint": 0.0013524339599649965,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 3.0839514755358907e-16,
+          "momentum_absolute_drift": 8.348356728138384e-18,
+          "heat_balance_residual": 6.938893903907228e-18
+        },
+        "cold_rkl2_ratio1": {
+          "status": "PASS",
+          "cycles": 30,
+          "final_time": 0.1,
+          "actual_dt_max": 0.0033482142857142877,
+          "actual_cycle_parabolic_ratio_max": 1.0000000000000007,
+          "implementation_velocity_error": 1.2027416100105863e-15,
+          "implementation_energy_error": 7.093091546216278e-15,
+          "velocity_semidiscrete_time_error": 0.000006089763867252648,
+          "internal_energy_generated_heat_scaled_error": 0.000054538221500321616,
+          "native_min_final_raw_eint": 0.0013540519660462727,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 7.709878688839727e-16,
+          "momentum_absolute_drift": 1.5937771935536915e-17,
+          "heat_balance_residual": 1.3877787807814457e-17
+        },
+        "cold_rkl2_ratio4": {
+          "status": "PASS",
+          "cycles": 8,
+          "final_time": 0.1,
+          "actual_dt_max": 0.013392857142857144,
+          "actual_cycle_parabolic_ratio_max": 4.000000000000001,
+          "implementation_velocity_error": 9.251858538542972e-16,
+          "implementation_energy_error": 5.8209609971666195e-15,
+          "velocity_semidiscrete_time_error": 0.00009549090835373845,
+          "internal_energy_generated_heat_scaled_error": 0.0008709284171894895,
+          "native_min_final_raw_eint": 0.0013782666639373126,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 1.5419757377679454e-16,
+          "momentum_absolute_drift": 2.938187887435717e-17,
+          "heat_balance_residual": 0
+        },
+        "cold_rkl2_ratio16": {
+          "status": "FAIL",
+          "cycles": 2,
+          "final_time": 0.1,
+          "actual_dt_max": 0.053571428571428555,
+          "actual_cycle_parabolic_ratio_max": 15.999999999999996,
+          "implementation_velocity_error": 1.3877787807814457e-15,
+          "implementation_energy_error": 4.587379858694223e-15,
+          "velocity_semidiscrete_time_error": 0.001020187913852259,
+          "internal_energy_generated_heat_scaled_error": 0.009816882097896695,
+          "native_min_final_raw_eint": 0.0016458363485180715,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 1.5419757377679454e-16,
+          "momentum_absolute_drift": 1.0950441942103595e-17,
+          "heat_balance_residual": -3.469446951953614e-18
+        }
+      }
+    },
+    "mpi2": {
+      "provenance": {
+        "report_id": "standard-sts-mpi2-01",
+        "report_sha256": "89b3c823ad2359ce4d74de14b9b9ba12708276ad6d052d8b8ce38ecbb5405a82",
+        "binary_sha256": "0cf011aeccb12e4ac4222eedcfcdd93e16908c7a557f03f3477555a9c4325817",
+        "source_manifest_sha256": "7eda3abf3915e05a6928c8e049584b0ea3d3ef70d8a3960f274914ad9793b93a",
+        "selected_source_sha256": {}
+      },
+      "epoch": "standard-operator follow-up, preceding final source selection",
+      "gates": {
+        "sts_velocity_semidiscrete_initial_amplitude_scaled": 0.0005,
+        "sts_internal_energy_generated_heat_scaled": 0.01,
+        "implementation_velocity_initial_amplitude_scaled": 2e-10,
+        "implementation_energy_initial_kinetic_scaled": 2e-10
+      },
+      "cases": {
+        "warm_explicit_fine": {
+          "status": "PASS",
+          "cycles": 120,
+          "final_time": 0.1,
+          "actual_dt_max": 0.0008370535714285754,
+          "actual_cycle_parabolic_ratio_max": 1.0000000000000049,
+          "implementation_velocity_error": 3.7007434154171886e-16,
+          "implementation_energy_error": 2.4671622769447924e-14,
+          "velocity_semidiscrete_time_error": 0.000002541178211005561,
+          "internal_energy_generated_heat_scaled_error": 0.0000029170930403294663,
+          "native_min_final_raw_eint": 1.0013524239599638,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 2.605902453887898e-15,
+          "momentum_absolute_drift": 3.870601755773251e-17,
+          "heat_balance_residual": -1.1796119636642288e-16
+        },
+        "warm_rkl2_ratio1": {
+          "status": "PASS",
+          "cycles": 30,
+          "final_time": 0.1,
+          "actual_dt_max": 0.0033482142857142877,
+          "actual_cycle_parabolic_ratio_max": 1.0000000000000007,
+          "implementation_velocity_error": 1.942890293094024e-15,
+          "implementation_energy_error": 1.1842378929335004e-13,
+          "velocity_semidiscrete_time_error": 0.000006089763867622722,
+          "internal_energy_generated_heat_scaled_error": 0.0000545382215569592,
+          "native_min_final_raw_eint": 1.0013540419660434,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 2.605902453887898e-15,
+          "momentum_absolute_drift": 5.97395397039513e-17,
+          "heat_balance_residual": -1.2524703496552547e-15
+        },
+        "warm_rkl2_ratio4": {
+          "status": "PASS",
+          "cycles": 8,
+          "final_time": 0.1,
+          "actual_dt_max": 0.013392857142857144,
+          "actual_cycle_parabolic_ratio_max": 4.000000000000001,
+          "implementation_velocity_error": 5.551115123125783e-16,
+          "implementation_energy_error": 5.921189464667502e-14,
+          "velocity_semidiscrete_time_error": 0.00009549090835392349,
+          "internal_energy_generated_heat_scaled_error": 0.0008709284170971263,
+          "native_min_final_raw_eint": 1.0013782566639355,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 1.7372683025919321e-15,
+          "momentum_absolute_drift": 3.2742905609062234e-17,
+          "heat_balance_residual": 7.979727989493313e-17
+        },
+        "warm_rkl2_ratio16": {
+          "status": "FAIL",
+          "cycles": 2,
+          "final_time": 0.1,
+          "actual_dt_max": 0.053571428571428555,
+          "actual_cycle_parabolic_ratio_max": 15.999999999999996,
+          "implementation_velocity_error": 5.551115123125783e-16,
+          "implementation_energy_error": 2.4671622769447924e-14,
+          "velocity_semidiscrete_time_error": 0.0010201879138514263,
+          "internal_energy_generated_heat_scaled_error": 0.00981688209791276,
+          "native_min_final_raw_eint": 1.0016458263485184,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 2.1715853782399151e-16,
+          "momentum_absolute_drift": 2.200930410145574e-17,
+          "heat_balance_residual": 3.677613769070831e-16
+        },
+        "cold_explicit_fine": {
+          "status": "PASS",
+          "cycles": 120,
+          "final_time": 0.1,
+          "actual_dt_max": 0.0008370535714285754,
+          "actual_cycle_parabolic_ratio_max": 1.0000000000000049,
+          "implementation_velocity_error": 3.7007434154171886e-16,
+          "implementation_energy_error": 1.6576246548222823e-15,
+          "velocity_semidiscrete_time_error": 0.000002541178211005561,
+          "internal_energy_generated_heat_scaled_error": 0.0000029170930782907433,
+          "native_min_final_raw_eint": 0.0013524339599650034,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 1.850370885321534e-15,
+          "momentum_absolute_drift": 3.870601755773251e-17,
+          "heat_balance_residual": 6.938893903907228e-18
+        },
+        "cold_rkl2_ratio1": {
+          "status": "PASS",
+          "cycles": 30,
+          "final_time": 0.1,
+          "actual_dt_max": 0.0033482142857142877,
+          "actual_cycle_parabolic_ratio_max": 1.0000000000000007,
+          "implementation_velocity_error": 1.942890293094024e-15,
+          "implementation_energy_error": 6.2450045135165055e-15,
+          "velocity_semidiscrete_time_error": 0.000006089763867622722,
+          "internal_energy_generated_heat_scaled_error": 0.00005453822149930661,
+          "native_min_final_raw_eint": 0.001354051966046101,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 1.2335805902143563e-15,
+          "momentum_absolute_drift": 5.97395397039513e-17,
+          "heat_balance_residual": 3.469446951953614e-18
+        },
+        "cold_rkl2_ratio4": {
+          "status": "PASS",
+          "cycles": 8,
+          "final_time": 0.1,
+          "actual_dt_max": 0.013392857142857144,
+          "actual_cycle_parabolic_ratio_max": 4.000000000000001,
+          "implementation_velocity_error": 5.551115123125783e-16,
+          "implementation_energy_error": 2.8141069721401536e-15,
+          "velocity_semidiscrete_time_error": 0.00009549090835392349,
+          "internal_energy_generated_heat_scaled_error": 0.0008709284171894895,
+          "native_min_final_raw_eint": 0.0013782666639372103,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 1.0793830164375616e-15,
+          "momentum_absolute_drift": 3.2742905609062234e-17,
+          "heat_balance_residual": 3.469446951953614e-18
+        },
+        "cold_rkl2_ratio16": {
+          "status": "FAIL",
+          "cycles": 2,
+          "final_time": 0.1,
+          "actual_dt_max": 0.053571428571428555,
+          "actual_cycle_parabolic_ratio_max": 15.999999999999996,
+          "implementation_velocity_error": 5.551115123125783e-16,
+          "implementation_energy_error": 3.006854025026466e-15,
+          "velocity_semidiscrete_time_error": 0.0010201879138514263,
+          "internal_energy_generated_heat_scaled_error": 0.009816882097896695,
+          "native_min_final_raw_eint": 0.0016458363485181548,
+          "native_substage_minimum_recorded": false,
+          "mass_relative_drift": 0,
+          "total_energy_relative_drift": 6.167902951071781e-16,
+          "momentum_absolute_drift": 2.200930410145574e-17,
+          "heat_balance_residual": 1.3877787807814457e-17
+        }
+      }
+    }
+  },
+  "final_functional": {
+    "cpu": {
+      "waves": {
+        "provenance": {
+          "report_id": "release-waves-cpu-final",
+          "report_sha256": "2701f07742e455b1232d26dfabc53e4efe7acbee9e41a52e81c152ab12b60362",
+          "binary_sha256": "69dc80e4e0393ea2b9ce6d0681fcbde3399371fbfc1f5e4079be9357d4de873d",
+          "source_manifest_sha256": "d670034d2a80e53512a6c9a1f680fe90a9f11e2ea900c421e4ae847966bcb8a1",
+          "selected_source_sha256": {}
+        },
+        "status": "PASS",
+        "cases": {
+          "hydro_isothermal_wave_sts": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 4.440892098500625e-16,
+            "momentum_absolute_drift": 2.3266936269891562e-20,
+            "total_energy_relative_drift": null,
+            "min_saved_raw_internal": null,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          },
+          "hydro_isothermal_wave_explicit": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 4.440892098500625e-16,
+            "momentum_absolute_drift": 1.0164395367051604e-20,
+            "total_energy_relative_drift": null,
+            "min_saved_raw_internal": null,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          },
+          "mhd_isothermal_wave_sts": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 1.1102230246251565e-16,
+            "momentum_absolute_drift": 4.3145740750765924e-20,
+            "total_energy_relative_drift": null,
+            "min_saved_raw_internal": null,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          },
+          "mhd_isothermal_wave_explicit": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 2.4424906541753444e-15,
+            "momentum_absolute_drift": 1.6675961149069038e-20,
+            "total_energy_relative_drift": null,
+            "min_saved_raw_internal": null,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          },
+          "mhd_ideal_wave_sts": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 2.220446049250313e-16,
+            "momentum_absolute_drift": 2.9381455357883543e-20,
+            "total_energy_relative_drift": 6.661338131124311e-16,
+            "min_saved_raw_internal": 1.4999999986745216,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 1
+          },
+          "mhd_ideal_wave_explicit": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 2.4424906541753444e-15,
+            "momentum_absolute_drift": 1.402898318889935e-20,
+            "total_energy_relative_drift": 4.4408920874162075e-16,
+            "min_saved_raw_internal": 1.49999999869374,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          }
+        },
+        "comparisons": {
+          "hydro_isothermal_wave_sts": {
+            "max_absolute": 6.202726088311294e-8
+          },
+          "mhd_isothermal_wave_sts": {
+            "max_absolute": 3.872158761947903e-8
+          },
+          "mhd_ideal_wave_sts": {
+            "max_absolute": 3.3298912127483155e-8
+          }
+        }
+      },
+      "active-amr": {
+        "provenance": {
+          "report_id": "release-active-amr-cpu-final",
+          "report_sha256": "b899082fb28b5c9ae2f4f4ac145896aff12fe7bd2d5c7f86467b39d1ed5b8801",
+          "binary_sha256": "69dc80e4e0393ea2b9ce6d0681fcbde3399371fbfc1f5e4079be9357d4de873d",
+          "selected_source_sha256": {}
+        },
+        "status": "FOCUSED_AMR_PASS",
+        "cases": {
+          "cold_2d_ng2": {
+            "status": "PASS",
+            "cycles": 7,
+            "max_budget_drift": 2.220446049250313e-16,
+            "minimum_internal": 2.4702462297909733e-15,
+            "restart_scaled_error": 0,
+            "restart_budget": 1.7763568394002506e-16,
+            "coarsen_budget": 4.934324115282996e-16,
+            "coarsen_final_blocks": 16,
+            "blocks": [
+              16,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40
+            ],
+            "topology": [
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          "cold_2d_ng4": {
+            "status": "PASS",
+            "cycles": 7,
+            "max_budget_drift": 2.220446049250313e-16,
+            "minimum_internal": 2.4702462297909733e-15,
+            "restart_scaled_error": 0,
+            "restart_budget": 1.7763568394002506e-16,
+            "coarsen_budget": 4.934324115282996e-16,
+            "coarsen_final_blocks": 16,
+            "blocks": [
+              16,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40
+            ],
+            "topology": [
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          "cold_3d_ng2": {
+            "status": "PASS",
+            "cycles": 8,
+            "max_budget_drift": 5.181040781584064e-16,
+            "minimum_internal": 2.581268532253489e-15,
+            "restart_scaled_error": 0,
+            "restart_budget": 5.181040781584064e-16,
+            "coarsen_budget": 5.181040781584064e-16,
+            "coarsen_final_blocks": 8,
+            "blocks": [
+              8,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36
+            ],
+            "topology": [
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          "cold_3d_ng4": {
+            "status": "PASS",
+            "cycles": 8,
+            "max_budget_drift": 5.181040781584064e-16,
+            "minimum_internal": 2.581268532253489e-15,
+            "restart_scaled_error": 0,
+            "restart_budget": 5.181040781584064e-16,
+            "coarsen_budget": 5.181040781584064e-16,
+            "coarsen_final_blocks": 8,
+            "blocks": [
+              8,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36
+            ],
+            "topology": [
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          }
+        },
+        "comparisons": {}
+      },
+      "cooling-mhd": {
+        "provenance": {
+          "report_id": "release-cooling-mhd-cpu-final",
+          "report_sha256": "40f6b04cd5df8bfdd5d8c3ccfaa377b5af39b46d7cc1234d7b5d64ed50e96790",
+          "binary_sha256": "69dc80e4e0393ea2b9ce6d0681fcbde3399371fbfc1f5e4079be9357d4de873d",
+          "source_manifest_sha256": "d670034d2a80e53512a6c9a1f680fe90a9f11e2ea900c421e4ae847966bcb8a1",
+          "selected_source_sha256": {}
+        },
+        "status": "MHD_COOLING_PASS",
+        "cases": {
+          "heated_cooling": {
+            "status": "PASS",
+            "cycles": 1,
+            "time": 0.000005982602199699208,
+            "minimum_internal": 0.000014999999999890101,
+            "whole_cycle_retries": 3,
+            "final_velocity_replay_error": 4.440892098500626e-16,
+            "final_energy_replay_error": 2.6645352591003757e-15,
+            "source_energy_budget_error": 3.5792859493888156e-17,
+            "magnetic_difference": 0,
+            "divb": 0,
+            "events": 0
+          },
+          "heated_no_cooling": {
+            "status": "PASS",
+            "cycles": 1,
+            "time": 0.006547960350591745,
+            "minimum_internal": 0.000014999999999890101,
+            "whole_cycle_retries": 2,
+            "final_velocity_replay_error": 2.220446049250313e-16,
+            "final_energy_replay_error": 2.6645352591003757e-15,
+            "source_energy_budget_error": 8.881784197001252e-16,
+            "magnetic_difference": 0,
+            "divb": 0,
+            "events": 0
+          },
+          "equilibrium_no_shear": {
+            "status": "PASS",
+            "cycles": 1,
+            "time": 0.03926579925650558,
+            "minimum_internal": 0.000015000000000001124,
+            "whole_cycle_retries": 0,
+            "final_velocity_replay_error": 0,
+            "final_energy_replay_error": 1.1533200609814553e-17,
+            "source_energy_budget_error": 1.1533057387815799e-17,
+            "magnetic_difference": 0,
+            "divb": 0,
+            "events": 0
+          }
+        },
+        "comparisons": {}
+      },
+      "user-dt-hooks": {
+        "provenance": {
+          "report_id": "release-user-dt-hooks-cpu-r1-final",
+          "report_sha256": "655c32727b49fdc976ce450023dcd584201518ab2eb28f2d6127b54a1d23bb09",
+          "binary_sha256": "69dc80e4e0393ea2b9ce6d0681fcbde3399371fbfc1f5e4079be9357d4de873d",
+          "selected_source_sha256": {}
+        },
+        "status": "HOOK_AND_RESTART_PASS",
+        "cases": {
+          "hydro_sts_ranks1": {
+            "status": "PASS",
+            "restart_fields_and_clocks": "EXACT",
+            "work_calls_per_rank": 2,
+            "resumed_work_calls_per_rank": 1
+          },
+          "hydro_explicit_ranks1": {
+            "status": "PASS",
+            "restart_fields_and_clocks": "EXACT",
+            "work_calls_per_rank": 2,
+            "resumed_work_calls_per_rank": 1
+          },
+          "mhd_sts_ranks1": {
+            "status": "PASS",
+            "restart_fields_and_clocks": "EXACT",
+            "work_calls_per_rank": 2,
+            "resumed_work_calls_per_rank": 1
+          },
+          "mhd_explicit_ranks1": {
+            "status": "PASS",
+            "restart_fields_and_clocks": "EXACT",
+            "work_calls_per_rank": 2,
+            "resumed_work_calls_per_rank": 1
+          }
+        }
+      },
+      "ghost-geometry": {
+        "provenance": {
+          "report_id": "release-ghost-geometry-cpu-r1-final",
+          "report_sha256": "3683b3f75fc328dca6a18ef97b3ffdc2ec1891dfb1ac30f4885161c5c6fcc9b9",
+          "binary_sha256": "69dc80e4e0393ea2b9ce6d0681fcbde3399371fbfc1f5e4079be9357d4de873d",
+          "source_manifest_sha256": "d670034d2a80e53512a6c9a1f680fe90a9f11e2ea900c421e4ae847966bcb8a1",
+          "selected_source_sha256": {}
+        },
+        "status": "GEOMETRY_PASS",
+        "cases": {
+          "cold_2d_ng2": {
+            "status": "PASS",
+            "max_budget_drift": 3.7007434154171886e-16,
+            "minimum_internal": 9.999999772691837e-9,
+            "final_cycle": 5
+          },
+          "cold_2d_ng4": {
+            "status": "PASS",
+            "max_budget_drift": 3.7007434154171886e-16,
+            "minimum_internal": 9.999999772691837e-9,
+            "final_cycle": 5,
+            "restart_scaled_error": 0,
+            "restart_minimum_internal": 9.999999883714139e-9
+          },
+          "cold_3d_ng2": {
+            "status": "PASS",
+            "max_budget_drift": 1.4802973661668753e-16,
+            "minimum_internal": 9.916059390269183e-9,
+            "final_cycle": 2
+          },
+          "cold_3d_ng4": {
+            "status": "PASS",
+            "max_budget_drift": 1.4802973661668753e-16,
+            "minimum_internal": 9.916059390269183e-9,
+            "final_cycle": 2,
+            "restart_scaled_error": 0,
+            "restart_minimum_internal": 9.94591470293571e-9
+          }
+        }
+      }
+    },
+    "gpu": {
+      "waves": {
+        "provenance": {
+          "report_id": "release-waves-gpu-final",
+          "report_sha256": "84d38fcc766259023ede5f8f0a270767a9c5c139c29da394c12abf248d4e5a1e",
+          "binary_sha256": "0bc48931b1219455720c342f431af4fbbd5bd026c440c74cb9a2f3460a5b6939",
+          "source_manifest_sha256": "d670034d2a80e53512a6c9a1f680fe90a9f11e2ea900c421e4ae847966bcb8a1",
+          "selected_source_sha256": {}
+        },
+        "status": "PASS",
+        "cases": {
+          "hydro_isothermal_wave_sts": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 1.1102230246251568e-16,
+            "momentum_absolute_drift": 1.3552527156068805e-20,
+            "total_energy_relative_drift": null,
+            "min_saved_raw_internal": null,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          },
+          "hydro_isothermal_wave_explicit": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 5.551115123125784e-16,
+            "momentum_absolute_drift": 6.776263578034403e-21,
+            "total_energy_relative_drift": null,
+            "min_saved_raw_internal": null,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          },
+          "mhd_isothermal_wave_sts": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 2.220446049250313e-16,
+            "momentum_absolute_drift": 2.0328790734103208e-20,
+            "total_energy_relative_drift": null,
+            "min_saved_raw_internal": null,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          },
+          "mhd_isothermal_wave_explicit": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 2.220446049250313e-15,
+            "momentum_absolute_drift": 1.3552527156068805e-20,
+            "total_energy_relative_drift": null,
+            "min_saved_raw_internal": null,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          },
+          "mhd_ideal_wave_sts": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 0,
+            "momentum_absolute_drift": 1.0164395367051604e-20,
+            "total_energy_relative_drift": 6.661338131124311e-16,
+            "min_saved_raw_internal": 1.4999999986745185,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 1
+          },
+          "mhd_ideal_wave_explicit": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 2.220446049250313e-15,
+            "momentum_absolute_drift": 1.0164395367051604e-20,
+            "total_energy_relative_drift": 2.2204460437081037e-16,
+            "min_saved_raw_internal": 1.4999999986937418,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          }
+        },
+        "comparisons": {
+          "hydro_isothermal_wave_sts": {
+            "max_absolute": 6.202726066106834e-8
+          },
+          "mhd_isothermal_wave_sts": {
+            "max_absolute": 3.872158761953324e-8
+          },
+          "mhd_ideal_wave_sts": {
+            "max_absolute": 3.32989121274425e-8
+          }
+        }
+      },
+      "active-amr": {
+        "provenance": {
+          "report_id": "release-active-amr-gpu-final",
+          "report_sha256": "7720e8d238ca588b1fe0fea1c6b76f3d03662e6946fdb3599636c1c379247fec",
+          "binary_sha256": "0bc48931b1219455720c342f431af4fbbd5bd026c440c74cb9a2f3460a5b6939",
+          "selected_source_sha256": {}
+        },
+        "status": "FOCUSED_AMR_PASS",
+        "cases": {
+          "cold_2d_ng2": {
+            "status": "PASS",
+            "cycles": 7,
+            "max_budget_drift": 4.440892098500626e-16,
+            "minimum_internal": 2.4702462297909733e-15,
+            "restart_scaled_error": 0,
+            "restart_budget": 4.440892098500626e-16,
+            "coarsen_budget": 5.181040781584064e-16,
+            "coarsen_final_blocks": 16,
+            "blocks": [
+              16,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40
+            ],
+            "topology": [
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          "cold_2d_ng4": {
+            "status": "PASS",
+            "cycles": 7,
+            "max_budget_drift": 4.440892098500626e-16,
+            "minimum_internal": 2.4702462297909733e-15,
+            "restart_scaled_error": 0,
+            "restart_budget": 4.440892098500626e-16,
+            "coarsen_budget": 5.181040781584064e-16,
+            "coarsen_final_blocks": 16,
+            "blocks": [
+              16,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40
+            ],
+            "topology": [
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          "cold_3d_ng2": {
+            "status": "PASS",
+            "cycles": 8,
+            "max_budget_drift": 4.440892098500626e-16,
+            "minimum_internal": 2.525757381022231e-15,
+            "restart_scaled_error": 0,
+            "restart_budget": 4.440892098500626e-16,
+            "coarsen_budget": 2.9605947323337506e-16,
+            "coarsen_final_blocks": 8,
+            "blocks": [
+              8,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36
+            ],
+            "topology": [
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          "cold_3d_ng4": {
+            "status": "PASS",
+            "cycles": 8,
+            "max_budget_drift": 4.440892098500626e-16,
+            "minimum_internal": 2.525757381022231e-15,
+            "restart_scaled_error": 0,
+            "restart_budget": 4.440892098500626e-16,
+            "coarsen_budget": 2.9605947323337506e-16,
+            "coarsen_final_blocks": 8,
+            "blocks": [
+              8,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36
+            ],
+            "topology": [
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          }
+        },
+        "comparisons": {}
+      },
+      "cooling-mhd": {
+        "provenance": {
+          "report_id": "release-cooling-mhd-gpu-final",
+          "report_sha256": "fdc132c1eac99a4f7b21f7416516d5caeb3bd625e760640226f03b7d75b6437b",
+          "binary_sha256": "0bc48931b1219455720c342f431af4fbbd5bd026c440c74cb9a2f3460a5b6939",
+          "source_manifest_sha256": "d670034d2a80e53512a6c9a1f680fe90a9f11e2ea900c421e4ae847966bcb8a1",
+          "selected_source_sha256": {}
+        },
+        "status": "MHD_COOLING_PASS",
+        "cases": {
+          "heated_cooling": {
+            "status": "PASS",
+            "cycles": 1,
+            "time": 0.000005982602199699261,
+            "minimum_internal": 0.000014999999999890101,
+            "whole_cycle_retries": 3,
+            "final_velocity_replay_error": 1.3322676295501878e-15,
+            "final_energy_replay_error": 2.6645352591003757e-15,
+            "source_energy_budget_error": 3.5582265927377055e-17,
+            "magnetic_difference": 0,
+            "divb": 0,
+            "events": 0
+          },
+          "heated_no_cooling": {
+            "status": "PASS",
+            "cycles": 1,
+            "time": 0.006547960350591741,
+            "minimum_internal": 0.000014999999999890101,
+            "whole_cycle_retries": 2,
+            "final_velocity_replay_error": 2.220446049250313e-16,
+            "final_energy_replay_error": 4.440892098500626e-15,
+            "source_energy_budget_error": 8.881784197001252e-16,
+            "magnetic_difference": 0,
+            "divb": 0,
+            "events": 0
+          },
+          "equilibrium_no_shear": {
+            "status": "PASS",
+            "cycles": 1,
+            "time": 0.03926579925650558,
+            "minimum_internal": 0.000015000000000001124,
+            "whole_cycle_retries": 0,
+            "final_velocity_replay_error": 0,
+            "final_energy_replay_error": 1.1248597539537109e-18,
+            "source_energy_budget_error": 1.1247165319549566e-18,
+            "magnetic_difference": 0,
+            "divb": 0,
+            "events": 0
+          }
+        },
+        "comparisons": {}
+      },
+      "user-dt-hooks": {
+        "provenance": {
+          "report_id": "release-user-dt-hooks-gpu-r1-final",
+          "report_sha256": "6ea66fb8731183585264f2cb72a5f2043eb3a9ec820b50375bd6309d96838106",
+          "binary_sha256": "0bc48931b1219455720c342f431af4fbbd5bd026c440c74cb9a2f3460a5b6939",
+          "selected_source_sha256": {}
+        },
+        "status": "HOOK_AND_RESTART_PASS",
+        "cases": {
+          "hydro_sts_ranks1": {
+            "status": "PASS",
+            "restart_fields_and_clocks": "EXACT",
+            "work_calls_per_rank": 2,
+            "resumed_work_calls_per_rank": 1
+          },
+          "hydro_explicit_ranks1": {
+            "status": "PASS",
+            "restart_fields_and_clocks": "EXACT",
+            "work_calls_per_rank": 2,
+            "resumed_work_calls_per_rank": 1
+          },
+          "mhd_sts_ranks1": {
+            "status": "PASS",
+            "restart_fields_and_clocks": "EXACT",
+            "work_calls_per_rank": 2,
+            "resumed_work_calls_per_rank": 1
+          },
+          "mhd_explicit_ranks1": {
+            "status": "PASS",
+            "restart_fields_and_clocks": "EXACT",
+            "work_calls_per_rank": 2,
+            "resumed_work_calls_per_rank": 1
+          }
+        }
+      },
+      "ghost-geometry": {
+        "provenance": {
+          "report_id": "release-ghost-geometry-gpu-r1-final",
+          "report_sha256": "918316eb213f51cd925e0cad4632b2934418eb8d1393e0ff5d59ae6015705af2",
+          "binary_sha256": "0bc48931b1219455720c342f431af4fbbd5bd026c440c74cb9a2f3460a5b6939",
+          "source_manifest_sha256": "d670034d2a80e53512a6c9a1f680fe90a9f11e2ea900c421e4ae847966bcb8a1",
+          "selected_source_sha256": {}
+        },
+        "status": "GEOMETRY_PASS",
+        "cases": {
+          "cold_2d_ng2": {
+            "status": "PASS",
+            "max_budget_drift": 1.4802973661668753e-16,
+            "minimum_internal": 9.99999949513608e-9,
+            "final_cycle": 5
+          },
+          "cold_2d_ng4": {
+            "status": "PASS",
+            "max_budget_drift": 1.4802973661668753e-16,
+            "minimum_internal": 9.99999949513608e-9,
+            "final_cycle": 5,
+            "restart_scaled_error": 0,
+            "restart_minimum_internal": 9.99999949513608e-9
+          },
+          "cold_3d_ng2": {
+            "status": "PASS",
+            "max_budget_drift": 2.467162057641498e-16,
+            "minimum_internal": 9.916059112713427e-9,
+            "final_cycle": 2
+          },
+          "cold_3d_ng4": {
+            "status": "PASS",
+            "max_budget_drift": 2.467162057641498e-16,
+            "minimum_internal": 9.916059112713427e-9,
+            "final_cycle": 2,
+            "restart_scaled_error": 0,
+            "restart_minimum_internal": 9.945914397624378e-9
+          }
+        }
+      }
+    },
+    "mpicpu": {
+      "waves": {
+        "provenance": {
+          "report_id": "release-waves-mpicpu-final",
+          "report_sha256": "020e017d870013dd9b282ddd2c8f59d62ac7a6adeaa882722ec8b44f75fd05ce",
+          "binary_sha256": "69dc80e4e0393ea2b9ce6d0681fcbde3399371fbfc1f5e4079be9357d4de873d",
+          "source_manifest_sha256": "d670034d2a80e53512a6c9a1f680fe90a9f11e2ea900c421e4ae847966bcb8a1",
+          "selected_source_sha256": {}
+        },
+        "status": "PASS",
+        "cases": {
+          "hydro_isothermal_wave_sts": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 4.440892098500625e-16,
+            "momentum_absolute_drift": 3.049318610115481e-20,
+            "total_energy_relative_drift": null,
+            "min_saved_raw_internal": null,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          },
+          "hydro_isothermal_wave_explicit": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 2.2204460492503126e-16,
+            "momentum_absolute_drift": 1.3552527156068805e-20,
+            "total_energy_relative_drift": null,
+            "min_saved_raw_internal": null,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          },
+          "mhd_isothermal_wave_sts": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 2.220446049250313e-16,
+            "momentum_absolute_drift": 3.7269449679189215e-20,
+            "total_energy_relative_drift": null,
+            "min_saved_raw_internal": null,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          },
+          "mhd_isothermal_wave_explicit": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 2.4424906541753444e-15,
+            "momentum_absolute_drift": 2.0328790734103208e-20,
+            "total_energy_relative_drift": null,
+            "min_saved_raw_internal": null,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          },
+          "mhd_ideal_wave_sts": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 1.1102230246251565e-16,
+            "momentum_absolute_drift": 2.710505431213761e-20,
+            "total_energy_relative_drift": 6.661338131124311e-16,
+            "min_saved_raw_internal": 1.4999999986745216,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 1
+          },
+          "mhd_ideal_wave_explicit": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 2.4424906541753444e-15,
+            "momentum_absolute_drift": 1.6940658945086007e-20,
+            "total_energy_relative_drift": 4.4408920874162075e-16,
+            "min_saved_raw_internal": 1.49999999869374,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          }
+        },
+        "comparisons": {
+          "hydro_isothermal_wave_sts": {
+            "max_absolute": 6.202726088311294e-8
+          },
+          "mhd_isothermal_wave_sts": {
+            "max_absolute": 3.872158761947903e-8
+          },
+          "mhd_ideal_wave_sts": {
+            "max_absolute": 3.3298912127483155e-8
+          }
+        }
+      },
+      "active-amr": {
+        "provenance": {
+          "report_id": "release-active-amr-mpicpu-final",
+          "report_sha256": "05228bdb41c7ae4e4c564d87f33e0dafa731b9585f81394695a63f2819cd14c5",
+          "binary_sha256": "69dc80e4e0393ea2b9ce6d0681fcbde3399371fbfc1f5e4079be9357d4de873d",
+          "selected_source_sha256": {}
+        },
+        "status": "FOCUSED_AMR_PASS",
+        "cases": {
+          "cold_2d_ng2": {
+            "status": "PASS",
+            "cycles": 7,
+            "max_budget_drift": 2.220446049250313e-16,
+            "minimum_internal": 2.4702462297909733e-15,
+            "restart_scaled_error": 0,
+            "restart_budget": 1.7763568394002506e-16,
+            "coarsen_budget": 4.934324115282996e-16,
+            "coarsen_final_blocks": 16,
+            "blocks": [
+              16,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40
+            ],
+            "topology": [
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          "cold_2d_ng4": {
+            "status": "PASS",
+            "cycles": 7,
+            "max_budget_drift": 2.220446049250313e-16,
+            "minimum_internal": 2.4702462297909733e-15,
+            "restart_scaled_error": 0,
+            "restart_budget": 1.7763568394002506e-16,
+            "coarsen_budget": 4.934324115282996e-16,
+            "coarsen_final_blocks": 16,
+            "blocks": [
+              16,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40
+            ],
+            "topology": [
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          "cold_3d_ng2": {
+            "status": "PASS",
+            "cycles": 8,
+            "max_budget_drift": 5.181040781584064e-16,
+            "minimum_internal": 2.581268532253489e-15,
+            "restart_scaled_error": 0,
+            "restart_budget": 5.181040781584064e-16,
+            "coarsen_budget": 5.181040781584064e-16,
+            "coarsen_final_blocks": 8,
+            "blocks": [
+              8,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36
+            ],
+            "topology": [
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          "cold_3d_ng4": {
+            "status": "PASS",
+            "cycles": 8,
+            "max_budget_drift": 5.181040781584064e-16,
+            "minimum_internal": 2.581268532253489e-15,
+            "restart_scaled_error": 0,
+            "restart_budget": 5.181040781584064e-16,
+            "coarsen_budget": 5.181040781584064e-16,
+            "coarsen_final_blocks": 8,
+            "blocks": [
+              8,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36
+            ],
+            "topology": [
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          }
+        },
+        "comparisons": {}
+      },
+      "cooling-mhd": {
+        "provenance": {
+          "report_id": "release-cooling-mhd-mpicpu-final",
+          "report_sha256": "37d61ffef772d8ccf12821fccc8cb00565b89d277a2fc7941c8d590ae08809e4",
+          "binary_sha256": "69dc80e4e0393ea2b9ce6d0681fcbde3399371fbfc1f5e4079be9357d4de873d",
+          "source_manifest_sha256": "d670034d2a80e53512a6c9a1f680fe90a9f11e2ea900c421e4ae847966bcb8a1",
+          "selected_source_sha256": {}
+        },
+        "status": "MHD_COOLING_PASS",
+        "cases": {
+          "heated_cooling": {
+            "status": "PASS",
+            "cycles": 1,
+            "time": 0.000005982602199699208,
+            "minimum_internal": 0.000014999999999890101,
+            "whole_cycle_retries": 3,
+            "final_velocity_replay_error": 4.440892098500626e-16,
+            "final_energy_replay_error": 2.6645352591003757e-15,
+            "source_energy_budget_error": 3.5792859493888156e-17,
+            "magnetic_difference": 0,
+            "divb": 0,
+            "events": 0
+          },
+          "heated_no_cooling": {
+            "status": "PASS",
+            "cycles": 1,
+            "time": 0.006547960350591745,
+            "minimum_internal": 0.000014999999999890101,
+            "whole_cycle_retries": 2,
+            "final_velocity_replay_error": 2.220446049250313e-16,
+            "final_energy_replay_error": 2.6645352591003757e-15,
+            "source_energy_budget_error": 8.881784197001252e-16,
+            "magnetic_difference": 0,
+            "divb": 0,
+            "events": 0
+          },
+          "equilibrium_no_shear": {
+            "status": "PASS",
+            "cycles": 1,
+            "time": 0.03926579925650558,
+            "minimum_internal": 0.000015000000000001124,
+            "whole_cycle_retries": 0,
+            "final_velocity_replay_error": 0,
+            "final_energy_replay_error": 1.1533200609814553e-17,
+            "source_energy_budget_error": 1.1533057387815799e-17,
+            "magnetic_difference": 0,
+            "divb": 0,
+            "events": 0
+          }
+        },
+        "comparisons": {}
+      },
+      "user-dt-hooks": {
+        "provenance": {
+          "report_id": "release-user-dt-hooks-cpu-r2-final",
+          "report_sha256": "6853bbb8ca699997ff82e7db5e31ad6f8f82d8fa0b6008dcf25be1baeea810bc",
+          "binary_sha256": "69dc80e4e0393ea2b9ce6d0681fcbde3399371fbfc1f5e4079be9357d4de873d",
+          "selected_source_sha256": {}
+        },
+        "status": "HOOK_AND_RESTART_PASS",
+        "cases": {
+          "hydro_sts_ranks2": {
+            "status": "PASS",
+            "restart_fields_and_clocks": "EXACT",
+            "work_calls_per_rank": 2,
+            "resumed_work_calls_per_rank": 1
+          },
+          "hydro_explicit_ranks2": {
+            "status": "PASS",
+            "restart_fields_and_clocks": "EXACT",
+            "work_calls_per_rank": 2,
+            "resumed_work_calls_per_rank": 1
+          },
+          "mhd_sts_ranks2": {
+            "status": "PASS",
+            "restart_fields_and_clocks": "EXACT",
+            "work_calls_per_rank": 2,
+            "resumed_work_calls_per_rank": 1
+          },
+          "mhd_explicit_ranks2": {
+            "status": "PASS",
+            "restart_fields_and_clocks": "EXACT",
+            "work_calls_per_rank": 2,
+            "resumed_work_calls_per_rank": 1
+          }
+        }
+      },
+      "ghost-geometry": {
+        "provenance": {
+          "report_id": "release-ghost-geometry-cpu-r2-final",
+          "report_sha256": "3683b3f75fc328dca6a18ef97b3ffdc2ec1891dfb1ac30f4885161c5c6fcc9b9",
+          "binary_sha256": "69dc80e4e0393ea2b9ce6d0681fcbde3399371fbfc1f5e4079be9357d4de873d",
+          "source_manifest_sha256": "d670034d2a80e53512a6c9a1f680fe90a9f11e2ea900c421e4ae847966bcb8a1",
+          "selected_source_sha256": {}
+        },
+        "status": "GEOMETRY_PASS",
+        "cases": {
+          "cold_2d_ng2": {
+            "status": "PASS",
+            "max_budget_drift": 3.7007434154171886e-16,
+            "minimum_internal": 9.999999772691837e-9,
+            "final_cycle": 5
+          },
+          "cold_2d_ng4": {
+            "status": "PASS",
+            "max_budget_drift": 3.7007434154171886e-16,
+            "minimum_internal": 9.999999772691837e-9,
+            "final_cycle": 5,
+            "restart_scaled_error": 0,
+            "restart_minimum_internal": 9.999999883714139e-9
+          },
+          "cold_3d_ng2": {
+            "status": "PASS",
+            "max_budget_drift": 1.4802973661668753e-16,
+            "minimum_internal": 9.916059390269183e-9,
+            "final_cycle": 2
+          },
+          "cold_3d_ng4": {
+            "status": "PASS",
+            "max_budget_drift": 1.4802973661668753e-16,
+            "minimum_internal": 9.916059390269183e-9,
+            "final_cycle": 2,
+            "restart_scaled_error": 0,
+            "restart_minimum_internal": 9.94591470293571e-9
+          }
+        }
+      }
+    },
+    "mpigpu": {
+      "waves": {
+        "provenance": {
+          "report_id": "release-waves-mpigpu-final",
+          "report_sha256": "d559560237e576aa709ebbe6c67e6aedb6b160c56a8271bc4f6dfdafede5dfd0",
+          "binary_sha256": "0bc48931b1219455720c342f431af4fbbd5bd026c440c74cb9a2f3460a5b6939",
+          "source_manifest_sha256": "d670034d2a80e53512a6c9a1f680fe90a9f11e2ea900c421e4ae847966bcb8a1",
+          "selected_source_sha256": {}
+        },
+        "status": "PASS",
+        "cases": {
+          "hydro_isothermal_wave_sts": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 1.1102230246251568e-16,
+            "momentum_absolute_drift": 1.3552527156068805e-20,
+            "total_energy_relative_drift": null,
+            "min_saved_raw_internal": null,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          },
+          "hydro_isothermal_wave_explicit": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 5.551115123125784e-16,
+            "momentum_absolute_drift": 6.776263578034403e-21,
+            "total_energy_relative_drift": null,
+            "min_saved_raw_internal": null,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          },
+          "mhd_isothermal_wave_sts": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 2.220446049250313e-16,
+            "momentum_absolute_drift": 2.0328790734103208e-20,
+            "total_energy_relative_drift": null,
+            "min_saved_raw_internal": null,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          },
+          "mhd_isothermal_wave_explicit": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 2.220446049250313e-15,
+            "momentum_absolute_drift": 1.3552527156068805e-20,
+            "total_energy_relative_drift": null,
+            "min_saved_raw_internal": null,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          },
+          "mhd_ideal_wave_sts": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 0,
+            "momentum_absolute_drift": 1.0164395367051604e-20,
+            "total_energy_relative_drift": 6.661338131124311e-16,
+            "min_saved_raw_internal": 1.4999999986745185,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 1
+          },
+          "mhd_ideal_wave_explicit": {
+            "status": "PASS",
+            "time": 0.08,
+            "mass_relative_drift": 2.220446049250313e-15,
+            "momentum_absolute_drift": 1.0164395367051604e-20,
+            "total_energy_relative_drift": 2.2204460437081037e-16,
+            "min_saved_raw_internal": 1.4999999986937418,
+            "max_saved_divb": 0,
+            "zero_floor_fofc_events": true,
+            "retry_count": 0,
+            "pre_fluid_cfl_retry_count": 0
+          }
+        },
+        "comparisons": {
+          "hydro_isothermal_wave_sts": {
+            "max_absolute": 6.202726066106834e-8
+          },
+          "mhd_isothermal_wave_sts": {
+            "max_absolute": 3.872158761953324e-8
+          },
+          "mhd_ideal_wave_sts": {
+            "max_absolute": 3.32989121274425e-8
+          }
+        }
+      },
+      "active-amr": {
+        "provenance": {
+          "report_id": "release-active-amr-mpigpu-final",
+          "report_sha256": "493a4952a146dfcada68f34eb25138ed1a239d0b67ec26166c62e8c11f5272fd",
+          "binary_sha256": "0bc48931b1219455720c342f431af4fbbd5bd026c440c74cb9a2f3460a5b6939",
+          "selected_source_sha256": {}
+        },
+        "status": "FOCUSED_AMR_PASS",
+        "cases": {
+          "cold_2d_ng2": {
+            "status": "PASS",
+            "cycles": 7,
+            "max_budget_drift": 4.440892098500626e-16,
+            "minimum_internal": 2.4702462297909733e-15,
+            "restart_scaled_error": 0,
+            "restart_budget": 4.440892098500626e-16,
+            "coarsen_budget": 5.181040781584064e-16,
+            "coarsen_final_blocks": 16,
+            "blocks": [
+              16,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40
+            ],
+            "topology": [
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          "cold_2d_ng4": {
+            "status": "PASS",
+            "cycles": 7,
+            "max_budget_drift": 4.440892098500626e-16,
+            "minimum_internal": 2.4702462297909733e-15,
+            "restart_scaled_error": 0,
+            "restart_budget": 4.440892098500626e-16,
+            "coarsen_budget": 5.181040781584064e-16,
+            "coarsen_final_blocks": 16,
+            "blocks": [
+              16,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40
+            ],
+            "topology": [
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          "cold_3d_ng2": {
+            "status": "PASS",
+            "cycles": 8,
+            "max_budget_drift": 4.440892098500626e-16,
+            "minimum_internal": 2.525757381022231e-15,
+            "restart_scaled_error": 0,
+            "restart_budget": 4.440892098500626e-16,
+            "coarsen_budget": 2.9605947323337506e-16,
+            "coarsen_final_blocks": 8,
+            "blocks": [
+              8,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36
+            ],
+            "topology": [
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          "cold_3d_ng4": {
+            "status": "PASS",
+            "cycles": 8,
+            "max_budget_drift": 4.440892098500626e-16,
+            "minimum_internal": 2.525757381022231e-15,
+            "restart_scaled_error": 0,
+            "restart_budget": 4.440892098500626e-16,
+            "coarsen_budget": 2.9605947323337506e-16,
+            "coarsen_final_blocks": 8,
+            "blocks": [
+              8,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36,
+              36
+            ],
+            "topology": [
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          }
+        },
+        "comparisons": {}
+      },
+      "cooling-mhd": {
+        "provenance": {
+          "report_id": "release-cooling-mhd-mpigpu-final",
+          "report_sha256": "6b212b5454fdd333ba7c114f13455ed5607292419a895c0c215418206d317600",
+          "binary_sha256": "0bc48931b1219455720c342f431af4fbbd5bd026c440c74cb9a2f3460a5b6939",
+          "source_manifest_sha256": "d670034d2a80e53512a6c9a1f680fe90a9f11e2ea900c421e4ae847966bcb8a1",
+          "selected_source_sha256": {}
+        },
+        "status": "MHD_COOLING_PASS",
+        "cases": {
+          "heated_cooling": {
+            "status": "PASS",
+            "cycles": 1,
+            "time": 0.000005982602199699261,
+            "minimum_internal": 0.000014999999999890101,
+            "whole_cycle_retries": 3,
+            "final_velocity_replay_error": 1.3322676295501878e-15,
+            "final_energy_replay_error": 2.6645352591003757e-15,
+            "source_energy_budget_error": 3.5582265927377055e-17,
+            "magnetic_difference": 0,
+            "divb": 0,
+            "events": 0
+          },
+          "heated_no_cooling": {
+            "status": "PASS",
+            "cycles": 1,
+            "time": 0.006547960350591741,
+            "minimum_internal": 0.000014999999999890101,
+            "whole_cycle_retries": 2,
+            "final_velocity_replay_error": 2.220446049250313e-16,
+            "final_energy_replay_error": 4.440892098500626e-15,
+            "source_energy_budget_error": 8.881784197001252e-16,
+            "magnetic_difference": 0,
+            "divb": 0,
+            "events": 0
+          },
+          "equilibrium_no_shear": {
+            "status": "PASS",
+            "cycles": 1,
+            "time": 0.03926579925650558,
+            "minimum_internal": 0.000015000000000001124,
+            "whole_cycle_retries": 0,
+            "final_velocity_replay_error": 0,
+            "final_energy_replay_error": 1.1248597539537109e-18,
+            "source_energy_budget_error": 1.1247165319549566e-18,
+            "magnetic_difference": 0,
+            "divb": 0,
+            "events": 0
+          }
+        },
+        "comparisons": {}
+      },
+      "user-dt-hooks": {
+        "provenance": {
+          "report_id": "release-user-dt-hooks-gpu-r2-final",
+          "report_sha256": "9c8c6e998ebec6762cf6e3705b9450ee205d9362d709cb407613d3bd6837e26a",
+          "binary_sha256": "0bc48931b1219455720c342f431af4fbbd5bd026c440c74cb9a2f3460a5b6939",
+          "selected_source_sha256": {}
+        },
+        "status": "HOOK_AND_RESTART_PASS",
+        "cases": {
+          "hydro_sts_ranks2": {
+            "status": "PASS",
+            "restart_fields_and_clocks": "EXACT",
+            "work_calls_per_rank": 2,
+            "resumed_work_calls_per_rank": 1
+          },
+          "hydro_explicit_ranks2": {
+            "status": "PASS",
+            "restart_fields_and_clocks": "EXACT",
+            "work_calls_per_rank": 2,
+            "resumed_work_calls_per_rank": 1
+          },
+          "mhd_sts_ranks2": {
+            "status": "PASS",
+            "restart_fields_and_clocks": "EXACT",
+            "work_calls_per_rank": 2,
+            "resumed_work_calls_per_rank": 1
+          },
+          "mhd_explicit_ranks2": {
+            "status": "PASS",
+            "restart_fields_and_clocks": "EXACT",
+            "work_calls_per_rank": 2,
+            "resumed_work_calls_per_rank": 1
+          }
+        }
+      },
+      "ghost-geometry": {
+        "provenance": {
+          "report_id": "release-ghost-geometry-gpu-r2-final",
+          "report_sha256": "918316eb213f51cd925e0cad4632b2934418eb8d1393e0ff5d59ae6015705af2",
+          "binary_sha256": "0bc48931b1219455720c342f431af4fbbd5bd026c440c74cb9a2f3460a5b6939",
+          "source_manifest_sha256": "d670034d2a80e53512a6c9a1f680fe90a9f11e2ea900c421e4ae847966bcb8a1",
+          "selected_source_sha256": {}
+        },
+        "status": "GEOMETRY_PASS",
+        "cases": {
+          "cold_2d_ng2": {
+            "status": "PASS",
+            "max_budget_drift": 1.4802973661668753e-16,
+            "minimum_internal": 9.99999949513608e-9,
+            "final_cycle": 5
+          },
+          "cold_2d_ng4": {
+            "status": "PASS",
+            "max_budget_drift": 1.4802973661668753e-16,
+            "minimum_internal": 9.99999949513608e-9,
+            "final_cycle": 5,
+            "restart_scaled_error": 0,
+            "restart_minimum_internal": 9.99999949513608e-9
+          },
+          "cold_3d_ng2": {
+            "status": "PASS",
+            "max_budget_drift": 2.467162057641498e-16,
+            "minimum_internal": 9.916059112713427e-9,
+            "final_cycle": 2
+          },
+          "cold_3d_ng4": {
+            "status": "PASS",
+            "max_budget_drift": 2.467162057641498e-16,
+            "minimum_internal": 9.916059112713427e-9,
+            "final_cycle": 2,
+            "restart_scaled_error": 0,
+            "restart_minimum_internal": 9.945914397624378e-9
+          }
+        }
+      }
+    }
+  },
+  "amr_end_to_end": {
+    "provenance": {
+      "report_id": "standard-active-amr-accuracy-cpu-01",
+      "report_sha256": "d8d0715c74601be6bc565380e4aa6388fee9106654629ac88654e3c9376e4ffe",
+      "binary_sha256": "0cf011aeccb12e4ac4222eedcfcdd93e16908c7a557f03f3477555a9c4325817",
+      "source_manifest_sha256": "7eda3abf3915e05a6928c8e049584b0ea3d3ef70d8a3960f274914ad9793b93a",
+      "selected_source_sha256": {}
+    },
+    "epoch": "standard-operator follow-up, preceding final source selection",
+    "status": "FAIL",
+    "gates": {
+      "spatial_l1": 0.03,
+      "ratio16_vs025_l1": 0.005,
+      "ratio4_vs025_l1": 0.005,
+      "ratio1_vs025_l1": 0.005,
+      "fine_reference_l1": 0.001,
+      "budget_scaled": 5e-12,
+      "floor_events": 0
+    },
+    "cases": {
+      "amr_r16": {
+        "status": "PASS",
+        "cycles": 5,
+        "minimum_internal": 9.999998412668631e-9,
+        "budget_drift": 7.84557604068444e-15,
+        "topology": 1
+      },
+      "amr_r4": {
+        "status": "PASS",
+        "cycles": 29,
+        "minimum_internal": 9.99999905104687e-9,
+        "budget_drift": 1.3248661427193534e-14,
+        "topology": 1
+      },
+      "amr_r1": {
+        "status": "PASS",
+        "cycles": 125,
+        "minimum_internal": 9.999997330201182e-9,
+        "budget_drift": 7.47550169914272e-15,
+        "topology": 1
+      },
+      "amr_r0.25": {
+        "status": "PASS",
+        "cycles": 507,
+        "minimum_internal": 9.999994415865743e-9,
+        "budget_drift": 1.3569391317028274e-14,
+        "topology": 1
+      },
+      "fine_r0.25": {
+        "status": "PASS",
+        "cycles": 510,
+        "minimum_internal": 9.999994721177075e-9,
+        "budget_drift": 4.66293628894216e-14,
+        "topology": 0
+      },
+      "fine_r0.125": {
+        "status": "PASS",
+        "cycles": 1020,
+        "minimum_internal": 9.999987199416083e-9,
+        "budget_drift": 4.070817395108235e-14,
+        "topology": 0
+      },
+      "coarse_r0.25": {
+        "status": "PASS",
+        "cycles": 128,
+        "minimum_internal": 9.999999328602627e-9,
+        "budget_drift": 5.551115123125783e-15,
+        "topology": 0
+      }
+    },
+    "comparisons": {
+      "amr_r16_vs025": {
+        "velocity": 0.0010748415538026565,
+        "energy": 0.025979214465828716
+      },
+      "amr_r4_vs025": {
+        "velocity": 0.0011779411635805968,
+        "energy": 0.010503958316909145
+      },
+      "amr_r1_vs025": {
+        "velocity": 0.0003690223380530119,
+        "energy": 0.0035229151244354595
+      },
+      "fine_reference": {
+        "velocity": 6.7099324411260454e-9,
+        "energy": 0.0000017534015414674472
+      },
+      "amr_r0.25_space": {
+        "velocity": 0.002830875755867146,
+        "energy": 0.012718748026956129
+      },
+      "coarse_r0.25_space": {
+        "velocity": 0.003834492715616522,
+        "energy": 0.016822621094820623
+      }
+    },
+    "checks": {
+      "ratio16_vs025": false,
+      "ratio4_vs025": false,
+      "ratio1_vs025": true,
+      "fine_reference": true,
+      "spatial": true
+    },
+    "energy_normalization": "Initial total-energy density 0.11250001, not initial internal energy."
+  },
+  "amr_fixed_remap": {
+    "provenance": {
+      "report_id": "standard-active-amr-restart-accuracy-cpu-01",
+      "report_sha256": "259ad3ef645e3d1f29997d39ebf0abe6458606f0064b3c3ac9f06c4787cffaf9",
+      "binary_sha256": "0cf011aeccb12e4ac4222eedcfcdd93e16908c7a557f03f3477555a9c4325817",
+      "source_manifest_sha256": "7eda3abf3915e05a6928c8e049584b0ea3d3ef70d8a3960f274914ad9793b93a",
+      "selected_source_sha256": {}
+    },
+    "epoch": "standard-operator follow-up, preceding final source selection",
+    "status": "FIXED_REMAP_TEMPORAL_PASS",
+    "gate": 0.005,
+    "cases": {
+      "r16": {
+        "status": "PASS",
+        "minimum_internal": 9.999998412668631e-9,
+        "final_cycle": 5,
+        "budget_drift": 9.498573921919767e-15,
+        "final_time": 0.02
+      },
+      "r4": {
+        "status": "PASS",
+        "minimum_internal": 9.999998967780144e-9,
+        "final_cycle": 17,
+        "budget_drift": 9.498573921919767e-15,
+        "final_time": 0.02
+      },
+      "r1": {
+        "status": "PASS",
+        "minimum_internal": 9.999999717180685e-9,
+        "final_cycle": 65,
+        "budget_drift": 1.5543122344752192e-15,
+        "final_time": 0.02
+      },
+      "r0.25": {
+        "status": "PASS",
+        "minimum_internal": 9.99999202888624e-9,
+        "final_cycle": 255,
+        "budget_drift": 2.220445851877348e-15,
+        "final_time": 0.02
+      }
+    },
+    "comparisons": {
+      "r16_vs025": {
+        "velocity": 0.000012588428215445462,
+        "energy": 0.00007236282199709724
+      },
+      "r4_vs025": {
+        "velocity": 0.0000011279089187213205,
+        "energy": 0.000004920985750961045
+      },
+      "r1_vs025": {
+        "velocity": 6.554623860893552e-8,
+        "energy": 2.602220574416372e-7
+      }
+    },
+    "checks": {
+      "r16_vs025": true,
+      "r4_vs025": true,
+      "r1_vs025": true
+    },
+    "shared_start_time": 0.010044642857142854,
+    "uninterrupted_gap": 0,
+    "qualification": "Common native post-refinement checkpoint isolates subsequent time integration; does not replace end-to-end failures."
+  }
+}

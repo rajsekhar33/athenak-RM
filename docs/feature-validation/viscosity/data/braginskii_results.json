@@ -1,0 +1,1898 @@
+{
+  "schema_version": 1,
+  "operator_and_configuration": {
+    "native_flux_gpu": {
+      "provenance": {
+        "report_id": "centered-native-flux-gpu-01",
+        "report_sha256": "08f01f5bdc2d17a52158b75b22d13cd439457910a91d674cabf96744fc1aaa7f",
+        "binary_sha256": "a55d60b5b524dfccbf6a8a0588e04141d6214a43dad116ffc89e59a1c0322f71"
+      },
+      "passed": true,
+      "scope": "NATIVE_FLUX_KERNEL_ONLY_NOT_EVOLUTION_OR_STS",
+      "cases": [
+        {
+          "name": "wave1d",
+          "pass_flux": true,
+          "scaled_flux_error": 0,
+          "density_flux_untouched": true,
+          "isothermal_energy_untouched": true,
+          "periodic_budget_scaled_error": 0
+        },
+        {
+          "name": "wave2d",
+          "pass_flux": true,
+          "scaled_flux_error": 0,
+          "density_flux_untouched": true,
+          "isothermal_energy_untouched": true,
+          "periodic_budget_scaled_error": 0
+        },
+        {
+          "name": "wave3d",
+          "pass_flux": true,
+          "scaled_flux_error": 8.881784197001252e-16,
+          "density_flux_untouched": true,
+          "isothermal_energy_untouched": true,
+          "periodic_budget_scaled_error": 0
+        },
+        {
+          "name": "affine1d",
+          "pass_flux": true,
+          "scaled_flux_error": 0,
+          "density_flux_untouched": true,
+          "isothermal_energy_untouched": true
+        },
+        {
+          "name": "affine2d",
+          "pass_flux": true,
+          "scaled_flux_error": 0,
+          "density_flux_untouched": true,
+          "isothermal_energy_untouched": true
+        },
+        {
+          "name": "affine3d",
+          "pass_flux": true,
+          "scaled_flux_error": 8.881784197001252e-16,
+          "density_flux_untouched": true,
+          "isothermal_energy_untouched": true
+        },
+        {
+          "name": "rotation",
+          "pass_flux": true,
+          "scaled_flux_error": 0,
+          "density_flux_untouched": true,
+          "isothermal_energy_untouched": true
+        },
+        {
+          "name": "dilation",
+          "pass_flux": true,
+          "scaled_flux_error": 0,
+          "density_flux_untouched": true,
+          "isothermal_energy_untouched": true
+        },
+        {
+          "name": "varying_b",
+          "pass_flux": true,
+          "scaled_flux_error": 8.881784197001252e-16,
+          "density_flux_untouched": true,
+          "isothermal_energy_untouched": true,
+          "periodic_budget_scaled_error": 2.7755575615628914e-17
+        },
+        {
+          "name": "density",
+          "pass_flux": true,
+          "scaled_flux_error": 8.881784197001252e-16,
+          "density_flux_untouched": true,
+          "isothermal_energy_untouched": true,
+          "periodic_budget_scaled_error": 1.4365678785432934e-17
+        },
+        {
+          "name": "extrema",
+          "pass_flux": true,
+          "scaled_flux_error": 0,
+          "density_flux_untouched": true,
+          "isothermal_energy_untouched": true,
+          "periodic_budget_scaled_error": 9.10586252860761e-19
+        },
+        {
+          "name": "zero_nu",
+          "pass_flux": true,
+          "scaled_flux_error": 0,
+          "density_flux_untouched": true,
+          "isothermal_energy_untouched": true,
+          "periodic_budget_scaled_error": 0
+        },
+        {
+          "name": "zero_b",
+          "pass_flux": true,
+          "scaled_flux_error": 0,
+          "density_flux_untouched": true,
+          "isothermal_energy_untouched": true,
+          "periodic_budget_scaled_error": 0
+        },
+        {
+          "name": "reversed_b",
+          "pass_flux": true,
+          "scaled_flux_error": 0,
+          "density_flux_untouched": true,
+          "isothermal_energy_untouched": true,
+          "periodic_budget_scaled_error": 0
+        },
+        {
+          "name": "tiny_b",
+          "pass_flux": true,
+          "scaled_flux_error": 0,
+          "density_flux_untouched": true,
+          "isothermal_energy_untouched": true,
+          "periodic_budget_scaled_error": 0
+        },
+        {
+          "name": "huge_b",
+          "pass_flux": true,
+          "scaled_flux_error": 0,
+          "density_flux_untouched": true,
+          "isothermal_energy_untouched": true,
+          "periodic_budget_scaled_error": 0
+        },
+        {
+          "name": "additive",
+          "pass_flux": true,
+          "scaled_flux_error": 8.881784197001252e-16,
+          "density_flux_untouched": true,
+          "isothermal_energy_untouched": true,
+          "periodic_budget_scaled_error": 0
+        },
+        {
+          "name": "isothermal",
+          "pass_flux": true,
+          "scaled_flux_error": 0,
+          "density_flux_untouched": true,
+          "isothermal_energy_untouched": true,
+          "periodic_budget_scaled_error": 0
+        }
+      ]
+    },
+    "guards_cpu": {
+      "provenance": {
+        "report_id": "centered-sts-guards-cpu-01",
+        "report_sha256": "2919dd4afcf5a7b523d9ac4ed8a07f1d59357ab763aac3f1422097fe3798af70",
+        "binary_sha256": "c8f817c747b7c5e0fc893f04118cee8603a4a8485c32edd4b426f6c056b19ba6"
+      },
+      "passed": true,
+      "scope": "Targeted configuration acceptance and rejection",
+      "cases": [
+        {
+          "name": "anisotropic_sts",
+          "passed": true
+        },
+        {
+          "name": "sts_without_global_integrator",
+          "passed": true
+        },
+        {
+          "name": "static_refinement",
+          "passed": true
+        },
+        {
+          "name": "hydro",
+          "passed": true
+        },
+        {
+          "name": "aniso_dt",
+          "passed": true
+        },
+        {
+          "name": "iso_dt",
+          "passed": true
+        },
+        {
+          "name": "combined_dt",
+          "passed": true
+        }
+      ]
+    },
+    "guards_gpu": {
+      "provenance": {
+        "report_id": "centered-sts-guards-gpu-01",
+        "report_sha256": "c6db5038050ba839f98ad80df00142e483e03d81c050b0ac8d0abb668dcf6725",
+        "binary_sha256": "a07aad0e4ea7f72f8e53f87bc6bb44dc8d2934f25174d04df4c9a4a9614711f7"
+      },
+      "passed": true,
+      "scope": "Targeted configuration acceptance and rejection",
+      "cases": [
+        {
+          "name": "anisotropic_sts",
+          "passed": true
+        },
+        {
+          "name": "sts_without_global_integrator",
+          "passed": true
+        },
+        {
+          "name": "static_refinement",
+          "passed": true
+        },
+        {
+          "name": "hydro",
+          "passed": true
+        },
+        {
+          "name": "aniso_dt",
+          "passed": true
+        },
+        {
+          "name": "iso_dt",
+          "passed": true
+        },
+        {
+          "name": "combined_dt",
+          "passed": true
+        }
+      ]
+    }
+  },
+  "feature_commit": "02b50eca0bb01364636dcaa36d650175a10db5f5",
+  "parent_commit": "31556aa884b1d9ebaac13285a009c21f95c6ee3b",
+  "scope": "IDEFIX-style centered asymmetric CT-aware face stress; constant parallel Braginskii coefficient on uniform grids. Earlier centered spatial studies and final integration evidence are distinguished.",
+  "rotated_waves": {
+    "provenance": {
+      "report_id": "centered-rotated2d-gpu-01",
+      "report_sha256": "7e2e53a9656364cb40ba4019934d5213edd00fe396eb51f73d86c0e5ecf53240",
+      "binary_sha256": "a1bded1978c3a19b335dd3a25b5e9376ca5a0512f42206223ce9a46048f7370e",
+      "selected_source_sha256": {
+        "src/diffusion/viscosity.cpp": "cc4ebba683567f5dabb49573ef08e158af07d8cb51b994534e0a94006b882729",
+        "src/diffusion/viscosity.hpp": "4d371b589267168959b8cbb6437d146ae2d664d348161f2c1066543d4f6b2ea4",
+        "src/mhd/mhd_sts.cpp": "d4c8a9f25c4cef7d009a2050c72e9ae44d11228d68f5ca0317ced960382438f3"
+      }
+    },
+    "epoch": "earlier centered spatial-operator study, before final STS guard changes",
+    "cases": [
+      {
+        "kind": "fast_oblique",
+        "dim": 2,
+        "n": 32,
+        "cfl": 0.3,
+        "amplitude": 0.000001,
+        "nu": 0.05,
+        "target_time": 0.2,
+        "passed": true,
+        "field_relative_l2": 0.015925607805717158,
+        "modal_relative_error": 0.005970268028745363,
+        "measured_growth": -0.09352479386439809,
+        "expected_growth": -0.07258482780071684,
+        "conserved_budget_absolute": 2.8449465006019636e-16,
+        "maximum_divb": 4.773081077414168e-14,
+        "minimum_pressure": 0.5999992897740929
+      },
+      {
+        "kind": "fast_oblique",
+        "dim": 2,
+        "n": 64,
+        "cfl": 0.3,
+        "amplitude": 0.000001,
+        "nu": 0.05,
+        "target_time": 0.2,
+        "passed": true,
+        "field_relative_l2": 0.003654685899231272,
+        "modal_relative_error": 0.0013382693227468965,
+        "measured_growth": -0.07536804463715385,
+        "expected_growth": -0.07258482780071684,
+        "conserved_budget_absolute": 3.2439329000766293e-16,
+        "maximum_divb": 1.5826531987958603e-13,
+        "minimum_pressure": 0.5999992763393752
+      },
+      {
+        "kind": "slow_oblique",
+        "dim": 2,
+        "n": 32,
+        "cfl": 0.3,
+        "amplitude": 0.000001,
+        "nu": 0.05,
+        "target_time": 0.2,
+        "passed": true,
+        "field_relative_l2": 0.004556981082768202,
+        "modal_relative_error": 0.002804065078727972,
+        "measured_growth": -0.5715057192304197,
+        "expected_growth": -0.5602400652313279,
+        "conserved_budget_absolute": 7.871307772244762e-17,
+        "maximum_divb": 4.8986884825471025e-14,
+        "minimum_pressure": 0.5999993576454726
+      },
+      {
+        "kind": "slow_oblique",
+        "dim": 2,
+        "n": 64,
+        "cfl": 0.3,
+        "amplitude": 0.000001,
+        "nu": 0.05,
+        "target_time": 0.2,
+        "passed": true,
+        "field_relative_l2": 0.0008908476516192261,
+        "modal_relative_error": 0.0005586968845208687,
+        "measured_growth": -0.5619150939693036,
+        "expected_growth": -0.5602400652313279,
+        "conserved_budget_absolute": 4.948569765766964e-16,
+        "maximum_divb": 2.424222758129382e-13,
+        "minimum_pressure": 0.5999993505598543
+      },
+      {
+        "kind": "alfven",
+        "dim": 2,
+        "n": 32,
+        "cfl": 0.3,
+        "amplitude": 0.000001,
+        "nu": 0.5,
+        "target_time": 0.2,
+        "passed": true,
+        "field_relative_l2": 0.011471997872995375,
+        "modal_relative_error": 0.002725196552634216,
+        "measured_growth": -0.010265624993664199,
+        "expected_growth": -7.099611693942686e-32,
+        "conserved_budget_absolute": 2.8345381597461028e-15,
+        "maximum_divb": 1.2391169683932353e-12,
+        "minimum_pressure": 0.5999999999997582
+      },
+      {
+        "kind": "alfven",
+        "dim": 2,
+        "n": 64,
+        "cfl": 0.3,
+        "amplitude": 0.000001,
+        "nu": 0.5,
+        "target_time": 0.2,
+        "passed": true,
+        "field_relative_l2": 0.0035177422394543543,
+        "modal_relative_error": 0.0005644396007351745,
+        "measured_growth": -0.0012952377064388452,
+        "expected_growth": -7.099611693942686e-32,
+        "conserved_budget_absolute": 1.5577816814271728e-14,
+        "maximum_divb": 2.909067307449298e-12,
+        "minimum_pressure": 0.5999999999997951
+      }
+    ],
+    "gates": {
+      "field_relative_l2": 0.03,
+      "modal_relative_error": 0.03,
+      "minimum_order": 1.7
+    },
+    "convergence": {
+      "fast_oblique": {
+        "orders": [
+          2.1235291097610283
+        ],
+        "passed": true
+      },
+      "slow_oblique": {
+        "orders": [
+          2.35482774621662
+        ],
+        "passed": true
+      },
+      "alfven": {
+        "orders": [
+          1.7053949825213102
+        ],
+        "passed": true
+      }
+    }
+  },
+  "heating": {
+    "cpu": {
+      "provenance": {
+        "report_id": "centered-heating-cpu-01",
+        "report_sha256": "00ac53f86d4cf25ff734a9d828ec39699c15a78de08de30843986fd23e179dec",
+        "binary_sha256": "c8f817c747b7c5e0fc893f04118cee8603a4a8485c32edd4b426f6c056b19ba6",
+        "selected_source_sha256": {
+          "src/diffusion/viscosity.cpp": "d6bd5acfb20c76887d7b1b8b788d46ee1855e7308e0332be8e0088112cf15bbb",
+          "src/diffusion/viscosity.hpp": "dfd59669340ca8924aae45d6f7a990806089b153995e722eeccd50a1867f483d"
+        }
+      },
+      "epoch": "viscosity.cpp and viscosity.hpp match feature commit",
+      "scope": "Isolated native RK2 production viscosity kernel; not coupled MHD or STS.",
+      "cases": [
+        {
+          "kind": "sheet",
+          "n": 32,
+          "steps": 512,
+          "t": 25,
+          "passed": true,
+          "velocity_l1_relative": 0.001720675362568451,
+          "thermal_gain_l1_relative": 0.014430488112832247,
+          "energy_budget_scaled": 5.09513965843954e-16,
+          "momentum_budget_absolute": 1.3739009929736312e-15,
+          "minimum_thermal_energy": 1.0012694714609474,
+          "minimum_thermal_gain": 0.0012694714609464697
+        },
+        {
+          "kind": "sheet",
+          "n": 64,
+          "steps": 2048,
+          "t": 25,
+          "passed": true,
+          "velocity_l1_relative": 0.0004297764064589153,
+          "thermal_gain_l1_relative": 0.0036017657989801774,
+          "energy_budget_scaled": 3.0839003195818273e-16,
+          "momentum_budget_absolute": 2.940356291780688e-16,
+          "minimum_thermal_energy": 1.000318990563295,
+          "minimum_thermal_gain": 0.00031899056329476316
+        },
+        {
+          "kind": "sheet",
+          "n": 128,
+          "steps": 8192,
+          "t": 25,
+          "passed": true,
+          "velocity_l1_relative": 0.0001074206162718077,
+          "thermal_gain_l1_relative": 0.0009234839503515479,
+          "energy_budget_scaled": 5.586775941271426e-18,
+          "momentum_budget_absolute": 9.011888457699513e-16,
+          "minimum_thermal_energy": 1.000079860447363,
+          "minimum_thermal_gain": 0.00007986044736219
+        },
+        {
+          "kind": "oblique_damped",
+          "n": 32,
+          "steps": 137,
+          "t": 0.12,
+          "passed": true,
+          "velocity_l1_relative": 0.005387032641991147,
+          "thermal_gain_l1_relative": 0.006690703278066574,
+          "energy_budget_scaled": 1.3740383968133125e-17,
+          "momentum_budget_absolute": 4.058981883242607e-18,
+          "minimum_thermal_energy": 1.0001409729660913,
+          "minimum_thermal_gain": 0.00014068512711706838
+        },
+        {
+          "kind": "oblique_damped",
+          "n": 64,
+          "steps": 548,
+          "t": 0.12,
+          "passed": true,
+          "velocity_l1_relative": 0.001347986464450069,
+          "thermal_gain_l1_relative": 0.0016968340972888184,
+          "energy_budget_scaled": 2.83932153091501e-17,
+          "momentum_budget_absolute": 1.0469327228063152e-18,
+          "minimum_thermal_energy": 1.0000355412190196,
+          "minimum_thermal_gain": 0.000035523174150009496
+        },
+        {
+          "kind": "oblique_damped",
+          "n": 128,
+          "steps": 2191,
+          "t": 0.12,
+          "passed": true,
+          "velocity_l1_relative": 0.00033707258840307887,
+          "thermal_gain_l1_relative": 0.0004254627625700085,
+          "energy_budget_scaled": 8.212026355954562e-18,
+          "momentum_budget_absolute": 1.1690642858885446e-18,
+          "minimum_thermal_energy": 1.0000089040270363,
+          "minimum_thermal_gain": 0.000008902898372076251
+        },
+        {
+          "kind": "oblique_null",
+          "n": 32,
+          "steps": 137,
+          "t": 0.12,
+          "passed": true,
+          "velocity_l1_relative": 0.0007863220304839657,
+          "thermal_gain_l1_relative": 0.001328198010134567,
+          "energy_budget_scaled": 1.3740383968133125e-17,
+          "momentum_budget_absolute": 1.4865957619905005e-18,
+          "minimum_thermal_energy": 1.000000541413376,
+          "minimum_thermal_gain": 2.5357440169848644e-7,
+          "error_normalization": "initial_velocity_and_kinetic_energy"
+        },
+        {
+          "kind": "oblique_null",
+          "n": 64,
+          "steps": 548,
+          "t": 0.12,
+          "passed": true,
+          "velocity_l1_relative": 0.0001975519745658861,
+          "thermal_gain_l1_relative": 0.00033389620250071246,
+          "energy_budget_scaled": 7.138558858444164e-18,
+          "momentum_budget_absolute": 1.3689111218813561e-18,
+          "minimum_thermal_energy": 1.0000000340970763,
+          "minimum_thermal_gain": 1.605220667499907e-8,
+          "error_normalization": "initial_velocity_and_kinetic_energy"
+        },
+        {
+          "kind": "oblique_null",
+          "n": 128,
+          "steps": 2191,
+          "t": 0.12,
+          "passed": true,
+          "velocity_l1_relative": 0.0000494488977887647,
+          "thermal_gain_l1_relative": 0.00008358992634114552,
+          "energy_budget_scaled": 2.3643121632666564e-17,
+          "momentum_budget_absolute": 1.1704506405951835e-18,
+          "minimum_thermal_energy": 1.000000002135118,
+          "minimum_thermal_gain": 1.006453809182517e-9,
+          "error_normalization": "initial_velocity_and_kinetic_energy"
+        }
+      ],
+      "orders": {
+        "sheet": {
+          "velocity_l1_relative": [
+            2.001316741713928,
+            2.000315381587392
+          ],
+          "thermal_gain_l1_relative": [
+            2.002343820287152,
+            1.9635455812879608
+          ]
+        },
+        "oblique_damped": {
+          "velocity_l1_relative": [
+            1.9986847969733519,
+            1.999674796455414
+          ],
+          "thermal_gain_l1_relative": [
+            1.9793123477215129,
+            1.995740741996564
+          ]
+        },
+        "oblique_null": {
+          "velocity_l1_relative": [
+            1.9928880087513432,
+            1.9982219974521807
+          ],
+          "thermal_gain_l1_relative": [
+            1.9919986518615191,
+            1.9979986906737246
+          ]
+        }
+      },
+      "gates": {
+        "finest_relative_error": 0.03,
+        "minimum_order": 1.7,
+        "budgets": 5e-12,
+        "negative_heat_tolerance": 5e-12
+      }
+    },
+    "gpu": {
+      "provenance": {
+        "report_id": "centered-heating-gpu-01",
+        "report_sha256": "2bcf0ac57b44c6466619c59907523576c1950bd19cf0bb535fd87985810f9bd9",
+        "binary_sha256": "a07aad0e4ea7f72f8e53f87bc6bb44dc8d2934f25174d04df4c9a4a9614711f7",
+        "selected_source_sha256": {
+          "src/diffusion/viscosity.cpp": "d6bd5acfb20c76887d7b1b8b788d46ee1855e7308e0332be8e0088112cf15bbb",
+          "src/diffusion/viscosity.hpp": "dfd59669340ca8924aae45d6f7a990806089b153995e722eeccd50a1867f483d"
+        }
+      },
+      "epoch": "viscosity.cpp and viscosity.hpp match feature commit",
+      "scope": "Isolated native RK2 production viscosity kernel; not coupled MHD or STS.",
+      "cases": [
+        {
+          "kind": "sheet",
+          "n": 32,
+          "steps": 512,
+          "t": 25,
+          "passed": true,
+          "velocity_l1_relative": 0.001720675362567374,
+          "thermal_gain_l1_relative": 0.014430488112845087,
+          "energy_budget_scaled": 3.977784470185255e-16,
+          "momentum_budget_absolute": 1.9845236565174673e-15,
+          "minimum_thermal_energy": 1.0012694714609536,
+          "minimum_thermal_gain": 0.001269471460952687
+        },
+        {
+          "kind": "sheet",
+          "n": 64,
+          "steps": 2048,
+          "t": 25,
+          "passed": true,
+          "velocity_l1_relative": 0.0004297764064593989,
+          "thermal_gain_l1_relative": 0.003601765798973878,
+          "energy_budget_scaled": 3.776660536299484e-16,
+          "momentum_budget_absolute": 2.5153490401663703e-16,
+          "minimum_thermal_energy": 1.0003189905632786,
+          "minimum_thermal_gain": 0.0003189905632781098
+        },
+        {
+          "kind": "sheet",
+          "n": 128,
+          "steps": 8192,
+          "t": 25,
+          "passed": true,
+          "velocity_l1_relative": 0.00010742061627148818,
+          "thermal_gain_l1_relative": 0.0009234839503302878,
+          "energy_budget_scaled": 4.4135529936044265e-16,
+          "momentum_budget_absolute": 1.0685896612017132e-15,
+          "minimum_thermal_energy": 1.0000798604473582,
+          "minimum_thermal_gain": 0.00007986044735730502
+        },
+        {
+          "kind": "oblique_damped",
+          "n": 32,
+          "steps": 137,
+          "t": 0.12,
+          "passed": true,
+          "velocity_l1_relative": 0.005387032641991099,
+          "thermal_gain_l1_relative": 0.006690703278066604,
+          "energy_budget_scaled": 1.3740383968133125e-17,
+          "momentum_budget_absolute": 1.683901499141549e-18,
+          "minimum_thermal_energy": 1.0001409729660913,
+          "minimum_thermal_gain": 0.00014068512711706838
+        },
+        {
+          "kind": "oblique_damped",
+          "n": 64,
+          "steps": 548,
+          "t": 0.12,
+          "passed": true,
+          "velocity_l1_relative": 0.001347986464450016,
+          "thermal_gain_l1_relative": 0.0016968340972889505,
+          "energy_budget_scaled": 2.9788723055913615e-17,
+          "momentum_budget_absolute": 2.137911158869854e-18,
+          "minimum_thermal_energy": 1.0000355412190196,
+          "minimum_thermal_gain": 0.000035523174150009496
+        },
+        {
+          "kind": "oblique_damped",
+          "n": 128,
+          "steps": 2191,
+          "t": 0.12,
+          "passed": true,
+          "velocity_l1_relative": 0.0003370725884030732,
+          "thermal_gain_l1_relative": 0.0004254627625700177,
+          "energy_budget_scaled": 9.070800353962881e-18,
+          "momentum_budget_absolute": 2.948468749833016e-19,
+          "minimum_thermal_energy": 1.0000089040270363,
+          "minimum_thermal_gain": 0.000008902898372076251
+        },
+        {
+          "kind": "oblique_null",
+          "n": 32,
+          "steps": 137,
+          "t": 0.12,
+          "passed": true,
+          "velocity_l1_relative": 0.0007863220304839831,
+          "thermal_gain_l1_relative": 0.001328198010134589,
+          "energy_budget_scaled": 1.3740383968133125e-17,
+          "momentum_budget_absolute": 1.3140657385466402e-18,
+          "minimum_thermal_energy": 1.000000541413376,
+          "minimum_thermal_gain": 2.5357440169848644e-7,
+          "error_normalization": "initial_velocity_and_kinetic_energy"
+        },
+        {
+          "kind": "oblique_null",
+          "n": 64,
+          "steps": 548,
+          "t": 0.12,
+          "passed": true,
+          "velocity_l1_relative": 0.0001975519745658697,
+          "thermal_gain_l1_relative": 0.0003338962025007016,
+          "energy_budget_scaled": 7.138558858444164e-18,
+          "momentum_budget_absolute": 1.2001861292552398e-18,
+          "minimum_thermal_energy": 1.0000000340970763,
+          "minimum_thermal_gain": 1.605220667499907e-8,
+          "error_normalization": "initial_velocity_and_kinetic_energy"
+        },
+        {
+          "kind": "oblique_null",
+          "n": 128,
+          "steps": 2191,
+          "t": 0.12,
+          "passed": true,
+          "velocity_l1_relative": 0.00004944889778877417,
+          "thermal_gain_l1_relative": 0.00008358992634126212,
+          "energy_budget_scaled": 2.4770262505052484e-17,
+          "momentum_budget_absolute": 1.3482514589022317e-18,
+          "minimum_thermal_energy": 1.000000002135118,
+          "minimum_thermal_gain": 1.006453809182517e-9,
+          "error_normalization": "initial_velocity_and_kinetic_energy"
+        }
+      ],
+      "orders": {
+        "sheet": {
+          "velocity_l1_relative": [
+            2.0013167417114017,
+            2.000315381593307
+          ],
+          "thermal_gain_l1_relative": [
+            2.0023438202909594,
+            1.9635455813186509
+          ]
+        },
+        "oblique_damped": {
+          "velocity_l1_relative": [
+            1.9986847969733958,
+            1.9996747964553818
+          ],
+          "thermal_gain_l1_relative": [
+            1.979312347721407,
+            1.9957407419966455
+          ]
+        },
+        "oblique_null": {
+          "velocity_l1_relative": [
+            1.9928880087514946,
+            1.9982219974517847
+          ],
+          "thermal_gain_l1_relative": [
+            1.99199865186159,
+            1.9979986906716651
+          ]
+        }
+      },
+      "gates": {
+        "finest_relative_error": 0.03,
+        "minimum_order": 1.7,
+        "budgets": 5e-12,
+        "negative_heat_tolerance": 5e-12
+      }
+    }
+  },
+  "combined_sts": {
+    "cpu": {
+      "provenance": {
+        "report_id": "centered-combined-viscosity-cpu-01",
+        "report_sha256": "f1ecc28cc066fe5c525c25b23848618e66f8d834513df140eb99795b26ff4675",
+        "binary_sha256_before": "688d8cb73ce10219fd5f66c1a077d557ccd7d60e46b137927275ba2625f85a90",
+        "selected_source_sha256": {
+          "src/diffusion/viscosity.cpp": "d6bd5acfb20c76887d7b1b8b788d46ee1855e7308e0332be8e0088112cf15bbb",
+          "src/diffusion/viscosity.hpp": "dfd59669340ca8924aae45d6f7a990806089b153995e722eeccd50a1867f483d",
+          "src/mhd/mhd_sts.cpp": "b5324a173f7f48290c103a5a525aace9af1b013edddae4e1534bec68a15144bb"
+        },
+        "source_manifest_sha256": "bce072d3671449a91ac0b7ed1838323bc7727007bd828c8b76d5de55a54219c0"
+      },
+      "epoch": "final centered-operator integration snapshot",
+      "configuration": {
+        "n": 64,
+        "stop": 0.2,
+        "amplitude": 0.0001,
+        "nu_iso": 0.02,
+        "nu_aniso": 0.05
+      },
+      "gates": {
+        "sts_vs_fine_explicit_relative_l2": 0.005,
+        "fine_explicit_control_gap_relative_l2": 0.0005,
+        "minimum_self_convergence_order": 1.5
+      },
+      "families": {
+        "fast_oblique": {
+          "normalization_initial_primitive_rms": 0.00011666977645159888,
+          "identical_initial_states": true,
+          "self_convergence": {
+            "explicit": {
+              "gaps": [
+                0.0000021060672406296684,
+                5.284219266009988e-7
+              ],
+              "maximum_actual_dt": [
+                0.0003923689,
+                0.0001961844,
+                0.00009809222
+              ],
+              "measured_refinement_ratios": [
+                2.000000509724525,
+                1.9999995922204636
+              ],
+              "measured_halving_pass": true,
+              "order": 1.9947891879871216,
+              "resolved_to_noise": false,
+              "passed": true
+            },
+            "sts": {
+              "gaps": [
+                0.0001410469541873903,
+                0.00003548135380055337
+              ],
+              "maximum_actual_dt": [
+                0.003138950892857143,
+                0.0015694754464285715,
+                0.0007847377232142857
+              ],
+              "measured_refinement_ratios": [
+                2,
+                2
+              ],
+              "measured_halving_pass": true,
+              "order": 1.9910425500288016,
+              "resolved_to_noise": false,
+              "passed": true
+            }
+          },
+          "fine_explicit_control_gap": 5.284219266009988e-7,
+          "sts_vs_fine_explicit": [
+            {
+              "name": "fast_oblique-sts-cfl0.3",
+              "relative_l2": 0.00018812617360754796,
+              "passed": true
+            },
+            {
+              "name": "fast_oblique-sts-cfl0.15",
+              "relative_l2": 0.000047120219608038944,
+              "passed": true
+            },
+            {
+              "name": "fast_oblique-sts-cfl0.075",
+              "relative_l2": 0.00001167590343446654,
+              "passed": true
+            }
+          ],
+          "passed": true
+        },
+        "alfven": {
+          "normalization_initial_primitive_rms": 0.00009995984531496788,
+          "identical_initial_states": true,
+          "self_convergence": {
+            "explicit": {
+              "gaps": [
+                1.557948509154767e-7,
+                4.126553195357178e-8
+              ],
+              "maximum_actual_dt": [
+                0.0003923689,
+                0.0001961844,
+                0.00009809222
+              ],
+              "measured_refinement_ratios": [
+                2.000000509724525,
+                1.9999995922204636
+              ],
+              "measured_halving_pass": true,
+              "order": 1.91663833866914,
+              "resolved_to_noise": false,
+              "passed": true
+            },
+            "sts": {
+              "gaps": [
+                0.000010461018570516973,
+                0.000002651682088396895
+              ],
+              "maximum_actual_dt": [
+                0.003138950892857143,
+                0.0015694754464285715,
+                0.0007847377232142857
+              ],
+              "measured_refinement_ratios": [
+                2,
+                2
+              ],
+              "measured_halving_pass": true,
+              "order": 1.9800436055988218,
+              "resolved_to_noise": false,
+              "passed": true
+            }
+          },
+          "fine_explicit_control_gap": 4.126553195357178e-8,
+          "sts_vs_fine_explicit": [
+            {
+              "name": "alfven-sts-cfl0.3",
+              "relative_l2": 0.000013968300783913588,
+              "passed": true
+            },
+            {
+              "name": "alfven-sts-cfl0.15",
+              "relative_l2": 0.0000035243923450226973,
+              "passed": true
+            },
+            {
+              "name": "alfven-sts-cfl0.075",
+              "relative_l2": 8.801879232885449e-7,
+              "passed": true
+            }
+          ],
+          "passed": true
+        }
+      },
+      "passed": true
+    },
+    "gpu": {
+      "provenance": {
+        "report_id": "centered-combined-viscosity-gpu-01",
+        "report_sha256": "bdeb91f477543c879c2fc60efe157cfe16c3127e964b63c4cf65f0d4fe4f5ad8",
+        "binary_sha256_before": "e2c69779617662e89a2f83960a9496604284c123dfbb4a29a32797ecfcadb1ce",
+        "selected_source_sha256": {
+          "src/diffusion/viscosity.cpp": "d6bd5acfb20c76887d7b1b8b788d46ee1855e7308e0332be8e0088112cf15bbb",
+          "src/diffusion/viscosity.hpp": "dfd59669340ca8924aae45d6f7a990806089b153995e722eeccd50a1867f483d",
+          "src/mhd/mhd_sts.cpp": "b5324a173f7f48290c103a5a525aace9af1b013edddae4e1534bec68a15144bb"
+        },
+        "source_manifest_sha256": "bce072d3671449a91ac0b7ed1838323bc7727007bd828c8b76d5de55a54219c0"
+      },
+      "epoch": "final centered-operator integration snapshot",
+      "configuration": {
+        "n": 64,
+        "stop": 0.2,
+        "amplitude": 0.0001,
+        "nu_iso": 0.02,
+        "nu_aniso": 0.05
+      },
+      "gates": {
+        "sts_vs_fine_explicit_relative_l2": 0.005,
+        "fine_explicit_control_gap_relative_l2": 0.0005,
+        "minimum_self_convergence_order": 1.5
+      },
+      "families": {
+        "fast_oblique": {
+          "normalization_initial_primitive_rms": 0.0001166697764515964,
+          "identical_initial_states": true,
+          "self_convergence": {
+            "explicit": {
+              "gaps": [
+                0.000002106066125764076,
+                5.284228655383743e-7
+              ],
+              "maximum_actual_dt": [
+                0.0003923689,
+                0.0001961844,
+                0.00009809222
+              ],
+              "measured_refinement_ratios": [
+                2.000000509724525,
+                1.9999995922204636
+              ],
+              "measured_halving_pass": true,
+              "order": 1.9947858608033788,
+              "resolved_to_noise": false,
+              "passed": true
+            },
+            "sts": {
+              "gaps": [
+                0.00014104696521045546,
+                0.000035481345145458615
+              ],
+              "maximum_actual_dt": [
+                0.003138950892857143,
+                0.0015694754464285715,
+                0.0007847377232142857
+              ],
+              "measured_refinement_ratios": [
+                2,
+                2
+              ],
+              "measured_halving_pass": true,
+              "order": 1.9910430146997813,
+              "resolved_to_noise": false,
+              "passed": true
+            }
+          },
+          "fine_explicit_control_gap": 5.284228655383743e-7,
+          "sts_vs_fine_explicit": [
+            {
+              "name": "fast_oblique-sts-cfl0.3",
+              "relative_l2": 0.00018812617548237084,
+              "passed": true
+            },
+            {
+              "name": "fast_oblique-sts-cfl0.15",
+              "relative_l2": 0.000047120210412096,
+              "passed": true
+            },
+            {
+              "name": "fast_oblique-sts-cfl0.075",
+              "relative_l2": 0.000011675903105554555,
+              "passed": true
+            }
+          ],
+          "passed": true
+        },
+        "alfven": {
+          "normalization_initial_primitive_rms": 0.00009995984531496788,
+          "identical_initial_states": true,
+          "self_convergence": {
+            "explicit": {
+              "gaps": [
+                1.557948483390969e-7,
+                4.126553134817442e-8
+              ],
+              "maximum_actual_dt": [
+                0.0003923689,
+                0.0001961844,
+                0.00009809222
+              ],
+              "measured_refinement_ratios": [
+                2.000000509724525,
+                1.9999995922204636
+              ],
+              "measured_halving_pass": true,
+              "order": 1.916638335976744,
+              "resolved_to_noise": false,
+              "passed": true
+            },
+            "sts": {
+              "gaps": [
+                0.000010461018568638764,
+                0.000002651682089684399
+              ],
+              "maximum_actual_dt": [
+                0.003138950892857143,
+                0.0015694754464285715,
+                0.0007847377232142857
+              ],
+              "measured_refinement_ratios": [
+                2,
+                2
+              ],
+              "measured_halving_pass": true,
+              "order": 1.9800436046393055,
+              "resolved_to_noise": false,
+              "passed": true
+            }
+          },
+          "fine_explicit_control_gap": 4.126553134817442e-8,
+          "sts_vs_fine_explicit": [
+            {
+              "name": "alfven-sts-cfl0.3",
+              "relative_l2": 0.000013968300785517921,
+              "passed": true
+            },
+            {
+              "name": "alfven-sts-cfl0.15",
+              "relative_l2": 0.000003524392347784075,
+              "passed": true
+            },
+            {
+              "name": "alfven-sts-cfl0.075",
+              "relative_l2": 8.801879173608802e-7,
+              "passed": true
+            }
+          ],
+          "passed": true
+        }
+      },
+      "passed": true
+    }
+  },
+  "functional_summaries": {
+    "nonlinear_cpu": {
+      "provenance": {
+        "report_id": "centered-nonlinear-sts-cpu-01",
+        "report_sha256": "99550da7179e0e7c81f41a704e2b88ad2ebf44fd8ff963bbffddf5ad6d71b35a",
+        "binary_sha256_before": "688d8cb73ce10219fd5f66c1a077d557ccd7d60e46b137927275ba2625f85a90",
+        "selected_source_sha256": {
+          "src/diffusion/viscosity.cpp": "d6bd5acfb20c76887d7b1b8b788d46ee1855e7308e0332be8e0088112cf15bbb",
+          "src/diffusion/viscosity.hpp": "dfd59669340ca8924aae45d6f7a990806089b153995e722eeccd50a1867f483d",
+          "src/mhd/mhd_sts.cpp": "b5324a173f7f48290c103a5a525aace9af1b013edddae4e1534bec68a15144bb"
+        },
+        "source_manifest_sha256": "bce072d3671449a91ac0b7ed1838323bc7727007bd828c8b76d5de55a54219c0"
+      },
+      "passed": true,
+      "case_count": 7,
+      "passed_case_count": 7,
+      "comparison_count": 0,
+      "passed_comparison_count": 0,
+      "exact_field_comparison_count": 0,
+      "temporal_and_entropy_comparison": {
+        "normalization_initial_primitive_rms": 0.30787040399617016,
+        "identical_initial_states": true,
+        "self_convergence": {
+          "explicit": {
+            "gaps": [
+              2.6044220967034303e-7,
+              7.419944052519546e-8
+            ],
+            "order": 1.8114832603765763,
+            "resolved_to_noise": false,
+            "maximum_actual_dt": [
+              0.0001373291,
+              0.00006866455,
+              0.00003433228
+            ],
+            "measured_refinement_ratios": [
+              2,
+              1.999999708728928
+            ],
+            "measured_halving_pass": true,
+            "passed": true
+          },
+          "sts": {
+            "gaps": [
+              0.00001890723479577701,
+              0.00000495430589786623
+            ],
+            "order": 1.9321835289755072,
+            "resolved_to_noise": false,
+            "maximum_actual_dt": [
+              0.0010986328125,
+              0.00054931640625,
+              0.000274658203125
+            ],
+            "measured_refinement_ratios": [
+              2,
+              2
+            ],
+            "measured_halving_pass": true,
+            "passed": true
+          }
+        },
+        "fine_explicit_control_gap_pass": true,
+        "sts_vs_fine_explicit": [
+          {
+            "name": "sts-cfl0.3",
+            "relative_l2": 0.00002544735890251907,
+            "passed": true
+          },
+          {
+            "name": "sts-cfl0.15",
+            "relative_l2": 0.0000065727205291654865,
+            "passed": true
+          },
+          {
+            "name": "sts-cfl0.075",
+            "relative_l2": 0.000001631241451784567,
+            "passed": true
+          }
+        ],
+        "inviscid_entropy_gain": 0.000014376637479024401,
+        "entropy_controls": [
+          {
+            "name": "explicit-cfl0.3",
+            "entropy_gain": 0.00314373362594016,
+            "excess_over_inviscid": 0.0031293569884611357,
+            "passed": true
+          },
+          {
+            "name": "explicit-cfl0.15",
+            "entropy_gain": 0.003143731602474019,
+            "excess_over_inviscid": 0.0031293549649949945,
+            "passed": true
+          },
+          {
+            "name": "explicit-cfl0.075",
+            "entropy_gain": 0.0031437311033319856,
+            "excess_over_inviscid": 0.0031293544658529612,
+            "passed": true
+          },
+          {
+            "name": "sts-cfl0.3",
+            "entropy_gain": 0.003143805466050014,
+            "excess_over_inviscid": 0.0031294288285709897,
+            "passed": true
+          },
+          {
+            "name": "sts-cfl0.15",
+            "entropy_gain": 0.0031437506963601126,
+            "excess_over_inviscid": 0.0031293740588810882,
+            "passed": true
+          },
+          {
+            "name": "sts-cfl0.075",
+            "entropy_gain": 0.003143735919649962,
+            "excess_over_inviscid": 0.0031293592821709376,
+            "passed": true
+          }
+        ],
+        "entropy_note": "Mean cell-primitive rho*ln(p/rho^gamma)/(gamma-1); not an exact volume entropy oracle.",
+        "inviscid_control_note": "The same CFL does not imply matched actual dt after removing viscosity; entropy excess tests a gross dissipative signal, not an exact viscous-heating partition.",
+        "passed": true
+      }
+    },
+    "nonlinear_gpu": {
+      "provenance": {
+        "report_id": "centered-nonlinear-sts-gpu-01",
+        "report_sha256": "6004137c8d7541c20c03e6825fe2ab0c6e327808f75cc034d50f3d69f19bf6ed",
+        "binary_sha256_before": "e2c69779617662e89a2f83960a9496604284c123dfbb4a29a32797ecfcadb1ce",
+        "selected_source_sha256": {
+          "src/diffusion/viscosity.cpp": "d6bd5acfb20c76887d7b1b8b788d46ee1855e7308e0332be8e0088112cf15bbb",
+          "src/diffusion/viscosity.hpp": "dfd59669340ca8924aae45d6f7a990806089b153995e722eeccd50a1867f483d",
+          "src/mhd/mhd_sts.cpp": "b5324a173f7f48290c103a5a525aace9af1b013edddae4e1534bec68a15144bb"
+        },
+        "source_manifest_sha256": "bce072d3671449a91ac0b7ed1838323bc7727007bd828c8b76d5de55a54219c0"
+      },
+      "passed": true,
+      "case_count": 7,
+      "passed_case_count": 7,
+      "comparison_count": 0,
+      "passed_comparison_count": 0,
+      "exact_field_comparison_count": 0,
+      "temporal_and_entropy_comparison": {
+        "normalization_initial_primitive_rms": 0.30787040399617016,
+        "identical_initial_states": true,
+        "self_convergence": {
+          "explicit": {
+            "gaps": [
+              2.6044220969319433e-7,
+              7.419944043735638e-8
+            ],
+            "order": 1.811483262211056,
+            "resolved_to_noise": false,
+            "maximum_actual_dt": [
+              0.0001373291,
+              0.00006866455,
+              0.00003433228
+            ],
+            "measured_refinement_ratios": [
+              2,
+              1.999999708728928
+            ],
+            "measured_halving_pass": true,
+            "passed": true
+          },
+          "sts": {
+            "gaps": [
+              0.00001890723479682924,
+              0.000004954305901064965
+            ],
+            "order": 1.932183528124324,
+            "resolved_to_noise": false,
+            "maximum_actual_dt": [
+              0.0010986328125,
+              0.00054931640625,
+              0.000274658203125
+            ],
+            "measured_refinement_ratios": [
+              2,
+              2
+            ],
+            "measured_halving_pass": true,
+            "passed": true
+          }
+        },
+        "fine_explicit_control_gap_pass": true,
+        "sts_vs_fine_explicit": [
+          {
+            "name": "sts-cfl0.3",
+            "relative_l2": 0.000025447358901311833,
+            "passed": true
+          },
+          {
+            "name": "sts-cfl0.15",
+            "relative_l2": 0.000006572720526917188,
+            "passed": true
+          },
+          {
+            "name": "sts-cfl0.075",
+            "relative_l2": 0.000001631241446321285,
+            "passed": true
+          }
+        ],
+        "inviscid_entropy_gain": 0.000014376637479017462,
+        "entropy_controls": [
+          {
+            "name": "explicit-cfl0.3",
+            "entropy_gain": 0.003143733625940146,
+            "excess_over_inviscid": 0.0031293569884611287,
+            "passed": true
+          },
+          {
+            "name": "explicit-cfl0.15",
+            "entropy_gain": 0.0031437316024739877,
+            "excess_over_inviscid": 0.00312935496499497,
+            "passed": true
+          },
+          {
+            "name": "explicit-cfl0.075",
+            "entropy_gain": 0.0031437311033319336,
+            "excess_over_inviscid": 0.003129354465852916,
+            "passed": true
+          },
+          {
+            "name": "sts-cfl0.3",
+            "entropy_gain": 0.003143805466044567,
+            "excess_over_inviscid": 0.0031294288285655496,
+            "passed": true
+          },
+          {
+            "name": "sts-cfl0.15",
+            "entropy_gain": 0.003143750696347484,
+            "excess_over_inviscid": 0.0031293740588684664,
+            "passed": true
+          },
+          {
+            "name": "sts-cfl0.075",
+            "entropy_gain": 0.0031437359196229524,
+            "excess_over_inviscid": 0.003129359282143935,
+            "passed": true
+          }
+        ],
+        "entropy_note": "Mean cell-primitive rho*ln(p/rho^gamma)/(gamma-1); not an exact volume entropy oracle.",
+        "inviscid_control_note": "The same CFL does not imply matched actual dt after removing viscosity; entropy excess tests a gross dissipative signal, not an exact viscous-heating partition.",
+        "passed": true
+      }
+    },
+    "extended_cpu": {
+      "provenance": {
+        "report_id": "centered-extended-cpu-01",
+        "report_sha256": "39805a7f2f10a534f19baf19b66a7e4370ee5b846e549bbf746700f8ef7d3990",
+        "binary_sha256_before": "688d8cb73ce10219fd5f66c1a077d557ccd7d60e46b137927275ba2625f85a90",
+        "selected_source_sha256": {
+          "src/diffusion/viscosity.cpp": "d6bd5acfb20c76887d7b1b8b788d46ee1855e7308e0332be8e0088112cf15bbb",
+          "src/diffusion/viscosity.hpp": "dfd59669340ca8924aae45d6f7a990806089b153995e722eeccd50a1867f483d",
+          "src/mhd/mhd_sts.cpp": "b5324a173f7f48290c103a5a525aace9af1b013edddae4e1534bec68a15144bb"
+        },
+        "source_manifest_sha256": "bce072d3671449a91ac0b7ed1838323bc7727007bd828c8b76d5de55a54219c0"
+      },
+      "passed": true,
+      "case_count": 24,
+      "passed_case_count": 24,
+      "comparison_count": 30,
+      "passed_comparison_count": 30,
+      "exact_field_comparison_count": 24
+    },
+    "extended_gpu": {
+      "provenance": {
+        "report_id": "centered-extended-gpu-01",
+        "report_sha256": "85409e96ed29a832f1b3f0ad946628574bc96f393f70fa2cf78e00ff8f57f693",
+        "binary_sha256_before": "e2c69779617662e89a2f83960a9496604284c123dfbb4a29a32797ecfcadb1ce",
+        "selected_source_sha256": {
+          "src/diffusion/viscosity.cpp": "d6bd5acfb20c76887d7b1b8b788d46ee1855e7308e0332be8e0088112cf15bbb",
+          "src/diffusion/viscosity.hpp": "dfd59669340ca8924aae45d6f7a990806089b153995e722eeccd50a1867f483d",
+          "src/mhd/mhd_sts.cpp": "b5324a173f7f48290c103a5a525aace9af1b013edddae4e1534bec68a15144bb"
+        },
+        "source_manifest_sha256": "bce072d3671449a91ac0b7ed1838323bc7727007bd828c8b76d5de55a54219c0"
+      },
+      "passed": true,
+      "case_count": 24,
+      "passed_case_count": 24,
+      "comparison_count": 30,
+      "passed_comparison_count": 30,
+      "exact_field_comparison_count": 24
+    },
+    "extended_mpicpu": {
+      "provenance": {
+        "report_id": "centered-extended-mpicpu-01",
+        "report_sha256": "bb6165393f499536a13eba1f428df07aeb6f93aa99edad6d834be5963b86ee2c",
+        "binary_sha256_before": "688d8cb73ce10219fd5f66c1a077d557ccd7d60e46b137927275ba2625f85a90",
+        "selected_source_sha256": {
+          "src/diffusion/viscosity.cpp": "d6bd5acfb20c76887d7b1b8b788d46ee1855e7308e0332be8e0088112cf15bbb",
+          "src/diffusion/viscosity.hpp": "dfd59669340ca8924aae45d6f7a990806089b153995e722eeccd50a1867f483d",
+          "src/mhd/mhd_sts.cpp": "b5324a173f7f48290c103a5a525aace9af1b013edddae4e1534bec68a15144bb"
+        },
+        "source_manifest_sha256": "bce072d3671449a91ac0b7ed1838323bc7727007bd828c8b76d5de55a54219c0"
+      },
+      "passed": true,
+      "case_count": 18,
+      "passed_case_count": 18,
+      "comparison_count": 30,
+      "passed_comparison_count": 30,
+      "exact_field_comparison_count": 18
+    },
+    "restart_cpu": {
+      "provenance": {
+        "report_id": "centered-restart-layout-cpu-02",
+        "report_sha256": "fe31e4210a3734fbece30a674afaabe23d65704ed84f978f7dd44a7fcff40ce1",
+        "binary_sha256_before": "688d8cb73ce10219fd5f66c1a077d557ccd7d60e46b137927275ba2625f85a90",
+        "selected_source_sha256": {
+          "src/diffusion/viscosity.cpp": "d6bd5acfb20c76887d7b1b8b788d46ee1855e7308e0332be8e0088112cf15bbb",
+          "src/diffusion/viscosity.hpp": "dfd59669340ca8924aae45d6f7a990806089b153995e722eeccd50a1867f483d",
+          "src/mhd/mhd_sts.cpp": "b5324a173f7f48290c103a5a525aace9af1b013edddae4e1534bec68a15144bb"
+        },
+        "source_manifest_sha256": "bce072d3671449a91ac0b7ed1838323bc7727007bd828c8b76d5de55a54219c0"
+      },
+      "passed": true,
+      "case_count": 8,
+      "passed_case_count": 8,
+      "comparison_count": 10,
+      "passed_comparison_count": 10,
+      "exact_field_comparison_count": 8
+    },
+    "restart_gpu": {
+      "provenance": {
+        "report_id": "centered-restart-layout-gpu-01",
+        "report_sha256": "fb5e249138d75a806a933eabc2c4ac08d85390675c70984a598592e3e17b1271",
+        "binary_sha256_before": "e2c69779617662e89a2f83960a9496604284c123dfbb4a29a32797ecfcadb1ce",
+        "selected_source_sha256": {
+          "src/diffusion/viscosity.cpp": "d6bd5acfb20c76887d7b1b8b788d46ee1855e7308e0332be8e0088112cf15bbb",
+          "src/diffusion/viscosity.hpp": "dfd59669340ca8924aae45d6f7a990806089b153995e722eeccd50a1867f483d",
+          "src/mhd/mhd_sts.cpp": "b5324a173f7f48290c103a5a525aace9af1b013edddae4e1534bec68a15144bb"
+        },
+        "source_manifest_sha256": "bce072d3671449a91ac0b7ed1838323bc7727007bd828c8b76d5de55a54219c0"
+      },
+      "passed": true,
+      "case_count": 8,
+      "passed_case_count": 8,
+      "comparison_count": 10,
+      "passed_comparison_count": 10,
+      "exact_field_comparison_count": 8
+    },
+    "crossrank_restart": {
+      "provenance": {
+        "report_id": "centered-crossrank-restart-cpu-01",
+        "report_sha256": "91167e3b2821e1880f015e5a098b0c38b10f1ceb23fb5840ab8d6229058f23e3",
+        "binary_sha256_before": "688d8cb73ce10219fd5f66c1a077d557ccd7d60e46b137927275ba2625f85a90",
+        "selected_source_sha256": {
+          "src/diffusion/viscosity.cpp": "d6bd5acfb20c76887d7b1b8b788d46ee1855e7308e0332be8e0088112cf15bbb",
+          "src/diffusion/viscosity.hpp": "dfd59669340ca8924aae45d6f7a990806089b153995e722eeccd50a1867f483d",
+          "src/mhd/mhd_sts.cpp": "b5324a173f7f48290c103a5a525aace9af1b013edddae4e1534bec68a15144bb"
+        },
+        "source_manifest_sha256": "bce072d3671449a91ac0b7ed1838323bc7727007bd828c8b76d5de55a54219c0"
+      },
+      "passed": true,
+      "case_count": 4,
+      "passed_case_count": 4,
+      "comparison_count": 16,
+      "passed_comparison_count": 16,
+      "exact_field_comparison_count": 12
+    },
+    "sts_3d_gpu": {
+      "provenance": {
+        "report_id": "centered-sts-3d-gpu-01",
+        "report_sha256": "8d8ed509168f1b9e0e97b634af5cfd4e5e9bd2aa5ed22ad110fec6e8f5f92091",
+        "binary_sha256_before": "a07aad0e4ea7f72f8e53f87bc6bb44dc8d2934f25174d04df4c9a4a9614711f7",
+        "selected_source_sha256": {}
+      },
+      "passed": true,
+      "case_count": 18,
+      "passed_case_count": 18,
+      "comparison_count": 0,
+      "passed_comparison_count": 0,
+      "exact_field_comparison_count": 0,
+      "families": {
+        "fast_oblique": {
+          "complete": true,
+          "explicit_control_gap": 0.000021959681383254542,
+          "passed": true,
+          "identical_initial_states": true,
+          "normalization_initial_primitive_rms": 0.00011613095437582212,
+          "explicit_control_gap_pass": true,
+          "self_convergence": {
+            "explicit": {
+              "gaps": [
+                0.0000886519289473625,
+                0.000021959681383254542
+              ],
+              "order": 2.013294900391647,
+              "resolved_to_roundoff": false,
+              "passed": true
+            },
+            "sts": {
+              "gaps": [
+                0.0014079751936548711,
+                0.0003515498558902188
+              ],
+              "order": 2.001820707949478,
+              "resolved_to_roundoff": false,
+              "passed": true
+            }
+          },
+          "sts_vs_fine_explicit": [
+            {
+              "name": "fast_oblique-sts-cfl0.3",
+              "field_relative_l2": 0.0018675267386633976,
+              "passed": true
+            },
+            {
+              "name": "fast_oblique-sts-cfl0.15",
+              "field_relative_l2": 0.00046333314964318805,
+              "passed": true
+            },
+            {
+              "name": "fast_oblique-sts-cfl0.075",
+              "field_relative_l2": 0.0001123792121429376,
+              "passed": true
+            }
+          ]
+        },
+        "slow_oblique": {
+          "complete": true,
+          "explicit_control_gap": 8.4457721518121e-7,
+          "passed": true,
+          "identical_initial_states": true,
+          "normalization_initial_primitive_rms": 0.00011574554824766047,
+          "explicit_control_gap_pass": true,
+          "self_convergence": {
+            "explicit": {
+              "gaps": [
+                0.000003388308107848364,
+                8.4457721518121e-7
+              ],
+              "order": 2.0042638366573113,
+              "resolved_to_roundoff": false,
+              "passed": true
+            },
+            "sts": {
+              "gaps": [
+                0.00007884201560678392,
+                0.000020260248145097517
+              ],
+              "order": 1.9603128153428793,
+              "resolved_to_roundoff": false,
+              "passed": true
+            }
+          },
+          "sts_vs_fine_explicit": [
+            {
+              "name": "slow_oblique-sts-cfl0.3",
+              "field_relative_l2": 0.00010524888757616837,
+              "passed": true
+            },
+            {
+              "name": "slow_oblique-sts-cfl0.15",
+              "field_relative_l2": 0.00002695471934051725,
+              "passed": true
+            },
+            {
+              "name": "slow_oblique-sts-cfl0.075",
+              "field_relative_l2": 0.0000067759305420784605,
+              "passed": true
+            }
+          ]
+        },
+        "alfven": {
+          "complete": true,
+          "explicit_control_gap": 2.315261331771576e-8,
+          "passed": true,
+          "identical_initial_states": true,
+          "normalization_initial_primitive_rms": 0.00009935925127787577,
+          "explicit_control_gap_pass": true,
+          "self_convergence": {
+            "explicit": {
+              "gaps": [
+                6.853958477058673e-8,
+                2.315261331771576e-8
+              ],
+              "order": 1.5657624068964218,
+              "resolved_to_roundoff": false,
+              "passed": true
+            },
+            "sts": {
+              "gaps": [
+                0.000001538963305583417,
+                3.8967738047680343e-7
+              ],
+              "order": 1.981606737814985,
+              "resolved_to_roundoff": false,
+              "passed": true
+            }
+          },
+          "sts_vs_fine_explicit": [
+            {
+              "name": "alfven-sts-cfl0.3",
+              "field_relative_l2": 0.0000020498738570675255,
+              "passed": true
+            },
+            {
+              "name": "alfven-sts-cfl0.15",
+              "field_relative_l2": 5.148590251393446e-7,
+              "passed": true
+            },
+            {
+              "name": "alfven-sts-cfl0.075",
+              "field_relative_l2": 1.3021469355451698e-7,
+              "passed": true
+            }
+          ]
+        }
+      }
+    },
+    "circular_sts_cpu": {
+      "provenance": {
+        "report_id": "centered-circular-sts-cpu-01",
+        "report_sha256": "e4f46355e479ab4a6ff801744ba1cb6b1ec542b3982ab95a55646be26e5cd23a",
+        "binary_sha256_before": "c8f817c747b7c5e0fc893f04118cee8603a4a8485c32edd4b426f6c056b19ba6",
+        "selected_source_sha256": {}
+      },
+      "passed": true,
+      "case_count": 4,
+      "passed_case_count": 4,
+      "comparison_count": 0,
+      "passed_comparison_count": 0,
+      "exact_field_comparison_count": 0,
+      "seed_response": {
+        "explicit": {
+          "available": true,
+          "initial_max_field_difference": 9.951900414861825e-13,
+          "final_max_field_difference": 3.952393967665557e-14,
+          "maximum_difference_amplification": 0.03971496702040133,
+          "initial_rms_field_difference": 2.500000911389848e-13,
+          "final_rms_field_difference": 3.9513752102737e-15,
+          "rms_difference_amplification": 0.015805495079107695,
+          "comparison_scale": 5e-11,
+          "final_difference_below_comparison_scale": true,
+          "comparison_scale_note": "Existing 5e-11 backend tolerance shown for scale only; these are deliberately different initial states, not backend replicas",
+          "same_endpoint": true,
+          "both_conserved_budget_gates_pass": true,
+          "both_divb_gates_pass": true,
+          "seed_decay_pass": true
+        },
+        "sts": {
+          "available": true,
+          "initial_max_field_difference": 9.951900414861825e-13,
+          "final_max_field_difference": 9.43689570931383e-14,
+          "maximum_difference_amplification": 0.09482506170601442,
+          "initial_rms_field_difference": 2.500000911389848e-13,
+          "final_rms_field_difference": 1.215667707586181e-14,
+          "rms_difference_amplification": 0.048626690576298384,
+          "comparison_scale": 5e-11,
+          "final_difference_below_comparison_scale": true,
+          "comparison_scale_note": "Existing 5e-11 backend tolerance shown for scale only; these are deliberately different initial states, not backend replicas",
+          "same_endpoint": true,
+          "both_conserved_budget_gates_pass": true,
+          "both_divb_gates_pass": true,
+          "seed_decay_pass": true
+        }
+      },
+      "temporal_comparison": {
+        "complete": true,
+        "pairs": [
+          {
+            "name": "unseeded",
+            "differing_input_keys": [
+              "mhd/viscosity_integrator",
+              "time/sts_integrator",
+              "time/sts_max_dt_ratio"
+            ],
+            "identical_nonintegration_parameters": true,
+            "identical_fixture": true,
+            "identical_initial_fields": true,
+            "same_endpoint": true,
+            "field_relative_l2": 5.660235971978872e-7,
+            "maximum_absolute_field_difference": 1.471378401340928e-7,
+            "passed": true
+          },
+          {
+            "name": "seeded",
+            "differing_input_keys": [
+              "mhd/viscosity_integrator",
+              "time/sts_integrator",
+              "time/sts_max_dt_ratio"
+            ],
+            "identical_nonintegration_parameters": true,
+            "identical_fixture": true,
+            "identical_initial_fields": true,
+            "same_endpoint": true,
+            "field_relative_l2": 5.660236004574254e-7,
+            "maximum_absolute_field_difference": 1.4713784968201082e-7,
+            "passed": true
+          }
+        ],
+        "passed": true,
+        "normalization_initial_physical_wave_rms": 0.14127943416120334,
+        "normalization_fields": [
+          "rho",
+          "momx",
+          "momy",
+          "momz",
+          "E",
+          "Bx",
+          "By",
+          "Bz"
+        ]
+      }
+    },
+    "circular_sts_gpu": {
+      "provenance": {
+        "report_id": "centered-circular-sts-gpu-01",
+        "report_sha256": "6459b93f08421c57de99c2901975bbedad08d74b9c5233576e0c9192302c2a03",
+        "binary_sha256_before": "a07aad0e4ea7f72f8e53f87bc6bb44dc8d2934f25174d04df4c9a4a9614711f7",
+        "selected_source_sha256": {}
+      },
+      "passed": true,
+      "case_count": 4,
+      "passed_case_count": 4,
+      "comparison_count": 0,
+      "passed_comparison_count": 0,
+      "exact_field_comparison_count": 0,
+      "seed_response": {
+        "explicit": {
+          "available": true,
+          "initial_max_field_difference": 9.951900414861825e-13,
+          "final_max_field_difference": 4.04121180963557e-14,
+          "maximum_difference_amplification": 0.04060743818939912,
+          "initial_rms_field_difference": 2.500000911389848e-13,
+          "final_rms_field_difference": 3.941967386424764e-15,
+          "rms_difference_amplification": 0.01576786379743066,
+          "comparison_scale": 5e-11,
+          "final_difference_below_comparison_scale": true,
+          "comparison_scale_note": "Existing 5e-11 backend tolerance shown for scale only; these are deliberately different initial states, not backend replicas",
+          "same_endpoint": true,
+          "both_conserved_budget_gates_pass": true,
+          "both_divb_gates_pass": true,
+          "seed_decay_pass": true
+        },
+        "sts": {
+          "available": true,
+          "initial_max_field_difference": 9.951900414861825e-13,
+          "final_max_field_difference": 6.217248937900877e-14,
+          "maximum_difference_amplification": 0.062472981829844794,
+          "initial_rms_field_difference": 2.500000911389848e-13,
+          "final_rms_field_difference": 7.783234863241943e-15,
+          "rms_difference_amplification": 0.031132928103273925,
+          "comparison_scale": 5e-11,
+          "final_difference_below_comparison_scale": true,
+          "comparison_scale_note": "Existing 5e-11 backend tolerance shown for scale only; these are deliberately different initial states, not backend replicas",
+          "same_endpoint": true,
+          "both_conserved_budget_gates_pass": true,
+          "both_divb_gates_pass": true,
+          "seed_decay_pass": true
+        }
+      },
+      "temporal_comparison": {
+        "complete": true,
+        "pairs": [
+          {
+            "name": "unseeded",
+            "differing_input_keys": [
+              "mhd/viscosity_integrator",
+              "time/sts_integrator",
+              "time/sts_max_dt_ratio"
+            ],
+            "identical_nonintegration_parameters": true,
+            "identical_fixture": true,
+            "identical_initial_fields": true,
+            "same_endpoint": true,
+            "field_relative_l2": 5.660235948173787e-7,
+            "maximum_absolute_field_difference": 1.4713794693754778e-7,
+            "passed": true
+          },
+          {
+            "name": "seeded",
+            "differing_input_keys": [
+              "mhd/viscosity_integrator",
+              "time/sts_integrator",
+              "time/sts_max_dt_ratio"
+            ],
+            "identical_nonintegration_parameters": true,
+            "identical_fixture": true,
+            "identical_initial_fields": true,
+            "same_endpoint": true,
+            "field_relative_l2": 5.660235981275125e-7,
+            "maximum_absolute_field_difference": 1.4713796714360683e-7,
+            "passed": true
+          }
+        ],
+        "passed": true,
+        "normalization_initial_physical_wave_rms": 0.14127943416120334,
+        "normalization_fields": [
+          "rho",
+          "momx",
+          "momy",
+          "momz",
+          "E",
+          "Bx",
+          "By",
+          "Bz"
+        ]
+      }
+    },
+    "multirank_gpu": {
+      "provenance": {
+        "report_id": "centered-braginskii-multirank-gpu",
+        "report_sha256": "b883b5c6fdee9e9baabb26d17a24978e0bcaafcc298d2e8478a6c5df93573f1a",
+        "selected_source_sha256": {
+          "src/diffusion/viscosity.cpp": "d6bd5acfb20c76887d7b1b8b788d46ee1855e7308e0332be8e0088112cf15bbb",
+          "src/diffusion/viscosity.hpp": "dfd59669340ca8924aae45d6f7a990806089b153995e722eeccd50a1867f483d",
+          "src/mhd/mhd_sts.cpp": "b5324a173f7f48290c103a5a525aace9af1b013edddae4e1534bec68a15144bb"
+        },
+        "source_manifest_sha256": "bce072d3671449a91ac0b7ed1838323bc7727007bd828c8b76d5de55a54219c0"
+      },
+      "passed": true,
+      "case_count": 18,
+      "passed_case_count": 18,
+      "comparison_count": 36,
+      "passed_comparison_count": 36,
+      "exact_field_comparison_count": 24
+    }
+  },
+  "coarse_overdamped": {
+    "provenance": {
+      "report_id": "centered-physical-mhd-cpu-01",
+      "report_sha256": "37ed01a64bfce088670323d018210d7109fdd01cad422725fda507719cf05450",
+      "binary_sha256": "73671b8d6f8d52dcca32e8f809079e8a8c56d50bcf06ba4b5559ac26aaeb0a51",
+      "selected_source_sha256": {
+        "src/diffusion/viscosity.cpp": "cc4ebba683567f5dabb49573ef08e158af07d8cb51b994534e0a94006b882729",
+        "src/diffusion/viscosity.hpp": "4d371b589267168959b8cbb6437d146ae2d664d348161f2c1066543d4f6b2ea4",
+        "src/mhd/mhd_sts.cpp": "d4c8a9f25c4cef7d009a2050c72e9ae44d11228d68f5ca0317ced960382438f3"
+      }
+    },
+    "epoch": "earlier centered spatial-operator study, before final STS guard changes",
+    "cases": [
+      {
+        "kind": "overdamped_fast",
+        "n": 32,
+        "cfl": 0.3,
+        "amplitude": 0.000001,
+        "nu": 2,
+        "passed": false,
+        "field_relative_l2": 0.0026769485742013967,
+        "modal_relative_error": 0.04094308672351718,
+        "measured_growth": -23.144606688779216,
+        "expected_growth": -22.865907626263372,
+        "conserved_budget_absolute": 1.0637324354689781e-14,
+        "minimum_pressure": 0.5999999932331878
+      },
+      {
+        "kind": "overdamped_fast",
+        "n": 64,
+        "cfl": 0.3,
+        "amplitude": 0.000001,
+        "nu": 2,
+        "passed": true,
+        "field_relative_l2": 0.0006856641770927333,
+        "modal_relative_error": 0.009535865292045245,
+        "measured_growth": -22.929785111458774,
+        "expected_growth": -22.865907626263372,
+        "conserved_budget_absolute": 6.730727086790012e-16,
+        "minimum_pressure": 0.5999999917385971
+      },
+      {
+        "kind": "overdamped_fast",
+        "n": 128,
+        "cfl": 0.3,
+        "amplitude": 0.000001,
+        "nu": 2,
+        "passed": true,
+        "field_relative_l2": 0.00017832238522722397,
+        "modal_relative_error": 0.002310602060041454,
+        "measured_growth": -22.881329463730907,
+        "expected_growth": -22.865907626263372,
+        "conserved_budget_absolute": 3.920475055707584e-16,
+        "minimum_pressure": 0.5999999912960383
+      }
+    ],
+    "gates": {
+      "field_relative_l2": 0.03,
+      "modal_relative_error": 0.03
+    },
+    "convergence": {
+      "fast_perp": {
+        "orders": [
+          2.4199219269265857,
+          2.410972218496974
+        ],
+        "passed": true
+      },
+      "fast_oblique": {
+        "orders": [
+          1.8994228224987135,
+          1.9883328888224838
+        ],
+        "passed": true
+      },
+      "slow_oblique": {
+        "orders": [
+          2.273704331399936,
+          2.2667650774075248
+        ],
+        "passed": true
+      },
+      "alfven": {
+        "orders": [
+          1.7241891814839587,
+          1.7451239770743534
+        ],
+        "passed": true
+      },
+      "overdamped_slow": {
+        "orders": [
+          1.7973989230510374,
+          1.7866147864318878
+        ],
+        "passed": true
+      },
+      "overdamped_fast": {
+        "orders": [
+          1.965015369323522,
+          1.9430143305427732
+        ],
+        "passed": true
+      }
+    }
+  },
+  "coarse_overdamped_halfdt": {
+    "provenance": {
+      "report_id": "centered-overdamped-halfdt-cpu-01",
+      "report_sha256": "8f98cd436a826463b6c5eb8913c9793c435a4502b2af60df7dbabd68dc7aa2f1",
+      "binary_sha256": "73671b8d6f8d52dcca32e8f809079e8a8c56d50bcf06ba4b5559ac26aaeb0a51",
+      "selected_source_sha256": {
+        "src/diffusion/viscosity.cpp": "cc4ebba683567f5dabb49573ef08e158af07d8cb51b994534e0a94006b882729",
+        "src/diffusion/viscosity.hpp": "4d371b589267168959b8cbb6437d146ae2d664d348161f2c1066543d4f6b2ea4",
+        "src/mhd/mhd_sts.cpp": "d4c8a9f25c4cef7d009a2050c72e9ae44d11228d68f5ca0317ced960382438f3"
+      }
+    },
+    "epoch": "earlier centered spatial-operator study, before final STS guard changes",
+    "cases": [
+      {
+        "kind": "overdamped_fast",
+        "n": 32,
+        "cfl": 0.15,
+        "amplitude": 0.000001,
+        "nu": 2,
+        "passed": false,
+        "field_relative_l2": 0.002676981687792689,
+        "modal_relative_error": 0.04094425303201802,
+        "measured_growth": -23.144614796113228,
+        "expected_growth": -22.865907626263372,
+        "conserved_budget_absolute": 4.996003610813204e-16,
+        "minimum_pressure": 0.5999999932331902
+      }
+    ],
+    "gates": {
+      "field_relative_l2": 0.03,
+      "modal_relative_error": 0.03
+    },
+    "convergence": {}
+  }
+}
