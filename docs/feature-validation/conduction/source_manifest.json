@@ -1,0 +1,620 @@
+{
+  "baseline": "588d737fac0251b5538c287cf50c3ccdd4cad706",
+  "tip": "c3a8fccca928eef8b22d233458c4a4aabd9cb171",
+  "changed_path_count": 77,
+  "files": [
+    {
+      "path": ".github/workflows/main.yml",
+      "sha256": "035e0187760dc084ebd8be0720ab81d1b8028cf8ff5c8f64ce6b0ae3f7a6dc84",
+      "hunks": [
+        "@@ -44 +44 @@ jobs:",
+        "@@ -66 +66 @@ jobs:",
+        "@@ -88 +88 @@ jobs:"
+      ]
+    },
+    {
+      "path": "docs/thermal_conduction.md",
+      "sha256": "2292eae493075ad88ba0391b9209d2528feaf7e949b08075067f6bf52f400674",
+      "hunks": [
+        "@@ -0,0 +1,290 @@"
+      ]
+    },
+    {
+      "path": "src/CMakeLists.txt",
+      "sha256": "373ec0179b10a04c2d304d2c52d01a61f30fa1158c5e0214844498651b38aae1",
+      "hunks": [
+        "@@ -145,0 +146,2 @@ add_executable("
+      ]
+    },
+    {
+      "path": "src/diffusion/conduction.cpp",
+      "sha256": "1d005c18b83ad49769eed7625c572e6d6e694b789e12a5b237d722fd31f9c468",
+      "hunks": [
+        "@@ -20,0 +21,3 @@",
+        "@@ -22,0 +26 @@",
+        "@@ -25,0 +30,2 @@",
+        "@@ -30,0 +37,497 @@ namespace {",
+        "@@ -66,4 +569,2 @@ Real VLL4State(const Real a, const Real b, const Real c, const Real d) {",
+        "@@ -71,5 +572,4 @@ KOKKOS_INLINE_FUNCTION",
+        "@@ -76,0 +577 @@ Real TempDepKappa(Real temp, Real limit) {",
+        "@@ -90,0 +592 @@ Conduction::Conduction(std::string block, MeshBlockPack *pp, ParameterInput *pin",
+        "@@ -95 +597,33 @@ Conduction::Conduction(std::string block, MeshBlockPack *pp, ParameterInput *pin",
+        "@@ -97,0 +632,9 @@ Conduction::Conduction(std::string block, MeshBlockPack *pp, ParameterInput *pin",
+        "@@ -98,0 +642,77 @@ Conduction::Conduction(std::string block, MeshBlockPack *pp, ParameterInput *pin",
+        "@@ -100,2 +720 @@ Conduction::Conduction(std::string block, MeshBlockPack *pp, ParameterInput *pin",
+        "@@ -103 +722 @@ Conduction::Conduction(std::string block, MeshBlockPack *pp, ParameterInput *pin",
+        "@@ -114,0 +734,273 @@ Conduction::~Conduction() {",
+        "@@ -121,0 +1014,4 @@ void Conduction::AddHeatFluxes(const DvceArray5D<Real> &w0, const EOS_Data &eos,",
+        "@@ -160 +1056,3 @@ void Conduction::AddHeatFluxIso(const DvceArray5D<Real> &w0, const EOS_Data &eos",
+        "@@ -172 +1070,3 @@ void Conduction::AddHeatFluxIso(const DvceArray5D<Real> &w0, const EOS_Data &eos",
+        "@@ -189 +1089,4 @@ void Conduction::AddHeatFluxIso(const DvceArray5D<Real> &w0, const EOS_Data &eos",
+        "@@ -193 +1096,51 @@ void Conduction::AddHeatFluxAniso(const DvceArray5D<Real> &w0, const EOS_Data &e",
+        "@@ -201,141 +1153,0 @@ void Conduction::AddHeatFluxAniso(const DvceArray5D<Real> &w0, const EOS_Data &e",
+        "@@ -347,0 +1160,8 @@ void Conduction::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_da",
+        "@@ -349,4 +1168,0 @@ void Conduction::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_da",
+        "@@ -354,5 +1170,2 @@ void Conduction::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_da",
+        "@@ -373 +1186,7 @@ void Conduction::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_da",
+        "@@ -397,4 +1215,0 @@ void Conduction::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_da",
+        "@@ -409,0 +1225,261 @@ void Conduction::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_da"
+      ]
+    },
+    {
+      "path": "src/diffusion/conduction.hpp",
+      "sha256": "b923ab5b5071908835c2f136729fcafa7c9522ee84e930a0a2f2b296d3cd3e6e",
+      "hunks": [
+        "@@ -10 +10,2 @@",
+        "@@ -28,0 +30 @@ class Conduction {",
+        "@@ -32 +34,5 @@ class Conduction {",
+        "@@ -43,0 +50,2 @@ class Conduction {",
+        "@@ -44,0 +53,22 @@ class Conduction {",
+        "@@ -47,0 +78,3 @@ class Conduction {"
+      ]
+    },
+    {
+      "path": "src/diffusion/sts_rkl2.cpp",
+      "sha256": "0dc19b9f636d967c71ea2459b74b744cd1617ea29d207934f9ea4e72df0186c5",
+      "hunks": [
+        "@@ -41 +41 @@ int ComputeRKL2StageCount(Real dt_sweep, Real dt_parabolic_min) {",
+        "@@ -43 +43,2 @@ int ComputeRKL2StageCount(Real dt_sweep, Real dt_parabolic_min) {",
+        "@@ -45 +46 @@ int ComputeRKL2StageCount(Real dt_sweep, Real dt_parabolic_min) {",
+        "@@ -47 +48,2 @@ int ComputeRKL2StageCount(Real dt_sweep, Real dt_parabolic_min) {"
+      ]
+    },
+    {
+      "path": "src/driver/driver.cpp",
+      "sha256": "f9705ea0cb3346bab9d374ef53ee61d2c4fa42133c1edc0220809295a861bcaa",
+      "hunks": [
+        "@@ -12,0 +13 @@",
+        "@@ -20,0 +22,3 @@",
+        "@@ -48 +52,2 @@ void ReserveOutputCounters(const std::vector<BaseTypeOutput*> &outputs,",
+        "@@ -57,0 +63,20 @@ void ReserveOutputCounters(const std::vector<BaseTypeOutput*> &outputs,",
+        "@@ -317,0 +343,4 @@ void Driver::ResetSTSController() {",
+        "@@ -392,0 +422,16 @@ void Driver::ValidateSTSConfiguration(Mesh *pm) {",
+        "@@ -443,0 +489,107 @@ void Driver::EndSTSSweep() {",
+        "@@ -578,10 +730 @@ void Driver::Execute(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool wdfla",
+        "@@ -608,13 +751 @@ void Driver::Execute(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool wdfla"
+      ]
+    },
+    {
+      "path": "src/driver/driver.hpp",
+      "sha256": "01a0e0f40e46b8098854b76fcbe469fa6d437945a6975aa00ee2800227960022",
+      "hunks": [
+        "@@ -34,0 +35,4 @@ class Driver {",
+        "@@ -86,0 +91 @@ class Driver {"
+      ]
+    },
+    {
+      "path": "src/hydro/hydro.cpp",
+      "sha256": "16af9db625313d589609f1a592551f0374f00f498984b28d7047ea069dd03abb",
+      "hunks": [
+        "@@ -104 +104,6 @@ Hydro::Hydro(MeshBlockPack *ppack, ParameterInput *pin) :"
+      ]
+    },
+    {
+      "path": "src/hydro/hydro.hpp",
+      "sha256": "aa93f718383a22a0b2a6a67d9388fe62b8249f478ded0941ae0784497157650c",
+      "hunks": [
+        "@@ -169,0 +170 @@ class Hydro {"
+      ]
+    },
+    {
+      "path": "src/hydro/hydro_newdt.cpp",
+      "sha256": "0b3f69860ea9308d4941e44fe8807fe469b018b5960a289eea4532c87d1e8176",
+      "hunks": [
+        "@@ -129,0 +130,5 @@ TaskStatus Hydro::NewTimeStep(Driver *pdrive, int stage) {"
+      ]
+    },
+    {
+      "path": "src/hydro/hydro_sts.cpp",
+      "sha256": "e4d766cf4d79294f1890e9377e7f504d21a357d818e9e9c38d06832933f9f1b6",
+      "hunks": [
+        "@@ -8,0 +9,3 @@",
+        "@@ -68 +70,0 @@ TaskStatus Hydro::STSFluxes(Driver *pdrive, int stage) {",
+        "@@ -69,0 +72,11 @@ TaskStatus Hydro::STSFluxes(Driver *pdrive, int stage) {",
+        "@@ -79 +92 @@ TaskStatus Hydro::STSUpdate(Driver *pdrive, int stage) {",
+        "@@ -84 +97,7 @@ TaskStatus Hydro::STSUpdate(Driver *pdrive, int stage) {",
+        "@@ -163,0 +183,27 @@ TaskStatus Hydro::STSUpdate(Driver *pdrive, int stage) {",
+        "@@ -168,0 +215 @@ TaskStatus Hydro::STSRefreshTimeStep(Driver *pdrive, int stage) {"
+      ]
+    },
+    {
+      "path": "src/hydro/hydro_tasks.cpp",
+      "sha256": "73e5dd9dcdb179652a8a599aec4c58444e623f33daefa12473e32e2d6abcfe5d",
+      "hunks": [
+        "@@ -8,0 +9,2 @@",
+        "@@ -18,0 +21 @@",
+        "@@ -90 +93,2 @@ void Hydro::AssembleHydroTasks(std::map<std::string, std::shared_ptr<TaskList>>",
+        "@@ -198,0 +203 @@ TaskStatus Hydro::Fluxes(Driver *pdrive, int stage) {",
+        "@@ -443,0 +449,22 @@ TaskStatus Hydro::ConToPrim(Driver *pdrive, int stage) {"
+      ]
+    },
+    {
+      "path": "src/mhd/mhd.cpp",
+      "sha256": "fafa67396a285fadfdea39e8307a4bbe3e672f909d15467a75e7a7c209b235e5",
+      "hunks": [
+        "@@ -154 +154,6 @@ MHD::MHD(MeshBlockPack *ppack, ParameterInput *pin) :"
+      ]
+    },
+    {
+      "path": "src/mhd/mhd.hpp",
+      "sha256": "ca01650f6b1bfd8843c8455502de3e4177245052ae9f5424a5ece063ceb01723",
+      "hunks": [
+        "@@ -226,0 +227 @@ class MHD {"
+      ]
+    },
+    {
+      "path": "src/mhd/mhd_newdt.cpp",
+      "sha256": "c0b2248b282dc3f52def83b5aad64e30c778f65f222e8d74df8b099021e11940",
+      "hunks": [
+        "@@ -168,0 +169,5 @@ void MHD::RecomputeTimeStepFromCurrentState(Driver *pdriver) {"
+      ]
+    },
+    {
+      "path": "src/mhd/mhd_sts.cpp",
+      "sha256": "efe111820afa7288e9a239108cde9ac6c83e2989abc0537665499101996f5cf6",
+      "hunks": [
+        "@@ -8,0 +9,3 @@",
+        "@@ -95 +97,0 @@ TaskStatus MHD::STSFluxes(Driver *pdrive, int stage) {",
+        "@@ -96,0 +99,10 @@ TaskStatus MHD::STSFluxes(Driver *pdrive, int stage) {",
+        "@@ -118 +130,2 @@ TaskStatus MHD::STSUpdateU(Driver *pdrive, int stage) {",
+        "@@ -123 +136,7 @@ TaskStatus MHD::STSUpdateU(Driver *pdrive, int stage) {",
+        "@@ -206 +225,2 @@ TaskStatus MHD::STSUpdateB(Driver *pdrive, int stage) {",
+        "@@ -307,0 +328,25 @@ TaskStatus MHD::STSUpdateB(Driver *pdrive, int stage) {",
+        "@@ -308,0 +354 @@ TaskStatus MHD::STSRefreshTimeStep(Driver *pdrive, int stage) {"
+      ]
+    },
+    {
+      "path": "src/mhd/mhd_tasks.cpp",
+      "sha256": "ddd32d9e5a9eb7cd356f700f7db8ce4f0fb7fcbcd5d837ac5982e16c67455416",
+      "hunks": [
+        "@@ -8,0 +9,2 @@",
+        "@@ -18,0 +21 @@",
+        "@@ -106,0 +110,2 @@ void MHD::AssembleMHDTasks(std::map<std::string, std::shared_ptr<TaskList>> tl)",
+        "@@ -279,0 +285 @@ TaskStatus MHD::Fluxes(Driver *pdrive, int stage) {",
+        "@@ -655,0 +662,22 @@ TaskStatus MHD::ConToPrim(Driver *pdrive, int stage) {"
+      ]
+    },
+    {
+      "path": "src/mhd/rsolvers/advect_mhd.hpp",
+      "sha256": "8a373c3283a02fe3c8970989152381855b4b9af9d9b6468a37feae867bfe9425",
+      "hunks": [
+        "@@ -10,2 +10,3 @@",
+        "@@ -16 +17 @@ namespace mhd {",
+        "@@ -42,0 +44,3 @@ void Advect(const EOS_Data &eos,",
+        "@@ -51,0 +56,3 @@ void Advect(const EOS_Data &eos,"
+      ]
+    },
+    {
+      "path": "src/pgen/pgen.cpp",
+      "sha256": "936ed7e10c9f34e30dca8961380181b1beb5d8b5e9be97c1e3bfd1a129a14aca",
+      "hunks": [
+        "@@ -42 +42,2 @@ namespace {",
+        "@@ -629,2 +630,3 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf",
+        "@@ -778 +780,2 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf",
+        "@@ -786 +789,2 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf",
+        "@@ -1204,0 +1209,4 @@ void ProblemGenerator::CallProblemGenerator(ParameterInput *pin, bool is_restart",
+        "@@ -1447 +1455,2 @@ void ProblemGenerator::InitializeParticlesFromRestart("
+      ]
+    },
+    {
+      "path": "src/pgen/pgen.hpp",
+      "sha256": "a0b071f20daae8960b205d839d09f8e85401e8823970716e7727b5812abee994",
+      "hunks": [
+        "@@ -82,0 +83,2 @@ class ProblemGenerator {"
+      ]
+    },
+    {
+      "path": "src/pgen/tests/transport_coupled.hpp",
+      "sha256": "a44d9f7f92b65783046e6007849c86f8deaf5866f8359305d580e473c4022807",
+      "hunks": [
+        "@@ -0,0 +1,242 @@"
+      ]
+    },
+    {
+      "path": "src/pgen/tests/transport_equilibrium.hpp",
+      "sha256": "4db4c83185d991efea98edc841d04d5647172d1f6bee0a5f72ccd0701ce39cef",
+      "hunks": [
+        "@@ -0,0 +1,347 @@"
+      ]
+    },
+    {
+      "path": "src/pgen/tests/transport_front.hpp",
+      "sha256": "43280b26d6c40f21806d01e9b8afd0227910bfa0820d1f22ed2a03977db3d29a",
+      "hunks": [
+        "@@ -0,0 +1,63 @@"
+      ]
+    },
+    {
+      "path": "src/pgen/tests/transport_gaussian.hpp",
+      "sha256": "98fa8849c9f9405754c631c2ceab24c80143f4f45c5d9510c715e9f20507a1c7",
+      "hunks": [
+        "@@ -0,0 +1,193 @@"
+      ]
+    },
+    {
+      "path": "src/pgen/tests/transport_helical.hpp",
+      "sha256": "37661cd8d46bd3b55fa08976c014c3ee068fad1270f67604dbf5d31ff4f133ef",
+      "hunks": [
+        "@@ -0,0 +1,209 @@"
+      ]
+    },
+    {
+      "path": "src/pgen/tests/transport_mode.cpp",
+      "sha256": "db8e694a016abc4737e4323ebb00d28050967fd9fa0c0e18bbc2cebc405caf94",
+      "hunks": [
+        "@@ -0,0 +1,316 @@"
+      ]
+    },
+    {
+      "path": "src/pgen/tests/transport_operator.hpp",
+      "sha256": "b64f1ff3135e4b38a3f1328f140a668b0f9fc3b17b406de8d3e39df7c99ae851",
+      "hunks": [
+        "@@ -0,0 +1,179 @@"
+      ]
+    },
+    {
+      "path": "src/pgen/tests/transport_patch.hpp",
+      "sha256": "4428b6dc1ce07cc1773689e292df5e638fb5f3aae56670eb8378f4e5cd0e7aff",
+      "hunks": [
+        "@@ -0,0 +1,432 @@"
+      ]
+    },
+    {
+      "path": "src/pgen/tests/transport_refinement.cpp",
+      "sha256": "2ce5aed950998395ff0a28ee63790ce75fdd80e53e38a9123bf69ef0d93b3c2b",
+      "hunks": [
+        "@@ -0,0 +1,303 @@"
+      ]
+    },
+    {
+      "path": "src/pgen/tests/transport_ring_state.hpp",
+      "sha256": "a7e09a129bdd6172744ff59134df7540fe1fbd0af15229289d5ebbdfa32b221c",
+      "hunks": [
+        "@@ -0,0 +1,99 @@"
+      ]
+    },
+    {
+      "path": "src/pgen/tests/transport_saturated_operator.hpp",
+      "sha256": "8081173291e2de62ac670e7759b9ebf77e6d4b2b760906cbd431b85aec7571bc",
+      "hunks": [
+        "@@ -0,0 +1,225 @@"
+      ]
+    },
+    {
+      "path": "src/pgen/tests/transport_sawtooth.hpp",
+      "sha256": "1533605d84660c69261e51e5dd14c617db1a93ae8785c7c20d1a3b5202a2f898",
+      "hunks": [
+        "@@ -0,0 +1,126 @@"
+      ]
+    },
+    {
+      "path": "src/pgen/tests/transport_stages.hpp",
+      "sha256": "f0bab0b992720a9264e751826a7d3aed07fa78496538908279c010f4242cea4f",
+      "hunks": [
+        "@@ -0,0 +1,116 @@"
+      ]
+    },
+    {
+      "path": "tst/inputs/transport_coupled.athinput",
+      "sha256": "1437275bab5ea8e6945c767d7f786172d07e2cfe7073a4ff9477e952076f3c42",
+      "hunks": [
+        "@@ -0,0 +1,74 @@"
+      ]
+    },
+    {
+      "path": "tst/inputs/transport_equilibrium.athinput",
+      "sha256": "3598cf6f054c9ebe740bd21308fb36ae17cfe4723c27de1bce2cfc5ab263f070",
+      "hunks": [
+        "@@ -0,0 +1,54 @@"
+      ]
+    },
+    {
+      "path": "tst/inputs/transport_front.athinput",
+      "sha256": "72b867b2cdfe4b1ae10f5c55d6927176b8cade2bdc86bd5a1e9276c1fd123d93",
+      "hunks": [
+        "@@ -0,0 +1,75 @@"
+      ]
+    },
+    {
+      "path": "tst/inputs/transport_gaussian.athinput",
+      "sha256": "6a84e239877f258552fae8f82938e44c1cf763413ccf05c80b1d96239f8d6b9b",
+      "hunks": [
+        "@@ -0,0 +1,71 @@"
+      ]
+    },
+    {
+      "path": "tst/inputs/transport_helical.athinput",
+      "sha256": "ebaef3b14cc5f2cb2d734287af2d7fa67e9da21b2a1b79fa805a81b4c3a9ea38",
+      "hunks": [
+        "@@ -0,0 +1,67 @@"
+      ]
+    },
+    {
+      "path": "tst/inputs/transport_mode.athinput",
+      "sha256": "972978f352c1dad346286b28465a583c348ead1781304c7dd23ea647747ae7a4",
+      "hunks": [
+        "@@ -0,0 +1,75 @@"
+      ]
+    },
+    {
+      "path": "tst/inputs/transport_patch.athinput",
+      "sha256": "d2486ac8bebaee53cc85b8623ba1d2674e9c63df8db2f691ba87b06c3a2f6555",
+      "hunks": [
+        "@@ -0,0 +1,60 @@"
+      ]
+    },
+    {
+      "path": "tst/inputs/transport_refinement.athinput",
+      "sha256": "6bc489a16e2ad469dd48d114e6361f302c3f5ea3e1a422f10471934e0770e86c",
+      "hunks": [
+        "@@ -0,0 +1,66 @@"
+      ]
+    },
+    {
+      "path": "tst/test_suite/diffusion/test_sts_rkl2_controller_cpu.py",
+      "sha256": "c18a5455ad878082adbaadab8d25075904ca98b9b0c477c061beb4f4858c7d80",
+      "hunks": [
+        "@@ -7,0 +8 @@ import pytest",
+        "@@ -114,0 +116,57 @@ def test_unrepresentable_stage_count_fails_cleanly(controller):"
+      ]
+    },
+    {
+      "path": "tst/test_suite/diffusion/test_transport_closure_cpu.py",
+      "sha256": "12402ae3220dd2051533038bc0865de2ec888f77f945f714bbeab4627b2291ad",
+      "hunks": [
+        "@@ -0,0 +1,45 @@"
+      ]
+    },
+    {
+      "path": "tst/test_suite/diffusion/test_transport_functional_cpu.py",
+      "sha256": "b62c686b3e8dff9f33a3eeb18e1201e77f17a657c672008d41298d108c66fc19",
+      "hunks": [
+        "@@ -0,0 +1,17 @@"
+      ]
+    },
+    {
+      "path": "tst/test_suite/diffusion/test_transport_functional_gpu.py",
+      "sha256": "1c68d74b9eca54a86762145e65e7213b9963a08b178438af2abc96db06ee402b",
+      "hunks": [
+        "@@ -0,0 +1,17 @@"
+      ]
+    },
+    {
+      "path": "tst/test_suite/diffusion/test_transport_functional_mpicpu.py",
+      "sha256": "df31c06b48d7603b1e16f3e7e244fce33cbbe04558fb5c48f85ea4b3e2bd66be",
+      "hunks": [
+        "@@ -0,0 +1,13 @@"
+      ]
+    },
+    {
+      "path": "tst/test_suite/diffusion/test_transport_functional_mpigpu.py",
+      "sha256": "8e7cf1989358e5cd593ce5df6b15fa6673cdeb11f245777e2c30fd7caa197f16",
+      "hunks": [
+        "@@ -0,0 +1,13 @@"
+      ]
+    },
+    {
+      "path": "tst/test_suite/diffusion/test_transport_localized_cpu.py",
+      "sha256": "7a1ef80a993c611dbab8addd55a376d173f83e65f3ef56ffd77d278ccb744867",
+      "hunks": [
+        "@@ -0,0 +1,8 @@"
+      ]
+    },
+    {
+      "path": "tst/test_suite/diffusion/test_transport_localized_gpu.py",
+      "sha256": "4f850c0cc7b7378bc8be30499eeb0b345d52102323efc93df1e836d177d26420",
+      "hunks": [
+        "@@ -0,0 +1,8 @@"
+      ]
+    },
+    {
+      "path": "tst/test_suite/diffusion/test_transport_nonlinear_cpu.py",
+      "sha256": "9b4b22c2a7d194dd65e92873ddb5fd2b94d33420bfcf177688c4b53c90de176a",
+      "hunks": [
+        "@@ -0,0 +1,10 @@"
+      ]
+    },
+    {
+      "path": "tst/test_suite/diffusion/test_transport_nonlinear_gpu.py",
+      "sha256": "a826f9ce905e4aa104cdc78c75cd9574fd9b0c55a87478fcf81fa8673fcc29a3",
+      "hunks": [
+        "@@ -0,0 +1,10 @@"
+      ]
+    },
+    {
+      "path": "tst/test_suite/diffusion/test_transport_nonlinear_mpicpu.py",
+      "sha256": "453e28182f05a93f1c7d27c9e0225395172a9369c8925caca8296a23bfb5d6bc",
+      "hunks": [
+        "@@ -0,0 +1,7 @@"
+      ]
+    },
+    {
+      "path": "tst/test_suite/diffusion/test_transport_nonlinear_mpigpu.py",
+      "sha256": "5a5a14bf526463dd7b4e6683faba1fd36fad19d38a5e24e326a9b950dcaebb49",
+      "hunks": [
+        "@@ -0,0 +1,7 @@"
+      ]
+    },
+    {
+      "path": "tst/test_suite/diffusion/test_transport_reference_cpu.py",
+      "sha256": "b8889d252a793ff580ac2a7dd6a9cba963af8e81f1752ee1867076195f9932a5",
+      "hunks": [
+        "@@ -0,0 +1,44 @@"
+      ]
+    },
+    {
+      "path": "tst/test_suite/diffusion/transport_functional.py",
+      "sha256": "7068982ad4a2b686ed03b16d26dbf4ef1b7a9641a5075c5178c831a63b0634e1",
+      "hunks": [
+        "@@ -0,0 +1,94 @@"
+      ]
+    },
+    {
+      "path": "tst/test_suite/diffusion/transport_nonlinear.py",
+      "sha256": "dc50185a38598f2cb6ad033c204838caa598b74d83ad4bd4702dbba7d5ff32a5",
+      "hunks": [
+        "@@ -0,0 +1,39 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/gaussian_oracle.py",
+      "sha256": "32432bbadb4be9d38bcb61ef98e768be3b9b03b95f15dc35c41b739ec1a0e01a",
+      "hunks": [
+        "@@ -0,0 +1,101 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/oracles.py",
+      "sha256": "ed5795b1f353ad83edce5f4a610f4aaf8fd0bc59798976a4acedd05b6daaefae",
+      "hunks": [
+        "@@ -0,0 +1,95 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/result_policy.py",
+      "sha256": "376f35af596176ed8a23b434433362c43df3e0b92b482244795431c7b7812614",
+      "hunks": [
+        "@@ -0,0 +1,102 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/run_equilibrium.py",
+      "sha256": "69b28c15051edf78b0db0c1d5f2f82ccd28fe2d7a7990135173514f90a009887",
+      "hunks": [
+        "@@ -0,0 +1,357 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/run_gaussian.py",
+      "sha256": "d9bf0cb8472c9cff402e985ff85dcb0e07a2ec5f34f0fc390a7e3be4602aed74",
+      "hunks": [
+        "@@ -0,0 +1,220 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/run_nonlinear.py",
+      "sha256": "1187192b836b38654ed1ea8acddbfb75e5dbf508a4dffaa98a290b0a87f3c550",
+      "hunks": [
+        "@@ -0,0 +1,735 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/run_patch.py",
+      "sha256": "c6b38993a5380364c4fd548263ed1e2c50f8fe9c8e0d973c0b1653bd3dca5188",
+      "hunks": [
+        "@@ -0,0 +1,298 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/run_pilot.py",
+      "sha256": "74582a20855b4ace5b0fda0004519c7d5129881b7aeb27e8c842a34a40e9e8b9",
+      "hunks": [
+        "@@ -0,0 +1,302 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/run_sts.py",
+      "sha256": "afdef90f46e15c87668e63f33fa9e31f5a77954b01d0dfc45a18d02b57952c71",
+      "hunks": [
+        "@@ -0,0 +1,199 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/sts_checks.py",
+      "sha256": "ef76e5a4234547818c85099b36cd0ccaf11e16879b3e3183f99d49482cb9fa10",
+      "hunks": [
+        "@@ -0,0 +1,46 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/test_conduction_closure_cpu.py",
+      "sha256": "61c1cdf23a3a0fbe7df5a3f6d146e36b5146325c59ddecc104bd7da4babe55d1",
+      "hunks": [
+        "@@ -0,0 +1,336 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/test_equilibrium_checker.py",
+      "sha256": "d13de36378f6191a6661735c45dd924ed6fc80f65aea4272b94a603889799a9e",
+      "hunks": [
+        "@@ -0,0 +1,114 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/test_gaussian_checker.py",
+      "sha256": "3f0adf972b074d041078e40fa5a94a3dd08c245a91880c72f5b72db69ad396b2",
+      "hunks": [
+        "@@ -0,0 +1,99 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/test_gaussian_oracle.py",
+      "sha256": "35f9cea45444275dc9750fb5d6ac612729279b1b3784836695155ec44902bc5f",
+      "hunks": [
+        "@@ -0,0 +1,78 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/test_oracles.py",
+      "sha256": "0b08d7ba33837d3d351bf70883e6764b742d9cb8de3823d2014e70b2b9c38e77",
+      "hunks": [
+        "@@ -0,0 +1,91 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/test_patch_checker.py",
+      "sha256": "5ae58f4127d2b175f594de45cedf3e0c6b27ae864fa0f7a193abcca1575e7d15",
+      "hunks": [
+        "@@ -0,0 +1,119 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/test_result_policy.py",
+      "sha256": "b4f416f0d90ff021d75a6b109c40cf95da2189da13194f6300122d1bd5cdac3e",
+      "hunks": [
+        "@@ -0,0 +1,98 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/test_saturated_speed_cpu.py",
+      "sha256": "6a65b38ff7fcb5dcfecc2096b5dc430cb46bd4a631c5593bf9c9cd62e9f5702e",
+      "hunks": [
+        "@@ -0,0 +1,236 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/test_spitzer_potential_cpu.py",
+      "sha256": "47f1b079e2521b833274272fd4b81d4e53813cb87d621066eb25e1c2a2a9565d",
+      "hunks": [
+        "@@ -0,0 +1,256 @@"
+      ]
+    },
+    {
+      "path": "tst/transport/test_sts_checks.py",
+      "sha256": "e887428c6eee663acff91d7ea7a15b57435c5b24b574345c2f36badda617dff4",
+      "hunks": [
+        "@@ -0,0 +1,95 @@"
+      ]
+    }
+  ]
+}
