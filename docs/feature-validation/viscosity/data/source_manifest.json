@@ -1,5 +1,6 @@
 {
   "base_commit": "02b50eca0bb01364636dcaa36d650175a10db5f5",
+  "source_revision": "19355b00cadef598d8ca293f1ab07b83efd9a4fd",
   "feature_branch": "feature/viscosity",
   "snapshot_kind": "Base commit plus content-hashed implementation/test/guide files",
   "files": [

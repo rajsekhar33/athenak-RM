@@ -8,6 +8,8 @@ The [combined source manifest](data/combined_source_manifest.json) records all
 Implementation milestones are `31556aa884b1d9ebaac13285a009c21f95c6ee3b`
 (physical-viscosity STS) and `02b50eca0bb01364636dcaa36d650175a10db5f5` (Braginskii).
 The later hyperviscosity changes have a separate [seven-file inventory](data/source_manifest.json).
+Both manifests describe the files at `19355b00cadef598d8ca293f1ab07b83efd9a4fd`;
+their guide hashes precede the documentation-only embedding of these figures.
 These are successive validation epochs, not fresh runs of every experiment against the combined snapshot.
 
 ## Physical viscosity and RKL2

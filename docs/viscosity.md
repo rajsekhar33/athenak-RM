@@ -1,5 +1,10 @@
 # Viscosity
 
+See the [verification figures](#verification-figures) below for physical,
+Braginskii and fourth-order hyperviscosity, including RKL2 integration.
+The [detailed validation report](feature-validation/viscosity/README.md)
+provides numerical criteria, source inventories and reproducible figure data.
+
 Newtonian Hydro and MHD support constant isotropic kinematic shear viscosity.
 Uniform-grid Newtonian MHD also supports leading parallel Braginskii viscosity
 with ideal or isothermal equations of state. Set `nu_iso` and/or `nu_aniso`
@@ -249,3 +254,57 @@ polynomial; it is not a general nonlinear or continuum-convergence test.
 Use the same script with a GPU executable and `--gpu` for that backend.
 This custom problem build is not suitable for the standard regression suite,
 which requires `-DPROBLEM=built_in_pgens`.
+
+## Verification figures
+
+These figures show AthenaK test measurements and their numerical references,
+not copied paper artwork. The studies span successive implementation versions;
+their scopes, recorded source hashes and retained failures are documented in the
+[validation report](feature-validation/viscosity/README.md).
+
+### Physical viscosity and RKL2
+
+![Physical-viscosity operator and refined-mesh verification](feature-validation/viscosity/figures/physical_viscosity.png)
+
+Operator damping, generated heat and refined-mesh accuracy are checked separately.
+The cold active-AMR profile error is 2.598%, 1.050% and 0.352% at RKL ratio caps
+16, 4 and 1, respectively, against a 0.5% criterion. Changing the remapping
+schedule is not a pure temporal-convergence test; stable steps need not be accurate.
+
+### Parallel Braginskii viscosity
+
+![Braginskii coupled-wave and isolated-heating verification](feature-validation/viscosity/figures/braginskii_validation.png)
+
+Rotated coupled waves and isolated native heating tests check the parallel
+stress and its energy work. The overdamped fast-wave error decreases from
+4.0943% at N32 to 0.9536% and 0.2311% at N64 and N128; the N32 case retains
+its failure against the 3% criterion. Isolated heating tests do not establish
+arbitrary-state positivity or coupled-MHD STS heating accuracy.
+
+### Fourth-order damping and coupled-wave dispersion
+
+![Hyperviscosity dispersion and fourth-order damping verification](feature-validation/viscosity/figures/dispersion.png)
+
+Sound, Alfvén and magnetosonic modes are compared with their coupled dispersion
+relations. The harmonic-2/fundamental damping ratios are 15.9611 for sound and
+15.9311 for Alfvén waves, compared with the fourth-order prediction of 16.
+The comparisons distinguish continuum damping from the discrete stencil response.
+
+### Ideal-gas hyperviscous heating
+
+![Hyperviscous heating and higher-stress work verification](feature-validation/viscosity/figures/heating.png)
+
+Generated heat is compared with an independently refined continuum integration.
+The heating-field error decreases from 0.403% at N64 to 0.122% at N128.
+Omitting the higher-stress work flux J changes the reference heating by 122.5%,
+despite conserving periodic total energy. These are heating-field results,
+not a claim that every weak fluid component meets a 3% error criterion.
+
+### Hyperviscosity RKL2 temporal convergence
+
+![Hyperviscosity RKL2 temporal verification with retained coarse failure](feature-validation/viscosity/figures/sts_convergence.png)
+
+The coarse ratio-128 window fails the temporal-order criterion; smaller steps
+recover thermal orders 1.889 and 1.916, while ratio 8 gives 1.945.
+The failed coarse window is retained: stability and CPU/GPU agreement alone
+do not establish temporal accuracy.
