@@ -1,0 +1,322 @@
+{
+  "schema": 1,
+  "axes": "x,y[,z]",
+  "temperature": "p/rho",
+  "archive_sources": {
+    "figures/full-ring-20260922-g/analysis.json": "94958f7f95dc74ad29d8cabc51fa8918bba1becc5ec2282a8bb48a37a626c236",
+    "runs/gpu-ring400-segments-20260922/vanleer/combined/patch.patch.0.dat": "cd6b5ef170f36faea1a2cf80de9e8f3874dcb921e7bbe1c5a5b3b4f7087a503d",
+    "runs/gpu-ring400-segments-20260922/mc/combined/patch.patch.0.dat": "5c0698b34af1a31ca35fe69b12ad7b8fb8c2ab838ac05a0d5923b93032eb453a",
+    "runs/gaussian-cpu-matrix-20260922-a/checker/gaussian_oracle.py": "74096c7bb5140e08baff4e3bf35c8aaa4c594f253a052947d51622e0222b4771",
+    "runs/gaussian-cpu-refinement-20260922-a/results.json": "208c31adc5a1312335c078647267f63fe88386b4d6f596b831daee1616c8eb3b",
+    "runs/gaussian-cpu-refinement-20260922-a/mc_2d_ratio100_n32_n64/gaussian.gaussian.dat": "824cbca53db1c2862a319dc09ab87304d99d56989f67648b348ff3fd162cbd2d",
+    "runs/gaussian-cpu-matrix-20260922-a/results.json": "4146e4f6055dc2231b2f732dc603571ba98228d9598cbe6983c506d8d9cc62c8",
+    "runs/gaussian-cpu-matrix-20260922-a/mc_3d_ratio100_n32/gaussian.gaussian.dat": "be672679eb5803a8342c36cfed4f0d44afdf41d7ee8e31f76982e98e0dca0dc5",
+    "figures/sovinec100-20260922-b/analysis.json": "7890d69a1a165090b79385fc1926b2ae11624f40ae1ee8a4b265755b4e294e5b",
+    "runs/cpu-paper-matrix-TkwHx9/paper/sovinec_r100_n16_vanleer/equilibrium.eq.0.dat": "76dcf3c4056d77ebd8082226825f7faef5dbb307059dfbee167135430bd8ca22",
+    "runs/cpu-paper-matrix-ns6yx8/paper/sovinec_r100_n16_mc/equilibrium.eq.0.dat": "63d3ffdf5d1158b763144a54b69e7a2d7b25ab960a4056bcc735e3555271ec7a",
+    "runs/cpu-paper-matrix-ns6yx8/paper/sovinec_r1_n16_mc/equilibrium.eq.0.dat": "80b10266565cdc7d8e83b35f2ea5479feabbe9bdb60dfb0a7573a8322a718111",
+    "runs/harmonic-cpu-rk-20261008-ZO4dy1/matrix/report.json": "0dde1c6a4229d4347181dee56947920842bd1c6528a69283cda1ecd6df8ee2c2",
+    "runs/harmonic-cpu-rk-20261008-ZO4dy1/matrix/rk3_cfl0p025/bin/rk3_cfl0p025.cons.00000.bin": "d4894dafd3ea94ba4abeae0de7b33bd284a67f6d8260061f6db1f1736f459227",
+    "runs/harmonic-cpu-rk-20261008-ZO4dy1/matrix/rk3_cfl0p025/bin/rk3_cfl0p025.cons.00004.bin": "39249df196fcd0c888b5b1120a957fccd65c13a55ee839f13056fd91d445fd75",
+    "runs/nonlinear-coupled-long-cpu-20261009-MwPazl/matrix/report.json": "b1a3473c8c85dcd8b6fc5b1a1954f3fe9c9157616eaf64b74f4fd6c006513b29",
+    "runs/nonlinear-coupled-long-cpu-20261009-MwPazl/matrix/long_explicit_cfl0p05/long_explicit_cfl0p05.refinement_cells.rank0.dat": "60de1e6bcbd48cbe9972f28d0335edab70adbfc6fd4500e9b43e131837a5ac88",
+    "runs/nonlinear-coupled-long-cpu-20261009-MwPazl/matrix/long_rkl_cfl0p05/long_rkl_cfl0p05.refinement_cells.rank0.dat": "aa30fe8da8550b4160c7b8a228bdecd9e1a60bbf2e06a397999e1ea5066c63b7",
+    "runs/nonlinear-coupled-long-cpu-20261009-MwPazl/matrix/long_rkl_cfl0p05/bin/long_rkl_cfl0p05.cons.00000.bin": "a85939cb3de7505d0b62e41329b012c66ab63e34cf90f733df66e98e0a947f99"
+  },
+  "studies": {
+    "ring_vanleer": {
+      "n": 400,
+      "time": 200,
+      "gamma": 2,
+      "rho": 1,
+      "alpha_iso": 0,
+      "alpha_aniso": 0.01,
+      "binary_sha256": "caf2b0fcad70c2488075af16c4d1f488dd9c931b1efdf9d5b73d481f2e284747",
+      "metrics": {
+        "raw_stage_minimum": 10.0,
+        "raw_stage_maximum": 12.0,
+        "thermal_relative_error": 8.906365526569593e-11,
+        "minimum": 10.0,
+        "maximum": 10.132087029895823,
+        "cycles": 6400000.0,
+        "time": 200.0,
+        "sampled_energy_ring_target": 10.166666666666666,
+        "paper_l1": 0.016662869952586236,
+        "paper_l2": 0.02902347690277494,
+        "paper_linf": 0.10006616102507593,
+        "sampled_l1": 0.016662869952586236,
+        "sampled_l2": 0.02902347690277494,
+        "sampled_linf": 0.10006616102507593,
+        "max_divb": 4.440892098500626e-14,
+        "chi_perp_numerical": 1.2562014730462046e-05,
+        "chi_perp_over_parallel": 0.0012562014730462046,
+        "laplacian_time_integral": -2652.8975513372825
+      }
+    },
+    "ring_mc": {
+      "n": 400,
+      "time": 200,
+      "gamma": 2,
+      "rho": 1,
+      "alpha_iso": 0,
+      "alpha_aniso": 0.01,
+      "binary_sha256": "caf2b0fcad70c2488075af16c4d1f488dd9c931b1efdf9d5b73d481f2e284747",
+      "metrics": {
+        "raw_stage_minimum": 10.0,
+        "raw_stage_maximum": 12.0,
+        "thermal_relative_error": 3.166403307974062e-11,
+        "minimum": 9.999999999999998,
+        "maximum": 10.170877394368139,
+        "cycles": 6400000.0,
+        "time": 200.0,
+        "sampled_energy_ring_target": 10.166666666666666,
+        "paper_l1": 0.010212072665455834,
+        "paper_l2": 0.023000301926823022,
+        "paper_linf": 0.0894261488967345,
+        "sampled_l1": 0.010212072665455834,
+        "sampled_l2": 0.023000301926823022,
+        "sampled_linf": 0.0894261488967345,
+        "max_divb": 4.440892098500626e-14,
+        "chi_perp_numerical": 6.780568426142495e-06,
+        "chi_perp_over_parallel": 0.0006780568426142494,
+        "laplacian_time_integral": -2946.305594482097
+      }
+    },
+    "gaussian2": {
+      "configuration": {
+        "dimension": 2,
+        "n": 64,
+        "block": 16,
+        "limiter": "mc",
+        "gamma": 2.0,
+        "rho": 1.0,
+        "iso": 0.001,
+        "aniso": 0.099,
+        "field": [
+          1.0,
+          2.0,
+          3.0
+        ],
+        "stop": 0.02
+      },
+      "metrics": {
+        "l1": 0.0005885366852840249,
+        "l2": 0.0005781894308666263,
+        "linf_over_initial_amplitude": 0.0007233040375131949,
+        "heat_error_over_initial_excess": 2.0224959478351556e-12,
+        "peak": 1.0925248488637536,
+        "reference_peak": 1.0925723285883144,
+        "covariance": [
+          [
+            0.01034327047057134,
+            0.0005652973342107363
+          ],
+          [
+            0.0005652973342107363,
+            0.01119195793910778
+          ]
+        ],
+        "reference_covariance": [
+          [
+            0.010343167394024005,
+            0.0005656307858529539
+          ],
+          [
+            0.0005656307858529539,
+            0.011191676789491222
+          ]
+        ],
+        "raw_stage_minimum": 1.0000000000067413,
+        "raw_stage_maximum": 1.0991795674698714,
+        "time": 0.02,
+        "cycles": 650,
+        "max_divb": 0.0,
+        "energy": 8.006283185307167,
+        "initial_energy": 8.00628318530718,
+        "energy_relative_error": 1.553092438526414e-15,
+        "screening_gates": {
+          "l1": 0.05,
+          "l2": 0.05,
+          "linf_over_initial_amplitude": 0.03
+        }
+      },
+      "binary_sha256": "d1210fe9bf6a26d894f1d7c0795c3e7fa2b49a0d73140be6c30d359a68945873",
+      "diffusion_tensor": [
+        [
+          0.008071428571428573,
+          0.014142857142857146
+        ],
+        [
+          0.014142857142857146,
+          0.029285714285714293
+        ]
+      ]
+    },
+    "gaussian3": {
+      "configuration": {
+        "dimension": 3,
+        "n": 32,
+        "block": 16,
+        "limiter": "mc",
+        "gamma": 2.0,
+        "rho": 1.0,
+        "iso": 0.001,
+        "aniso": 0.099,
+        "field": [
+          1.0,
+          2.0,
+          3.0
+        ],
+        "stop": 0.02
+      },
+      "metrics": {
+        "l1": 0.0065084050788123795,
+        "l2": 0.006414251707019723,
+        "linf_over_initial_amplitude": 0.007376509585499402,
+        "heat_error_over_initial_excess": 1.9355036973396087e-12,
+        "peak": 1.0802654412541521,
+        "reference_peak": 1.081003092212702,
+        "covariance": [
+          [
+            0.010405031000143887,
+            0.0005639425945138296,
+            0.0008455330290821649
+          ],
+          [
+            0.0005639425945138296,
+            0.011255193203688122,
+            0.0016904264694351542
+          ],
+          [
+            0.0008455330290821649,
+            0.0016904264694351542,
+            0.012671574188401539
+          ]
+        ],
+        "reference_covariance": [
+          [
+            0.010404197499904818,
+            0.0005656307858529603,
+            0.0008482414257862157
+          ],
+          [
+            0.0005656307858529604,
+            0.011252699686554684,
+            0.0016963793318924623
+          ],
+          [
+            0.0008482414257862157,
+            0.0016963793318924623,
+            0.012666655186267629
+          ]
+        ],
+        "raw_stage_minimum": 1.0,
+        "raw_stage_maximum": 1.0952143967722758,
+        "time": 0.02,
+        "cycles": 366,
+        "max_divb": 0.0,
+        "energy": 8.001574960994569,
+        "initial_energy": 8.001574960994573,
+        "energy_relative_error": 4.4400179916066283e-16,
+        "screening_gates": {
+          "l1": 0.05,
+          "l2": 0.05,
+          "linf_over_initial_amplitude": 0.03
+        }
+      },
+      "binary_sha256": "d1210fe9bf6a26d894f1d7c0795c3e7fa2b49a0d73140be6c30d359a68945873",
+      "diffusion_tensor": [
+        [
+          0.008071428571428573,
+          0.014142857142857146,
+          0.021214285714285717
+        ],
+        [
+          0.014142857142857146,
+          0.029285714285714293,
+          0.042428571428571434
+        ],
+        [
+          0.021214285714285717,
+          0.042428571428571434,
+          0.06464285714285715
+        ]
+      ]
+    },
+    "sovinec_vanleer": {
+      "metrics": {
+        "time": 0.5,
+        "restart_time": 0.0,
+        "minimum": 1.0097047509059498,
+        "maximum": 1.9902031493188286,
+        "energy": 1.4816919496546381,
+        "initial_energy": 1.6533930394097025,
+        "source_heat": 4.012875857871307,
+        "outward_heat": 4.18457694750072,
+        "max_budget_error": 1.2572964891433003e-10,
+        "l1": 0.17354024036790974,
+        "final_residual": 1.781955774049493e-07,
+        "last_cycle_change_rate": 1.7850581486562933e-07,
+        "final_source": 8.025751715520638,
+        "final_outward_flux": 8.025751815888228,
+        "raw_stage_minimum": 1.0097047509059498,
+        "raw_stage_maximum": 1.9902031493188286,
+        "central_amplitude": 0.4380242114141937
+      },
+      "independent_l1": 0.17354024036790966,
+      "fraction_of_parallel": 0.012861872913381785,
+      "binary_sha256": "d851ab9c5baaf586596c7da5318ffc6498825f715ba60f2fba5d22b20e8d006a"
+    },
+    "sovinec_mc": {
+      "metrics": {
+        "time": 0.5,
+        "restart_time": 0.0,
+        "minimum": 1.009614553050138,
+        "maximum": 1.990203236749342,
+        "energy": 1.5687759205154848,
+        "initial_energy": 1.6533930394097025,
+        "source_heat": 4.012875857871307,
+        "outward_heat": 4.097492976631586,
+        "max_budget_error": 1.3393908204761829e-10,
+        "l1": 0.08516463512691105,
+        "final_residual": 1.278719833308628e-05,
+        "last_cycle_change_rate": 1.2787507464919627e-05,
+        "final_source": 8.025751715520638,
+        "final_outward_flux": 8.025758249436091,
+        "raw_stage_minimum": 1.009614553050138,
+        "raw_stage_maximum": 1.990203236749342,
+        "central_amplitude": 0.6488131770841757
+      },
+      "independent_l1": 0.085164635126911,
+      "fraction_of_parallel": 0.005444841903415712,
+      "binary_sha256": "d851ab9c5baaf586596c7da5318ffc6498825f715ba60f2fba5d22b20e8d006a"
+    },
+    "pulse": {
+      "n": 8,
+      "time": 0.2,
+      "gamma": 1.6666666666666667,
+      "rho": 1,
+      "kappa0": 0.1,
+      "phi": 0.03,
+      "diagnostic_precision": "double",
+      "field_precision": "float32",
+      "binary_sha256": "2ffea550d8fc207001dc0a80d9e387c919c3129b73849c9b64c12cf58eff461d"
+    },
+    "coupled_explicit": {
+      "n": 16,
+      "time": 0.2,
+      "gamma": 1.6666666666666667,
+      "kappa0": 0.1,
+      "phi": 0.03,
+      "binary_sha256": "94c65485662ae1995dcdfe51d7dee6b3bac0e6b72a32e3d144de0450572205c6"
+    },
+    "coupled_rkl": {
+      "n": 16,
+      "time": 0.2,
+      "gamma": 1.6666666666666667,
+      "kappa0": 0.1,
+      "phi": 0.03,
+      "binary_sha256": "94c65485662ae1995dcdfe51d7dee6b3bac0e6b72a32e3d144de0450572205c6"
+    }
+  }
+}

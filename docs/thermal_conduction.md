@@ -24,8 +24,10 @@ energy; it does not directly update density, momentum or magnetic field.
 
 `alpha_aniso` adds parallel transport: the parallel coefficient is
 `alpha_iso + alpha_aniso`, while the perpendicular coefficient is `alpha_iso`.
-At uniform density the temperature diffusion tensor includes a factor
-`gamma - 1`. These coefficients are in code units, not cgs conductivity;
+At uniform density the temperature diffusivities are
+`D_parallel = (gamma - 1)*(alpha_iso + alpha_aniso)` and
+`D_perp = (gamma - 1)*alpha_iso`, because
+`e_thermal = rho*T/(gamma - 1)`. These coefficients are in code units, not cgs conductivity;
 they do not require a `<units>` block.
 
 Example for MHD:
@@ -254,38 +256,72 @@ so face fields can change during those exchanges.
 
 ## Numerical verification
 
-The benchmarks below compare AthenaK results with published values and numerical
-reference solutions. They cover successive implementation versions: the early
-constant-coefficient tests predate the final nonlinear implementation. The
-[validation report](feature-validation/conduction/README.md) records the source
-versions and comparison criteria for each study.
+The examples below show the physical temperature evolution before quantifying
+its error. The [validation report](feature-validation/conduction/README.md)
+derives the analytic references, states the actual setups and assumptions,
+and records convergence, refinement, restart and CPU/GPU/MPI comparisons.
+The studies span successive implementations; the early constant-coefficient
+measurements predate the final nonlinear implementation.
 
 ### Anisotropic ring: comparison with Sharma & Hammett
 
-![Anisotropic ring error norms compared with Sharma and Hammett](feature-validation/conduction/figures/ring_errors.png)
+![Initial hot patch, evolved ring temperatures and radial heat distribution](feature-validation/conduction/figures/ring_solution.png)
 
-Both limiters were tested through `t=200` at N50/100/200/400. N400 norm
-differences from the published asymmetric-limiter values are below 0.23%
-for van Leer and 0.12% for MC. The sequence combines historical N50 CPU data
-with N100–400 GPU data from different builds. Van-Leer L-infinity error
-increases from N200 to N400. The ambiguous published N100 perpendicular-
-diffusivity entry is excluded from the comparison criteria.
+The [Sharma–Hammett §7.1 setup](https://w3.pppl.gov/~hammett/gyrofluid/papers/2007/aniso.pdf)
+places a temperature-12 patch in a temperature-10 medium, with heat flowing
+along circular field lines. Here `gamma=2`, `rho=1`, `alpha_aniso=0.01` and
+`alpha_iso=0`, so the parallel temperature diffusivity is 0.01.
+Angular modes decay as `exp(-0.01*n*n*t/(r*r))`; the long-time annular
+temperature is `10+1/6`. The measured N400 maps at `t=200` show radial numerical
+leakage, stronger with van Leer than MC. Initial and final maps use different
+temperature scales. The radial reference is the continuum angular mean.
+
+![Ring temperature error norms compared with published values](feature-validation/conduction/figures/ring_errors.png)
+
+N50/100/200/400 norms follow the published long-time-reference comparison.
+They measure absolute temperature errors over the full square domain:
+the mean absolute error, root-mean-square error, and maximum absolute error.
+All cells have equal area; no temperature-amplitude normalization is applied.
+At N400 their differences from the tabulated numerical errors are below 0.23%
+for van Leer and 0.12% for MC. These percentages measure reproduction of the
+paper's errors, rather than continuum accuracy. Van-Leer L-infinity increases
+from N200 to N400; the ambiguous published N100 perpendicular-diffusivity entry
+is excluded. The sequence combines historical N50 CPU and N100–400 GPU builds.
+
+### Gaussian spreading: an analytic tensor solution
+
+![Oblique Gaussian temperature spreading in two and three dimensions](feature-validation/conduction/figures/gaussian_solution.png)
+
+For fixed density and field, Gaussian covariance grows as
+`Sigma(t)=Sigma(0)+2*D*t`, while conserved heat fixes the decreasing peak.
+The periodic-cell-average analytic solution is compared with actual MC fields
+at `t=0.02`, with `B=(1,2,3)`, `gamma=2`, `alpha_iso=0.001` and
+`alpha_aniso=0.099`. The initial excess has amplitude 0.1 and width 0.1.
+The 2D N64 and 3D N32 relative excess-temperature L1 errors are
+`5.88537e-4` and `6.50841e-3`; the 3D panels show the `z=0.484375` cell plane.
+The 2D projected diffusivity ratio is 36.36, compared with the full 3D ratio 100.
 
 ### Explicit and RKL2 temporal convergence
 
 ![Explicit nonlinear conduction temporal convergence](feature-validation/conduction/figures/explicit_temporal.png)
 
-The fixed-grid nonlinear pulse gives RK1/RK2/RK3 self-orders of
+The periodic stationary-fluid pulse begins at `T=1+0.4*cos(2*pi*x)` with
+`gamma=5/3`, `rho=1`, `K0=0.1`, `phi=0.03` and N8 cells. At `t=0.2` its
+maximum has cooled and minimum warmed. RK1/RK2/RK3 self-orders are
 1.01222/2.02432/3.02180. Errors use double-precision temperature diagnostics
-against a finer same-grid RK3 solution, normalized by the initial amplitude.
-The orders are estimated from adjacent numerical solutions at fixed spatial
-resolution.
+against a time-refined same-grid RK3 solution, normalized by amplitude 0.4.
+This isolates temporal accuracy from spatial error.
 
 ![Coupled MHD conduction RKL2 temporal convergence](feature-validation/conduction/figures/coupled_rkl_temporal.png)
 
-Eleven scaled conserved-fluid/CT component norms are checked separately from
-temperature. Finest combined-field orders are 1.99617/2.03556 and temperature
-orders are 2.09397/2.14279. The adaptive timestep measure is
+The coupled periodic N16 MHD pulse starts with
+`T=1+0.1*cos(2*pi*(x+y))`, `rho=1`, `B=(1,0.5,0.25)`, and zero velocity.
+Field-aligned Spitzer conduction and saturation (`K0=0.1`, `phi=0.03`) evolve
+alongside pressure forces through `t=0.2`, so temperature, density and field
+all respond. The reference is a time-refined explicit run on the same grid.
+Eleven conserved-fluid/CT component norms are checked separately from temperature.
+Finest combined-field orders are 1.99617/2.03556 and temperature
+orders are 2.09397/2.14279, consistent with second order. The timestep measure is
 `H=sqrt(sum(dt^3)/elapsed_time)`; explicit-reference halving differences remain
 below 1% of the finest RKL error.
 
@@ -293,25 +329,36 @@ below 1% of the finest RKL error.
 
 ![Saturated sawtooth explicit and RKL2 conduction comparison](feature-validation/conduction/figures/saturated_sawtooth.png)
 
-Temperature profiles use the isotropic 1-D setup in
+The initial sawtooth spans temperature 0–20 on the periodic interval
+`[-10,10]`, with fixed `rho=1`, `gamma=2`, conductivity 40 and `phi=0.3`.
+Temperature profiles use the isotropic 1D setup in
 [Vaidya et al., section 4.1.2](https://arxiv.org/html/1702.05487v2#S4.SS1.SSS2)
-and compare RKL2 with a refined explicit solution. At N400 and `t=0.1`,
+and compare RKL2 with explicit RK2 CFL 0.2 on the same grid. At N400 and `t=0.1`,
 normalized L1/L-infinity differences are
 `1.84469e-8/6.26363e-7` for the ratio-40 cap and
-`2.31719e-5/4.80778e-4` for the ratio-1000 cap. Actual acceleration also
-depends on the active donor bounds. Retry recovery is tested separately.
+`2.31719e-5/4.80778e-4` for the ratio-1000 cap, below the 0.002/0.02 criteria.
+Differences are normalized by the initial range 20. Ratio caps are distinct
+from achieved acceleration and from the paper's parabolic Courant number.
 
 ### Coarse-resolution accuracy
 
-![Coarse Sovinec accuracy and refined-mesh comparisons](feature-validation/conduction/figures/retained_coarse_limits.png)
+![Source-balanced equilibrium and measured coarse-grid temperature profiles](feature-validation/conduction/figures/sovinec_solution.png)
+
+In the Sovinec test, field lines follow the contours of
+`T*=1+cos(pi*x)*cos(pi*y)`. Heating balances perpendicular conduction, while
+parallel conduction vanishes analytically. At parallel/perpendicular ratio 100,
+the coarse numerical temperature peaks are too low because of cross-field
+leakage. The matched isotropic control closely follows the analytic equilibrium.
+
+![Coarse Sovinec temperature errors and cross-field leakage](feature-validation/conduction/figures/retained_coarse_limits.png)
 
 The N8/N16 ratio-100 Sovinec equilibria become stationary but fail their
-original accuracy criteria. Six static N32 3-D refinement CPU/GPU energy
+volume-averaged absolute-temperature L1 criterion of 0.05. Six static N32 3D refinement CPU/GPU energy
 comparisons also fail the `5e-12` agreement criterion, with a maximum relative
 discrepancy of `5.4542320335866934e-9`. Accuracy, conservation and CPU/GPU
 agreement are assessed separately.
 
-Regenerate all five figures from the bundled numerical data with
+Regenerate all eight figures from the bundled numerical data with
 `python docs/feature-validation/conduction/plot_results.py`
 (NumPy and Matplotlib required).
 
