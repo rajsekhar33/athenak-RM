@@ -3,13 +3,12 @@
 Code reference: `886ab25ae0a58e4cbb12e44158987872eafcdf07`.
 This report covers classical velocity-field, Monte Carlo (`lagrangian_mc`) and
 continuous stochastic (`ito_2`) tracers on 2-D/3-D meshes. Numerical results are
-identified by implementation revision; all five figures have repository-local
-data and a standalone reproduction script.
+listed by code revision. All five figures can be reproduced from the accompanying
+data and plotting script.
 
 ## Implementation history and source map
 
-The particle port starts from parent `62892d08`. The following particle-specific
-series excludes unrelated changes subsequently merged into the branch:
+The particle implementation starts from parent `62892d08`:
 
 | Commit | Implementation change |
 | --- | --- |
@@ -24,8 +23,7 @@ series excludes unrelated changes subsequently merged into the branch:
 [Source manifest](data/source_manifest.json) records full commit IDs, all 34
 source/build paths, each changed diff-hunk header and current file SHA256.
 Hunk coordinates refer to their individual commits; links below refer to the
-documented revision. Unrelated prior MHD integrator changes are not attributed
-to this implementation.
+documented revision.
 
 | Source | Changed locations and purpose |
 | --- | --- |
@@ -95,15 +93,15 @@ rather than serialized; MC remains cell-centered, classical/Ito continuous.
 
 ## Particle-specific tests
 
-[Acceptance data](data/acceptance.json) records only particle regressions and
-particle boundary/AMR/checkpoint groups, with revision and artifact hashes.
+[Test results](data/acceptance.json) cover particle transport, boundaries, AMR
+and checkpoints, with code revisions and result hashes.
 
 | Revision/backend | Particle validation |
 | --- | --- |
 | Patch on `4baec90d`; CPU, single-host/two-node MPI-CPU and GPU | Uniform transport/restart regression and 20 particle-specific functional groups passed on each backend. |
-| Patch on `0ad57060`, committed as `366a172a`; two-node MPI-GPU | 57 boundary cases, diode AMR, paired-checkpoint contracts and strong MC mass-allocation checks passed. |
+| Patch on `0ad57060`, committed as `366a172a`; two-node MPI-GPU | 57 boundary cases, diode AMR, paired-checkpoint checks and MC mass-allocation tests passed. |
 
-| Functional groups | Particle contract |
+| Functional groups | What is tested |
 | --- | --- |
 | `regular3d`, `terminal` | Repeated topology changes; regular/terminal split, reload and resume |
 | `outflow`, `reflecting`, `diode`, `mixed_x3` | Retained/frozen exits, valid active ownership and continuation |
@@ -117,15 +115,16 @@ particle boundary/AMR/checkpoint groups, with revision and artifact hashes.
 The [portable regression](../../../tst/test_suite/imported_features/scenarios.py#L179)
 checks count/tags, finite/in-domain positions, classical translation, stochastic
 mean displacement within 0.025, MC center phase within 1e-12 and exact sorted
-MC/Ito restart arrays on its uniform fixture. It does not reproduce the entire
-historical AMR matrix. [Checkpoint results](data/checkpoint_contracts.json) include
-bad version/topology and truncated-header rejection; tighter CFL changes saved
-dt 0.15625 to 0.0625. Legacy cases establish reading, not exact continuation.
+MC/Ito restart arrays on a uniform mesh; the larger AMR campaign is recorded
+separately above. [Checkpoint tests](data/checkpoint_contracts.json) reject
+incorrect versions/topology and truncated headers. A tighter CFL reduces the
+saved timestep from 0.15625 to 0.0625. Legacy-file tests cover reading; exact
+continuation from these files remains untested.
 
-Twelve positive-oblique SMR reload cases have one-level differences only in
-reconstructed `PLASTLEVEL`; [recorded differences](data/reload_bookkeeping.json)
-are retained. Position, owner/tag/status and resumed evolution pass their
-contracts; immediate bitwise equality of every integer row is not claimed.
+Twelve positive-oblique SMR reload cases reconstruct `PLASTLEVEL` with a
+one-level difference. Position, owner/tag/status and subsequent evolution
+pass their checks; [the differences](data/reload_bookkeeping.json) are recorded
+for each case.
 
 ## Numerical comparisons
 
@@ -133,68 +132,76 @@ contracts; immediate bitwise equality of every integer row is not claimed.
 
 ![MC allocation](figures/mc_child_mass_allocation.png)
 
-[Data](data/mc_child_allocation.json): 33,191 refined tracers, 16 parent cells and
-64 child comparisons. The simultaneous count bound is
-`sqrt(0.5*n*log(2*64/alpha))`, `alpha=1e-6`. All mass-weighted residuals fit; the
-equal-child-probability alternative is rejected. Geometry and post-prolongation
-density provide an independent reference, without reusing the transport RNG.
+This test checks whether refinement assigns tracers in proportion to child-cell
+mass. The [data](data/mc_child_allocation.json) cover 33,191 refined tracers,
+16 parent cells and 64 child comparisons. For `n` tracers in a parent, the
+simultaneous count bound is `sqrt(0.5*n*log(2*64/alpha))`, with `alpha=1e-6`.
+All mass-weighted residuals lie within this bound; equal child probabilities
+fail it. Reference masses are computed independently from child geometry and
+post-prolongation density.
 
 ### Physical-boundary behavior
 
-![Boundary contracts](figures/boundary_contracts.png)
+![Particle counts and frozen exits at physical boundaries](figures/boundary_contracts.png)
 
-[Data](data/boundary_snapshots.json): all 12 cases retain 256 records and valid
-active owners. Periodic/reflecting cases have no frozen exits. Final outflow/diode
-frozen counts are 32 classical, 41 MC and 58 Ito; these are contract checks, not
-an imposed equality or an accuracy ranking across pushers.
+The [12 boundary tests](data/boundary_snapshots.json) check record conservation
+and particle ownership. All retain 256 records with valid active owners.
+Periodic and reflecting cases have no frozen exits. Final outflow/diode frozen
+counts are 32 classical, 41 MC and 58 Ito, reflecting the different trajectories
+of the three pushers.
 
 ### Dynamic AMR and restart
 
 ![AMR lifecycle](figures/amr_restart_contracts.png)
 
-[Data](data/amr_restart.json): reference, split, reload and resumed snapshots.
-Reference curves show 512 tracers surviving repeated 8-to-15-block changes;
-continuation assertions passed separately. Diagnostics and checkpoints may lie
-on opposite sides of AMR at the same cycle/time, so lifecycle phase matters.
+The [data](data/amr_restart.json) compare uninterrupted, split, reloaded and
+resumed runs. The plotted uninterrupted evolution preserves 512 tracers through
+repeated changes between 8 and 15 MeshBlocks; restart continuation checks also
+pass. Comparisons account for whether a snapshot was written before or after
+refinement, since the mesh can change at the same simulation time.
 
 ### Low-Mach gas/tracer spectra
 
 ![Gas and tracer spectra](figures/mach03_spectra.png)
 
-[Spectra](data/mach03_spectra.csv) and [metadata](data/mach03_metadata.json) describe
-128-cubed cells, 64 tracers/cell, time 0.1 and measured RMS Mach about 0.315. The
-signed correlation is `P_gt/sqrt(P_gg*P_tt)`, not its square. Mean response/correlation
-over k=1–6 is 1.005933/0.998854 classical, 1.003406/0.986461 Ito and
-0.991450/0.983874 MC. High-k behavior becomes noise dominated. The response panel
-uses the reported diagnostic window, not an accuracy gate; all 111 shells remain
-available. These historical post-CIC diagnostics are not exact paper reproduction
-or current dynamic-AMR acceptance.
+This uniform-grid turbulence test compares tracer and gas density using the
+implementation with CIC-interpolated Ito moments. The [spectra](data/mach03_spectra.csv)
+and [metadata](data/mach03_metadata.json) describe `128^3` cells, 64 tracers/cell,
+time 0.1 and measured RMS Mach about 0.315. The signed correlation is
+`P_gt/sqrt(P_gg*P_tt)`. Mean response/correlation over `k=1–6` is
+1.005933/0.998854 classical, 1.003406/0.986461 Ito and 0.991450/0.983874 MC.
+High-wavenumber spectra become noise dominated. The response panel highlights
+the low-wavenumber behavior; all 111 shells are available in the data. These
+AthenaK test conditions differ from the published paper setups.
 
 ### Converging-flow resolution and seed dependence
 
 ![Converging flow](figures/converging_flow.png)
 
-[Metrics](data/converging_flow_metrics.csv) cover 45 cases: Nx 64/128/256, three
-pushers, five seeds. At time 0.3, the valid region is
+This resolution study measures errors near a stagnation point. The
+[metrics](data/converging_flow_metrics.csv) cover 45 cases: `Nx=64,128,256`,
+three pushers and five seeds. At time 0.3, the valid region is
 `abs(x)<=0.85*0.5*exp(-0.3)`; profiles are separately mean-normalized there.
-The central metric uses four cells. Error bars are seed sample standard deviations.
-There is no predeclared accuracy gate, and central Ito error is not monotonic;
-this does not establish a fixed convergence order. [Metadata](data/converging_flow_metadata.json)
-records the definitions.
+The central metric uses four cells. Error bars show sample standard deviations
+across seeds. Central Ito error is nonmonotonic with resolution, so no fixed
+convergence order follows from this study. It is an exploratory comparison with
+no prescribed pass/fail tolerance. [Metadata](data/converging_flow_metadata.json)
+give the measurement definitions.
 
 ## Resolved issues and limitations
 
 Corrected defects include the isothermal particle-output read, MC conditional
 sampling, RK-dependent saved-flux/donor normalization, invalid SMR neighbor
 selection, topology-invalidated records, noncontiguous GPU AMR density staging
-and incomplete checkpoint phase ordering. These corrections are exercised by
-the particle-specific tests above.
+and incomplete checkpoint phase ordering. The tests above exercise these
+corrections.
 
-Not established: 1-D particle execution, automatic injection/deletion,
-arbitrary-distance migration, repeated box wrapping, general shear remapping,
-single-precision/cross-endian checkpoint compatibility, exact legacy AMR restart,
-full multidimensional law matching under probability saturation, arbitrary
-density-source operators or hardware/decomposition-independent bitwise evolution.
+Coverage is limited to the tested 2-D/3-D configurations. Further validation is
+needed for 1-D execution, automatic injection/deletion, arbitrary-distance
+migration, repeated box wrapping, general shear remapping, single-precision
+and cross-endian checkpoints, exact legacy AMR restart, multidimensional
+statistics when transition probabilities saturate, arbitrary density-source
+operators and bitwise reproducibility across hardware or mesh decompositions.
 
 ## Reproduction and references
 
@@ -203,9 +210,9 @@ python docs/feature-validation/particles/plot_results.py --check
 python docs/feature-validation/particles/plot_results.py
 ```
 
-Requires Python 3, NumPy and Matplotlib. Checks cover bundled particle statuses,
-ownership/count invariants, MC bounds and spectral summaries. The script recreates
-five figures without running AthenaK or upgrading historical revision coverage.
+Requires Python 3, NumPy and Matplotlib. `--check` verifies the recorded test
+results, particle counts and owners, MC statistical bounds and spectral summaries.
+The second command recreates all five figures from the bundled data.
 
 - [Genel et al. (2013), *Following the flow*](https://arxiv.org/abs/1305.2195): mass-flux MC exchange and velocity-tracer limitations; the published moving mesh differs from this Cartesian mesh.
-- [Moseley, Teyssier & Abel (2026), *Itô tracers*](https://arxiv.org/abs/2604.23041): continuous stochastic tracers and statistical diagnostics; not every paper variant or initial condition is implemented here.
+- [Moseley, Teyssier & Abel (2026), *Itô tracers*](https://arxiv.org/abs/2604.23041): continuous stochastic tracers, CIC moment interpolation and statistical diagnostics.

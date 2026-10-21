@@ -8,7 +8,7 @@ support and optional accuracy constraint added alongside them.
 
 See [Verification](#verification) below for test figures, and the
 [particle validation report](feature-validation/particles/README.md) for
-revision-specific results, source locations, numerical data and figure reproduction.
+results by code revision, source locations, data and plotting instructions.
 
 - `pusher = lagrangian_mc`: flux-based stochastic cell-jump tracer, after
   Genel et al. 2013 (arXiv:1305.2195). After each hydro/MHD update, each
@@ -345,22 +345,20 @@ disturb).
 
 ## Verification
 
-The figures below summarize particle-specific checks. The
-[validation report](feature-validation/particles/README.md) identifies the
-implementation revision for each campaign and documents CPU, GPU and MPI
-coverage. The turbulence and converging-flow comparisons are historical
-diagnostics, not exact reproductions of every published experiment or
-substitutes for the boundary, AMR and checkpoint tests.
+These tests check particle transport, refinement and restart, and compare
+gas and tracer distributions in turbulence and converging flow. The
+[validation report](feature-validation/particles/README.md) gives the code
+revisions, CPU/GPU/MPI results and numerical data for each test.
 
 ### MC allocation during refinement
 
 ![Monte Carlo tracer allocation compared with post-prolongation child masses](feature-validation/particles/figures/mc_child_mass_allocation.png)
 
-Across 33,191 refined tracers and 64 child comparisons, all mass-weighted
-count residuals satisfy the simultaneous statistical bound at
-`alpha = 1e-6`; equal child probabilities are rejected. The independent
-reference uses child geometry and post-prolongation density. MC allocation
-is statistical: individual child counts need not equal their expectations.
+Refinement should distribute MC tracers in proportion to child-cell mass.
+Across 33,191 tracers and 64 child comparisons, count residuals lie within
+the simultaneous statistical bound at `alpha = 1e-6`. Equal child
+probabilities fail this check. The reference masses come from child geometry
+and post-prolongation density.
 
 ### Physical boundaries
 
@@ -368,19 +366,18 @@ is statistical: individual child counts need not equal their expectations.
 
 All 12 cases retain 256 records with valid active owners. Periodic and
 reflecting cases have no frozen exits. Outflow and diode exits are retained
-as frozen records; their different counts for classical, MC and Ito tracers
-are not an accuracy ranking or a requirement for identical trajectories.
+as frozen records. This checks record conservation and boundary handling;
+the three pushers have different individual trajectories and exit counts.
 
 ### Dynamic AMR and restart
 
 ![Particle conservation and mesh topology through dynamic AMR and restart](feature-validation/particles/figures/amr_restart_contracts.png)
 
-The reference evolution preserves 512 tracers through repeated changes
-between 8 and 15 MeshBlocks. Split, reload and resumed states are checked
-against their lifecycle contracts; continuation assertions pass separately
-from the plotted count check. The report records SMR cases with reconstructed
-`PLASTLEVEL` differences, so immediate bitwise equality of every bookkeeping
-field is not claimed.
+The evolution preserves 512 tracers through repeated changes between 8 and
+15 MeshBlocks, and restart continuation checks pass. Twelve oblique SMR
+reload cases reconstruct `PLASTLEVEL` with a one-level difference while
+preserving positions, ownership and subsequent evolution; the report lists
+these differences.
 
 ### Low-Mach gas and tracer spectra
 
@@ -390,7 +387,7 @@ This comparison uses a `128^3` mesh, 64 tracers per cell and measured RMS
 Mach number about 0.315 at time 0.1. Mean gas-tracer correlations over
 `k = 1–6` are 0.998854, 0.986461 and 0.983874 for classical, Ito and MC
 tracers, respectively. High-wavenumber spectra become noise dominated;
-the displayed response window is a diagnostic, not an acceptance tolerance.
+the response panel highlights the low-wavenumber behavior.
 
 ### Converging-flow resolution and seed dependence
 
@@ -398,10 +395,10 @@ the displayed response window is a diagnostic, not an acceptance tolerance.
 
 The 45 cases combine three resolutions (`Nx = 64, 128, 256`), three pushers
 and five seeds. Error bars show seed sample standard deviations. Profiles
-are separately mean-normalized in the stated valid region at time 0.3,
-and the central diagnostic uses four cells. No accuracy gate was prescribed
-for this comparison; the central Ito error is not monotonic, so the figure
-does not establish a fixed convergence order.
+are separately mean-normalized in the valid region at time 0.3, and the
+central diagnostic uses four cells. The central Ito error varies
+nonmonotonically with resolution, so this study gives no fixed convergence
+order.
 
 All five figures and their numerical inputs are stored in the repository.
 [Reproduction instructions](feature-validation/particles/README.md#reproduction-and-references)

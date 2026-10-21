@@ -160,8 +160,7 @@ def plot_boundary(out):
                  ylim=(-0.015, 0.27))
         axis.grid(alpha=0.2)
     axes[0, 0].legend(fontsize=9)
-    fig.suptitle("Boundary contracts: 256 records retained in every case\n"
-                 "All active owners valid; open-boundary exits are frozen, not deleted")
+    fig.suptitle("Particle boundary tests: 256 tracers per case")
     save(fig, out, "boundary_contracts.png")
 
 
@@ -177,14 +176,13 @@ def plot_amr(out):
         for axis, field in zip(axes[1:], ("count", "dt")):
             axis.plot([r["cycle"] for r in series], [r[field] for r in series],
                       color=COLOR[pusher], marker=MARKER[pusher], label=LABEL[pusher])
-    axes[1].set(ylabel="Retained tracer count", ylim=(510, 514), title="Count conserved")
+    axes[1].set(ylabel="Tracer count", ylim=(510, 514), title="Count conserved")
     axes[2].set(ylabel="Stored timestep", title="Timestep changes with refinement")
     axes[1].legend(fontsize=9)
     for axis in axes:
         axis.set_xlabel("Cycle")
         axis.grid(alpha=0.2)
-    fig.suptitle("Reference histories; split/reload/resume contracts also passed\n"
-                 "Earlier candidate, single-GPU functional matrix")
+    fig.suptitle("Single-GPU AMR evolution: 512 tracers")
     save(fig, out, "amr_restart_contracts.png")
 
 
@@ -208,7 +206,7 @@ def plot_spectra(out):
     axes[0].set_ylabel("Shell-mean density power")
     axes[1].set(ylabel="Signed spectral correlation", ylim=(-0.1, 1.06))
     axes[2].set(ylabel=r"Cross response $P_{gt}/P_{gg}$", xlabel="Integer shell k",
-                title="Reported low-k diagnostic window (not an accuracy gate)",
+                title=r"Low-wavenumber response: $1 \leq k \leq 6$",
                 xlim=(0.8, 6.2), xticks=np.arange(1, 7))
     axes[0].legend(ncol=2, fontsize=9)
     for axis in axes[:2]:
@@ -219,8 +217,8 @@ def plot_spectra(out):
     axes[2].grid(alpha=0.2)
     axes[1].axhline(1, color="0.5", ls=":", lw=1)
     axes[2].axhline(1, color="0.5", ls=":", lw=1)
-    fig.suptitle(r"Historical CIC diagnostic: $128^3$, 64 tracers/cell, $t=0.1$" "\n"
-                 "Post-CIC implementation; not an exact published-figure reproduction")
+    fig.suptitle("Gas and tracer density spectra\n"
+                 r"$128^3$ cells, 64 tracers/cell, $t=0.1$")
     save(fig, out, "mach03_spectra.png")
 
 
@@ -243,8 +241,8 @@ def plot_convergence(out):
         axis.set(xlabel=r"$N_x$", ylabel="Mean absolute tracer/gas relative error", title=title)
         axis.grid(alpha=0.2)
     axes[0].legend(fontsize=9)
-    fig.suptitle("Historical converging flow: 45 cases, five seeds per point\n"
-                 "Error bars: seed standard deviation; no prescribed accuracy gate")
+    fig.suptitle("Converging flow: 45 cases, five seeds per point\n"
+                 "Error bars: seed standard deviation")
     save(fig, out, "converging_flow.png")
 
 
