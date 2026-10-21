@@ -1,0 +1,97 @@
+# AthenaK input file for Ito-2 tracers in a qualitative 64^3 isothermal turbulence run
+
+<comment>
+problem   = Ito-2 tracer 64^3 isothermal turbulence
+
+<job>
+basename  = ItoTurb64Iso
+
+<mesh>
+nghost    = 2
+nx1       = 64
+x1min     = -0.5
+x1max     = 0.5
+ix1_bc    = periodic
+ox1_bc    = periodic
+
+nx2       = 64
+x2min     = -0.5
+x2max     = 0.5
+ix2_bc    = periodic
+ox2_bc    = periodic
+
+nx3       = 64
+x3min     = -0.5
+x3max     = 0.5
+ix3_bc    = periodic
+ox3_bc    = periodic
+
+<meshblock>
+nx1       = 32
+nx2       = 32
+nx3       = 32
+
+<time>
+evolution  = dynamic
+integrator = rk2
+cfl_number = 0.2
+nlim       = -1
+tlim       = 0.2
+ndiag      = 10
+
+<hydro>
+eos             = isothermal
+iso_sound_speed = 1.0
+reconstruct     = plm
+rsolver         = hlle
+
+<problem>
+
+<particles>
+particle_type     = lagrangian_mc
+target_count      = 4194304
+pusher            = ito_2
+pos_init_seed     = 280496
+uniform_by_volume = true
+random_positions  = true
+
+<turb_driving>
+type           = hydro
+tcorr          = 0.02
+dedt           = 1500.0
+nlow           = 1
+nhigh          = 5
+kpeak          = 6.283185307179586
+driving_type   = 0
+spect_form     = 2
+expo           = 1.6666666666666667
+dt_turb_update = 0.0005
+dt_turb_thresh = 1e-6
+sol_fraction   = 1.0
+turb_flag      = 1
+tdriv_duration = 0.05
+tdriv_start    = 0.0
+
+<output1>
+file_type = hst
+dt        = 0.01
+
+<output2>
+file_type = bin
+variable  = hydro_w
+dt        = 0.05
+
+<output3>
+file_type = pbin
+variable  = hydro_w
+dt        = 0.05
+
+<output4>
+file_type = rst
+dt        = 0.05
+dt_wall   = 1200
+
+<output5>
+file_type = prst
+dt        = 0.05
+dt_wall   = 1200

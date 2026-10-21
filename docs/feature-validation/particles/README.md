@@ -1,12 +1,262 @@
-# Lagrangian tracer implementation and validation
+# Lagrangian tracers: physical validation
 
-Code reference: `886ab25ae0a58e4cbb12e44158987872eafcdf07`.
-This report covers classical velocity-field, Monte Carlo (`lagrangian_mc`) and
-continuous stochastic (`ito_2`) tracers on 2-D/3-D meshes. Numerical results are
-listed by code revision. All five figures can be reproduced from the accompanying
-data and plotting script.
+Do tracer particles sample the gas mass that the finite-volume solver actually
+transports? We test this with a translating density pulse, compressible turbulence
+and converging flow, using three update rules:
 
-## Implementation history and source map
+| Tracer | Motion | Quantity it follows |
+| --- | --- | --- |
+| Classical | Continuous displacement from CIC-interpolated velocity | The interpolated velocity field |
+| Monte Carlo (MC) | Random jumps between cell centers | Finite-volume mass exchange, in expectation |
+| Itô-2 | Continuous drift plus a random displacement | First two marginal moments of the flux-derived MC displacement |
+
+For equal-mass tracers, the target occupation of cell `i` is
+
+$$\mathbb E[N_i]=N_{\rm tot}\frac{\rho_i V_i}{M_{\rm tot}}.$$
+
+Thus uniform particle *mass* sampling generally produces a nonuniform spatial
+distribution. With $s=\log_{10}(\rho/\bar\rho)$, the mass-weighted gas-density PDF is
+$p_M(s)=10^s p_V(s)$, where $p_V$ is the volume-weighted PDF. A histogram of gas
+density sampled by equal-mass tracers should approach $p_M$. This test complements
+spatial maps: a correct one-point PDF alone can conceal misplaced tracers.
+
+For outgoing flux fractions $p_+$ and $p_-$ in one direction, the implemented
+Itô displacement uses
+
+$$C_-=p_+-p_-,\qquad V=p_++p_--C_-^2,\qquad
+\Delta x=\Delta x_{\rm cell}(C_-+\sqrt{\max(V,0)}\,\xi),$$
+
+with zero-mean, unit-variance uniform $\xi$ and CIC-interpolated moments.
+Moment matching leaves finite-step differences between MC and Itô-2. MC cell
+centering is intentional; classical and Itô trajectories retain subcell positions.
+For independent mass sampling, integer counts have approximately Poisson scatter
+$\sigma_N\simeq\sqrt{\mathbb E[N]}$. CIC deposition produces weighted, correlated
+counts, so this expression is a noise scale rather than a confidence interval
+for the CIC figures below.
+
+## Relation to published tests
+
+[Moseley, Teyssier & Abel (2026)](https://arxiv.org/html/2604.23041v1) compare
+square-pulse profiles (Figure 3), turbulent column maps (Figure 7), joint density
+histograms (Figure 8), density-ratio PDFs (Figure 9) and density spectra
+(Figure 10). The following AthenaK figures reproduce those diagnostic questions
+with the archived setups listed below. The paper uses a `128³`, one-crossing
+pulse and `64³` decaying turbulence initialized at RMS Mach 15, with HLLC/MonCen.
+Our pulse geometry, reconstruction and duration differ; our turbulence is
+briefly driven with HLLE/PLM. These differences matter for numerical diffusion
+and tracer statistics. The implemented comparison includes classical, MC and
+Itô-2; Itô-3 and SGS tracers are outside this implementation.
+
+[Genel et al. (2013)](https://arxiv.org/html/1305.2195v2) motivate the independent
+mass-flux, converging-flow and subsonic-turbulence checks. Their Mach-0.3 tests
+reach a developed state near `t=25`; our high-particle-density snapshot at
+`t=0.1` probes early evolution.
+
+## 1. Translating square pulse
+
+The periodic unit box contains $\rho=2$ for $-0.25\leq x<0$ and $\rho=1$
+elsewhere, advected at $v_x=1$. The continuum solution translates rigidly and
+returns to its initial profile after each crossing. The numerical gas broadens
+at the interfaces; matching that evolved gas distribution is the tracer test.
+
+The archived run uses `128×128×4` cells, isothermal **kinematic** advection,
+PPMX reconstruction, the `advect` flux, RK2, CFL 0.2 and `t=3`. Its 1,310,720
+tracers are initially allocated in proportion to gas mass (16 per background
+cell and 32 per dense cell on average). The
+[Itô input](data/square_hi_ito_2.athinput) and corresponding
+[classical](data/square_hi_classical.athinput) and [MC](data/square_hi_lagrangian_mc.athinput)
+inputs are included.
+
+![Advected density pulse and tracer profiles after three box crossings](figures/square_pulse.png)
+
+The upper panel averages density over both transverse directions; particles
+are deposited with periodic, cell-centered CIC and scaled to the gas mean
+density. The dashed curve is the translated initial gas profile. The lower
+panel compares each tracer profile with the evolved gas. Classical tracers
+preserve a sharper pulse and depart from the gas at its edges; both stochastic
+methods follow the broadened interfaces.
+
+| Tracer | RMS relative profile error | Maximum relative profile error |
+| --- | ---: | ---: |
+| Classical | 0.04980 | 0.2408 |
+| Itô-2 | 0.01210 | 0.03091 |
+| MC | 0.01048 | 0.02649 |
+
+For $e_j=\rho_{{\rm tr},j}/\rho_{{\rm gas},j}-1$, these norms are
+$[N_x^{-1}\sum_j e_j^2]^{1/2}$ and $\max_j|e_j|$, respectively. They are
+spatial residuals from one realization, not uncertainty estimates.
+The [data](data/paper_comparisons.npz) also preserve containing-cell profiles:
+their RMS residuals are 0.06047, 0.01380 and 0.01048, respectively. MC's CIC and
+containing-cell profiles coincide because its positions are cell-centered.
+
+## 2. Compressible isothermal turbulence
+
+The archived periodic unit box has `64³` cells, $c_s=1$, initially uniform
+density and 4,194,304 tracers (16 per cell). Solenoidal forcing acts over
+`t=0–0.05`, using modes 1–5, correlation time 0.02 and energy-input parameter
+1500; the flow then decays until `t=0.2`. The solver uses HLLE, PLM and RK2.
+At the plotted time its volume-weighted RMS Mach number is **3.381**. The
+[Itô input](data/turb64_iso_ito_2.athinput),
+[classical input](data/turb64_iso_classical.athinput) and
+[MC input](data/turb64_iso_lagrangian_mc.athinput) specify the complete setup.
+The saved gas-density arrays agree exactly across the three runs: this gas
+realization is the reference for tracer comparisons.
+
+### Where do the tracers go?
+
+![Gas and tracer column densities and their ratios](figures/turbulence_columns.png)
+
+The upper row shows $\Sigma=\int\rho\,dz$, normalized by its box mean; the
+lower row divides normalized tracer columns by normalized gas columns.
+Particle density comes from periodic cell-centered CIC, assigning each particle
+to its eight neighboring cell centers with trilinear weights. Gas density is
+the saved cell average. Color-scale extensions identify values outside the
+displayed range. Classical tracers develop strong small-scale excesses and
+deficits; the stochastic maps remain close to the gas structures.
+
+### Local density fidelity and sampling noise
+
+![Joint gas-tracer density histograms and density-ratio PDFs](figures/turbulence_statistics.png)
+
+The joint histograms count **3-D cells**, with the dashed diagonal indicating
+equal normalized densities. The lower panel is the volume-weighted PDF of
+$r=\log_{10}(\rho_{\rm tr}/\rho_{\rm gas})$. Both use cells with strictly
+positive CIC tracer density; empty-cell fractions are reported separately.
+PDFs integrate to unity over these populated cells. Their means and standard
+deviations include the full stored range, including tails beyond the displayed
+axes. MC's horizontal bands are integer occupation levels, as expected for
+cell-centered tracers.
+
+| Tracer | Empty CIC cells | Mean `r`, populated cells | Std. `r`, populated cells | Std. column log-ratio |
+| --- | ---: | ---: | ---: | ---: |
+| Classical | 6.960% | −0.3722 | 0.7556 | 0.11958 |
+| Itô-2 | 0.0580% | −0.00325 | 0.1441 | 0.01793 |
+| MC | 4.404% | −0.01454 | 0.1751 | 0.01663 |
+
+Itô-2 has a narrower populated-cell distribution and fewer empty deposited
+cells than MC, whereas MC has slightly smaller projected scatter in this run.
+Projection averages over 64 cells and changes the noise comparison. The
+large classical deviations persist with either diagnostic. These quantities
+describe one realization and do not establish a universal ordering of methods.
+
+### Mass sampling and spatial scales
+
+![Mass-weighted gas sampling and three-dimensional density spectra](figures/turbulence_mass_spectra.png)
+
+Left: each tracer samples the gas density of its containing cell, and the
+histogram counts tracers rather than volume. The reference curves weight the
+same gas cells by volume or mass. All three follow the mass-weighted PDF much
+more closely than the volume-weighted PDF; the large spatial classical bias
+seen above survives despite this agreement. The binned total-variation distances
+from the mass-weighted gas PDF are 0.01404 (classical), 0.00945 (Itô-2) and
+0.00127 (MC).
+
+Middle/right: for $\delta=\rho/\bar\rho-1$, we plot
+$P(k)=\langle|\widetilde\delta(\mathbf k)|^2\rangle_k$ and the tracer/gas ratio.
+The discrete Fourier transform is divided by the number of cells; integer
+shells have unit width in $kL/(2\pi)$. The figure shows shells through the axial
+Nyquist wavenumber 32; all shells and mode counts are bundled. CIC window
+deconvolution and shot-noise subtraction are omitted consistently. Classical
+tracers have substantial excess small-scale power. MC has a high-wavenumber
+noise excess; Itô/CIC power is suppressed on the smallest scales. Consequently,
+agreement at large scales is more informative than a demand for unity at every
+wavenumber.
+
+## 3. Early subsonic turbulence and converging flow
+
+![Gas and tracer spectra in the high-statistics low-Mach run](figures/mach03_spectra.png)
+
+This `128³`, 64-tracers-per-cell run has measured RMS Mach 0.315 at `t=0.1`.
+The signed correlation is $P_{gt}/\sqrt{P_{gg}P_{tt}}$ and the response is
+$P_{gt}/P_{gg}$. Mean response/correlation over `k=1–6` is
+1.005933/0.998854 (classical), 1.003406/0.986461 (Itô-2) and
+0.991450/0.983874 (MC). High-wavenumber density power becomes sampling-noise
+dominated. Classical agreement during this early weakly compressible phase
+does not resolve the long-time discrepancy tested by Genel et al.
+[Spectra](data/mach03_spectra.csv) and [metadata](data/mach03_metadata.json)
+contain all 111 shells.
+
+![Resolution and seed dependence in converging flow](figures/converging_flow.png)
+
+This test studies accumulation near a stagnation point, following the question
+posed by Genel et al., Section 3.2 and Figure 7. The initial flow is linear,
+$v_x=-a x$ with $a=1$, and the initial density is
+$\rho_0(x)=1+0.2\cos(2\pi x/L)$. The archived gas undergoes pressureless
+self-advection, whose characteristic solution before $t=1/a$ is
+
+$$x(t)=x_0(1-at),\qquad v_x=-\frac{ax}{1-at},\qquad
+\rho(x,t)=\frac{\rho_0[x/(1-at)]}{1-at}.$$
+
+The saved interior velocity slope at `t=0.3` is −1.42852, consistent with
+$-1/(1-0.3)$; the gas density agrees with the characteristic solution to
+about $5.83\times10^{-5}$ in mean absolute relative error over the plotted
+interior. This identifies the
+actual archived evolution. The [archived input](data/converging_n128_ito_2_s42.athinput)
+omits `problem/user_work_in_loop`, which defaults to false: the pgen's registered
+velocity-reset callback is disabled. The `advect` solver transports momentum
+without a pressure term, so the isothermal EOS does not supply pressure forces
+in this test. The kinematic PPMX/RK2 runs use
+`Nx×4×4` cells, open x boundaries and periodic transverse boundaries. We retain
+the historical measurement region $|x|\leq0.85(0.5)e^{-0.3}\simeq0.315$.
+It lies inside the actual contracted footprint $|x|<0.5(1-0.3)=0.35$,
+avoiding boundary-supplied gas without corresponding injected particles.
+The upper panel compares the numerical gas, characteristic solution and
+containing-cell tracer profiles for `Nx=128`, seed 42; each curve is normalized
+by its own mean in that interior.
+
+The lower panels summarize 45 cases (`Nx=64,128,256`, three pushers and five
+seeds). Errors use the numerical gas as reference, with independent valid-region
+mean normalization for gas and tracers; the central diagnostic uses four cells.
+This measures profile shape rather than absolute mass normalization. Error bars
+show sample standard deviations across seeds. Central Itô error is nonmonotonic
+with resolution, so these results establish no convergence order. This is an
+exploratory comparison without a prescribed accuracy tolerance.
+These results describe ballistic convergence; the fixed-strain exponential-compression
+benchmark remains a separate test.
+[Metrics](data/converging_flow_metrics.csv) and
+[definitions](data/converging_flow_metadata.json) are included.
+
+## Reproduction and historical source provenance
+
+All nine figures can be regenerated from the bundled numerical data:
+
+```bash
+python docs/feature-validation/particles/plot_results.py --check
+python docs/feature-validation/particles/plot_results.py
+```
+
+Requires Python 3, NumPy and Matplotlib. The check recomputes figure summaries,
+normalizations, conservation checks and statistical bounds. The new pulse,
+turbulence and converging-profile arrays occupy 139,060 bytes (136 KiB);
+[metadata](data/paper_comparisons.json) give snapshot/input/log checksums, run
+identifiers, executable hashes and complete measurement summaries.
+[The extraction script](extract_paper_data.py) reconstructs those reductions
+from the original `revalidation_rk4_20260901` archive using the public binary
+reader (NumPy and h5py required). Original native snapshots are larger and are
+identified by checksum rather than bundled.
+
+The archived executables used CMake `PROBLEM=built_in_pgens` for the pulse,
+`PROBLEM=fluids/turb` for turbulence and `PROBLEM=tests/converging_flow` for
+convergence. In particular, the bundled converging input's `pgen_name=none`
+relies on that custom compiled problem; it is not a runtime selection for the
+default binary. The converging executable hash and execution-log checksum are
+included in the metadata.
+
+| Results | Source provenance |
+| --- | --- |
+| Pulse and compressible turbulence | September revalidation based on `13fa232e6d7177e9e11b6c89529f56b6541ba8df`, including then-uncommitted CIC-moment, RK-flux/donor and timestep repairs; execution binaries pinned in the metadata |
+| Low-Mach spectrum and converging flow | Historical post-CIC / post-RK-repair diagnostics, identified by their individual metadata |
+| Boundaries, SMR/AMR and restart below | Later particle lifecycle implementation, including `366a172a`; source inventory recorded at `886ab25ae0a58e4cbb12e44158987872eafcdf07` |
+
+The physical comparison snapshots therefore document the historical uniform-grid
+implementation; the later refinement/restart coverage is listed independently.
+The paper's single-sheet trajectory/diffusion and Itô-3 comparisons have no
+corresponding result in this bundle.
+
+## Appendix A. Implementation history and source map
+
+<details>
+<summary>Commits, functions and changed locations</summary>
 
 The particle implementation starts from parent `62892d08`:
 
@@ -62,6 +312,8 @@ documented revision.
 | [src/outputs/checkpoint_metadata.hpp](../../../src/outputs/checkpoint_metadata.hpp#L24) | Version constants and `TopologyHash()` for checkpoint pairing. |
 | [src/outputs/restart.cpp](../../../src/outputs/restart.cpp#L162) | Completed-phase guard and lifecycle timestep/refinement-age payload (270). |
 
+</details>
+
 ### Transport, refinement and restart semantics
 
 Initialization uses density-times-volume weights by default, or volume with
@@ -91,7 +343,7 @@ are written after topology redistribution and next-step selection. Version/time/
 cycle/topology metadata reject mismatches. `PLASTLEVEL` is reconstructed at reload
 rather than serialized; MC remains cell-centered, classical/Ito continuous.
 
-## Particle-specific tests
+## Appendix B. Mesh, boundary and restart tests
 
 [Test results](data/acceptance.json) cover particle transport, boundaries, AMR
 and checkpoints, with code revisions and result hashes.
@@ -126,8 +378,6 @@ one-level difference. Position, owner/tag/status and subsequent evolution
 pass their checks; [the differences](data/reload_bookkeeping.json) are recorded
 for each case.
 
-## Numerical comparisons
-
 ### MC AMR child-mass allocation
 
 ![MC allocation](figures/mc_child_mass_allocation.png)
@@ -160,35 +410,7 @@ repeated changes between 8 and 15 MeshBlocks; restart continuation checks also
 pass. Comparisons account for whether a snapshot was written before or after
 refinement, since the mesh can change at the same simulation time.
 
-### Low-Mach gas/tracer spectra
-
-![Gas and tracer spectra](figures/mach03_spectra.png)
-
-This uniform-grid turbulence test compares tracer and gas density using the
-implementation with CIC-interpolated Ito moments. The [spectra](data/mach03_spectra.csv)
-and [metadata](data/mach03_metadata.json) describe `128^3` cells, 64 tracers/cell,
-time 0.1 and measured RMS Mach about 0.315. The signed correlation is
-`P_gt/sqrt(P_gg*P_tt)`. Mean response/correlation over `k=1–6` is
-1.005933/0.998854 classical, 1.003406/0.986461 Ito and 0.991450/0.983874 MC.
-High-wavenumber spectra become noise dominated. The response panel highlights
-the low-wavenumber behavior; all 111 shells are available in the data. These
-AthenaK test conditions differ from the published paper setups.
-
-### Converging-flow resolution and seed dependence
-
-![Converging flow](figures/converging_flow.png)
-
-This resolution study measures errors near a stagnation point. The
-[metrics](data/converging_flow_metrics.csv) cover 45 cases: `Nx=64,128,256`,
-three pushers and five seeds. At time 0.3, the valid region is
-`abs(x)<=0.85*0.5*exp(-0.3)`; profiles are separately mean-normalized there.
-The central metric uses four cells. Error bars show sample standard deviations
-across seeds. Central Ito error is nonmonotonic with resolution, so no fixed
-convergence order follows from this study. It is an exploratory comparison with
-no prescribed pass/fail tolerance. [Metadata](data/converging_flow_metadata.json)
-give the measurement definitions.
-
-## Resolved issues and limitations
+## Scope and limitations
 
 Corrected defects include the isothermal particle-output read, MC conditional
 sampling, RK-dependent saved-flux/donor normalization, invalid SMR neighbor
@@ -202,17 +424,3 @@ migration, repeated box wrapping, general shear remapping, single-precision
 and cross-endian checkpoints, exact legacy AMR restart, multidimensional
 statistics when transition probabilities saturate, arbitrary density-source
 operators and bitwise reproducibility across hardware or mesh decompositions.
-
-## Reproduction and references
-
-```bash
-python docs/feature-validation/particles/plot_results.py --check
-python docs/feature-validation/particles/plot_results.py
-```
-
-Requires Python 3, NumPy and Matplotlib. `--check` verifies the recorded test
-results, particle counts and owners, MC statistical bounds and spectral summaries.
-The second command recreates all five figures from the bundled data.
-
-- [Genel et al. (2013), *Following the flow*](https://arxiv.org/abs/1305.2195): mass-flux MC exchange and velocity-tracer limitations; the published moving mesh differs from this Cartesian mesh.
-- [Moseley, Teyssier & Abel (2026), *Itô tracers*](https://arxiv.org/abs/2604.23041): continuous stochastic tracers, CIC moment interpolation and statistical diagnostics.

@@ -1,0 +1,209 @@
+{
+  "historical_campaign": "revalidation_rk4_20260901",
+  "source_base": "13fa232e6d7177e9e11b6c89529f56b6541ba8df",
+  "source_state": "Base plus uncommitted CIC-moment, RK-flux/donor and timestep repairs; execution logs pin each executable. These snapshots precede the later AMR/boundary implementation.",
+  "analysis": "Periodic cell-centered CIC for density maps, joint PDFs and spectra; containing-cell counts for sampling the gas-density PDF. All cell/column densities are normalized by their own mean.",
+  "families": {
+    "square_hi": {
+      "cases": {
+        "classical": {
+          "count": 1310720,
+          "time": 3.0,
+          "cycle": 1921,
+          "run": "paper-square_hi_classical-13302349",
+          "binary_sha256": "1cb1e2ff0bb768960728184027a1c5f7b8fb91acf2aea971b7f5317371b4d2ff",
+          "files": {
+            "runs/paper-square_hi_classical-13302349/bin/ClassicalSquareHi.hydro_w.00003.bin": "c655f03685c5f59e81198f87bc7d03fc6a692b70e9fbf61ae574bc3853c860af",
+            "runs/paper-square_hi_classical-13302349/pbin/ClassicalSquareHi.hydro_w.00003.prtclbin": "fb639c416ae5a3671944d8913014c54a16282a778997fce399a7639bf15bb3de",
+            "runs/paper-square_hi_classical-13302349/bin/ClassicalSquareHi.hydro_w.00000.bin": "678855f54e4de4a7ddb8a76791efa175d03c716b1d518626285ebdd12ff0ee95",
+            "runs/paper-square_hi_classical-13302349/athinput": "e00c45f32de032bf0892aaa7899c7eed2c39a3feeb86bb3ef982a3aa4627d861",
+            "runs/slurm.ito-paper-cpu.13302345.0.out": "739e5f3f77d011ac7d1eb9cb4bc4edce212a7c2ca0d52ce5ae940f18d23b5a9c"
+          },
+          "input": "square_hi_classical.athinput",
+          "cic_relative_rms": 0.04980465510228257,
+          "cic_relative_max": 0.24080165030045686,
+          "ngp_relative_rms": 0.06046807201323195,
+          "ngp_relative_max": 0.32385520481317653
+        },
+        "ito_2": {
+          "count": 1310720,
+          "time": 3.0,
+          "cycle": 1921,
+          "run": "paper-square_hi_ito-13302350",
+          "binary_sha256": "1cb1e2ff0bb768960728184027a1c5f7b8fb91acf2aea971b7f5317371b4d2ff",
+          "files": {
+            "runs/paper-square_hi_ito-13302350/bin/ItoSquareHi.hydro_w.00003.bin": "53e8850072bef7b693af310f3b7106b7ab9456f014acf4dc50e203cdaed3d788",
+            "runs/paper-square_hi_ito-13302350/pbin/ItoSquareHi.hydro_w.00003.prtclbin": "4b790df5ff514880aa8af0e06bb006193d4166d8867dd84c8d310adc82baeabe",
+            "runs/paper-square_hi_ito-13302350/bin/ItoSquareHi.hydro_w.00000.bin": "60ab47218c20b7dc9cc23993700a8be59617838b22c2a929b4a56efe4b720bdb",
+            "runs/paper-square_hi_ito-13302350/athinput": "05dc27d4fc256ab9159a637974fe9832441ca2a8e05eb79feb5725b56645d665",
+            "runs/slurm.ito-paper-cpu.13302345.1.out": "edf4a99c619eafcd75abe9b5ed8de76b23ff653bbefea37869a38e64393fbdd1"
+          },
+          "input": "square_hi_ito_2.athinput",
+          "cic_relative_rms": 0.012096160561726911,
+          "cic_relative_max": 0.030911145421191444,
+          "ngp_relative_rms": 0.013798041225068882,
+          "ngp_relative_max": 0.03729536497828023
+        },
+        "lagrangian_mc": {
+          "count": 1310720,
+          "time": 3.0,
+          "cycle": 1921,
+          "run": "paper-square_hi_lagrangian_mc-13302351",
+          "binary_sha256": "1cb1e2ff0bb768960728184027a1c5f7b8fb91acf2aea971b7f5317371b4d2ff",
+          "files": {
+            "runs/paper-square_hi_lagrangian_mc-13302351/bin/LagrangianMCSquareHi.hydro_w.00003.bin": "7fd5a3c873cf4535de214502993515bb9a2bd7deecb5d197623a7e77efd4442e",
+            "runs/paper-square_hi_lagrangian_mc-13302351/pbin/LagrangianMCSquareHi.hydro_w.00003.prtclbin": "034817e7eb008001f815c1daf1213390153f9fa68e77ccd5fe6ba8f5f99e55a4",
+            "runs/paper-square_hi_lagrangian_mc-13302351/bin/LagrangianMCSquareHi.hydro_w.00000.bin": "3eafd5e1887c6ceaf02f68afba76a6b4cfc0ade6159ce6e05144d01d53c117ad",
+            "runs/paper-square_hi_lagrangian_mc-13302351/athinput": "ffbd7f0ff8d0db54f703d72560f5bb2db31f4d4542fecee9f4b9decdbcfb1ab6",
+            "runs/slurm.ito-paper-cpu.13302345.2.out": "748bab022470f7735b4514ea59c76330aa86020afa1fd6382e573127f25ea182"
+          },
+          "input": "square_hi_lagrangian_mc.athinput",
+          "cic_relative_rms": 0.01048445892532677,
+          "cic_relative_max": 0.02648925551811776,
+          "ngp_relative_rms": 0.01048445892532677,
+          "ngp_relative_max": 0.02648925551811776
+        }
+      },
+      "time": 3.0,
+      "shape": [
+        4,
+        128,
+        128
+      ],
+      "mean_density": 1.2499999972060323,
+      "volume_rms_mach": 1.0
+    },
+    "turb64_iso": {
+      "cases": {
+        "classical": {
+          "count": 4194304,
+          "time": 0.2,
+          "cycle": 2001,
+          "run": "paper-turb64_iso_classical-13302352",
+          "binary_sha256": "377ca1808d716007eeeb65d6d2b2a59fab6dc8db1c2aaf7058582a837053ee6b",
+          "files": {
+            "runs/paper-turb64_iso_classical-13302352/bin/ClassicalTurb64Iso.hydro_w.00004.bin": "ebe949938478026edce03e7bada89635574bb80539b7faf5a23866016f562099",
+            "runs/paper-turb64_iso_classical-13302352/pbin/ClassicalTurb64Iso.hydro_w.00004.prtclbin": "a07183fe840470df3d9f75392209b48d04bdee421b3ba3fea0808532199a0dc1",
+            "runs/paper-turb64_iso_classical-13302352/bin/ClassicalTurb64Iso.hydro_w.00000.bin": "214e1e03430dd7299309e7d06810d9b13bed57df909b589fda2ede2fed36e02a",
+            "runs/paper-turb64_iso_classical-13302352/athinput": "7fcfa40c9feadb3b6897f3242b00965c12592dc961ee8e388979e7c8ab358c01",
+            "runs/slurm.ito-paper-cpu.13302345.3.out": "dd5fa7b0634833547334cdc4141fa41fd5c80da43ce046415d9a551315f436ce"
+          },
+          "input": "turb64_iso_classical.athinput",
+          "column_log10_ratio_mean": -0.018297283550403227,
+          "column_log10_ratio_std": 0.11957974735761506,
+          "ngp_column_log10_ratio_std": 0.1310645054596642,
+          "empty_cic_cell_fraction": 0.06959915161132812,
+          "cell_log10_ratio_mean_positive": -0.3721756382621251,
+          "cell_log10_ratio_std_positive": 0.7556352889939612,
+          "sampled_gas_pdf_total_variation": 0.014038994112434913
+        },
+        "ito_2": {
+          "count": 4194304,
+          "time": 0.2,
+          "cycle": 2001,
+          "run": "paper-turb64_iso_ito-13302353",
+          "binary_sha256": "377ca1808d716007eeeb65d6d2b2a59fab6dc8db1c2aaf7058582a837053ee6b",
+          "files": {
+            "runs/paper-turb64_iso_ito-13302353/bin/ItoTurb64Iso.hydro_w.00004.bin": "1f8a6b252f0b46068f96372977139d0ec6c3e4cff8e64489c99a905bdb0ac50b",
+            "runs/paper-turb64_iso_ito-13302353/pbin/ItoTurb64Iso.hydro_w.00004.prtclbin": "1d5d26744d39f87c4a6f3248120bd8c6c58f4a163f567364e94c1d6ecd892225",
+            "runs/paper-turb64_iso_ito-13302353/bin/ItoTurb64Iso.hydro_w.00000.bin": "dee76d50d1d456cc13fa051b0e14c2209786ae75996a55d227525a8d5145679b",
+            "runs/paper-turb64_iso_ito-13302353/athinput": "60da1925d0cb7b01111eb81d33f0fd1c4d0a3e01776d7bfbea8cbf698ac3cbd3",
+            "runs/slurm.ito-paper-cpu.13302345.4.out": "bb1531ef649d524d580cfede3a4d0fc9dca392f42078725196bb37e11638132f"
+          },
+          "input": "turb64_iso_ito_2.athinput",
+          "column_log10_ratio_mean": 0.0007856748514398198,
+          "column_log10_ratio_std": 0.01792573412837687,
+          "ngp_column_log10_ratio_std": 0.021131725429129954,
+          "empty_cic_cell_fraction": 0.000579833984375,
+          "cell_log10_ratio_mean_positive": -0.0032488021058376996,
+          "cell_log10_ratio_std_positive": 0.14406353057388785,
+          "sampled_gas_pdf_total_variation": 0.009454121882227998
+        },
+        "lagrangian_mc": {
+          "count": 4194304,
+          "time": 0.2,
+          "cycle": 2001,
+          "run": "paper-turb64_iso_lagrangian_mc-13302354",
+          "binary_sha256": "377ca1808d716007eeeb65d6d2b2a59fab6dc8db1c2aaf7058582a837053ee6b",
+          "files": {
+            "runs/paper-turb64_iso_lagrangian_mc-13302354/bin/LagrangianMCTurb64Iso.hydro_w.00004.bin": "3a70e16a4bcd823d71ac94892933f6098584b11877b5cf6f0dd81f73312bd262",
+            "runs/paper-turb64_iso_lagrangian_mc-13302354/pbin/LagrangianMCTurb64Iso.hydro_w.00004.prtclbin": "da8e521246e54e0608ff0fa4f776063157b1f5cc571ddb4634b71938aa710480",
+            "runs/paper-turb64_iso_lagrangian_mc-13302354/bin/LagrangianMCTurb64Iso.hydro_w.00000.bin": "96c71548a7ed35f7336f66cd17805717efc2eae5d7c97b68a4792dc04103b46b",
+            "runs/paper-turb64_iso_lagrangian_mc-13302354/athinput": "4afebf96af8d66909934f1d8525b1f1116b8d79e5435c5c6e29fad10327f179b",
+            "runs/slurm.ito-paper-cpu.13302345.5.out": "2048e9bf246b56210dd60b3dfb6b69f7d924f6243b367e3fd798200b29c1347f"
+          },
+          "input": "turb64_iso_lagrangian_mc.athinput",
+          "column_log10_ratio_mean": -0.0004926403745922571,
+          "column_log10_ratio_std": 0.01663005438765198,
+          "ngp_column_log10_ratio_std": 0.01663005438765198,
+          "empty_cic_cell_fraction": 0.044040679931640625,
+          "cell_log10_ratio_mean_positive": -0.014536676633917747,
+          "cell_log10_ratio_std_positive": 0.17510310882139957,
+          "sampled_gas_pdf_total_variation": 0.0012722424932113407
+        }
+      },
+      "time": 0.2,
+      "shape": [
+        64,
+        64,
+        64
+      ],
+      "mean_density": 1.0000000000629825,
+      "volume_rms_mach": 3.3805244815508204
+    }
+  },
+  "converging_profile": {
+    "resolution": 128,
+    "seed": 42,
+    "initial_strain_rate": 1,
+    "amplitude": 0.2,
+    "time": 0.3,
+    "cmake_problem": "tests/converging_flow",
+    "binary_sha256": "40442070ebe261aaa373ce24c23129bf75d5f8de4852760c3fd388ea555e32fe",
+    "execution_log": "runs/slurm.ito-cflow-seeds.13302360.out",
+    "execution_log_sha256": "e517b9bd52d0b5de36a63bfa105093d7db2123a7fbeb9ef371e280a03b997a9c",
+    "reference": "Archived gas follows pressureless self-advection: x=x0*(1-a*t), v=-a*x/(1-a*t), rho=rho0(x/(1-a*t))/(1-a*t). The archived input omits problem/user_work_in_loop, whose default is false; the velocity-reset callback therefore remains disabled.",
+    "cases": {
+      "classical": {
+        "count": 655386,
+        "time": 0.3,
+        "cycle": 96,
+        "run": "cflow_n128_classical_s42",
+        "velocity_slope_valid": -1.4285221305857003,
+        "gas_analytic_mean_abs_relative_valid": 5.82692778648336e-05,
+        "files": {
+          "runs/converging-resolution-seed-13302360/cflow_n128_classical_s42/bin/cflow.hydro_w.00001.bin": "7da9317e22fec95c9e295249ceb6ab71abbd470f20d0e10bb496def3c445f61a",
+          "runs/converging-resolution-seed-13302360/cflow_n128_classical_s42/pbin/cflow.hydro_w.00001.prtclbin": "8f06d91deedb8f37aa7cb9f20afc71318e0e6ebef7ac950940c5d565f46a41a8",
+          "runs/converging-resolution-seed-13302360/cflow_n128_classical_s42/athinput": "973aeb419a17a685ee19dbc12cadf4b3732c5f8fb83c64ec4df0c51c33b83704"
+        }
+      },
+      "ito_2": {
+        "count": 655386,
+        "time": 0.3,
+        "cycle": 96,
+        "run": "cflow_n128_ito_2_s42",
+        "velocity_slope_valid": -1.4285221305857003,
+        "gas_analytic_mean_abs_relative_valid": 5.82692778648336e-05,
+        "files": {
+          "runs/converging-resolution-seed-13302360/cflow_n128_ito_2_s42/bin/cflow.hydro_w.00001.bin": "b546ad2ee3577f5114803262d0c74a7033034c0dded803e7d60f7688f73df54d",
+          "runs/converging-resolution-seed-13302360/cflow_n128_ito_2_s42/pbin/cflow.hydro_w.00001.prtclbin": "bbdbdf40b98aac2f22a15ae25e38c25d3df09db5b39d6f5489f3789e14569410",
+          "runs/converging-resolution-seed-13302360/cflow_n128_ito_2_s42/athinput": "8acea422699667837a1f3ad828ae3d471d40f838bf2351a73bcf4bbbf90dc8f2"
+        }
+      },
+      "lagrangian_mc": {
+        "count": 655386,
+        "time": 0.3,
+        "cycle": 96,
+        "run": "cflow_n128_lagrangian_mc_s42",
+        "velocity_slope_valid": -1.4285221305857003,
+        "gas_analytic_mean_abs_relative_valid": 5.82692778648336e-05,
+        "files": {
+          "runs/converging-resolution-seed-13302360/cflow_n128_lagrangian_mc_s42/bin/cflow.hydro_w.00001.bin": "86fb657a2141077952fe8b53347005331938ab5a66f6b67459cef0d77487a518",
+          "runs/converging-resolution-seed-13302360/cflow_n128_lagrangian_mc_s42/pbin/cflow.hydro_w.00001.prtclbin": "f8c493d5b8797661a15b24eae69a99f80b47ba65c6fb3623b4cf006464b186ae",
+          "runs/converging-resolution-seed-13302360/cflow_n128_lagrangian_mc_s42/athinput": "2ad55c2b46ae6770ad354c83e8f8477021c4250c5b45dcc266ebe619bd7bd026"
+        }
+      }
+    }
+  },
+  "data_sha256": "a92c3059f133d3144ce1890f19afc7d219cd7591d41e45faeb6630c9dde51359"
+}

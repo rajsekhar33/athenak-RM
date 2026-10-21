@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 from pathlib import Path
 
@@ -21,7 +22,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
 PUSHERS = ("classical", "ito_2", "lagrangian_mc")
-LABEL = {"classical": "Classical", "ito_2": "Ito-2", "lagrangian_mc": "MC"}
+LABEL = {"classical": "Classical", "ito_2": "Itô-2", "lagrangian_mc": "MC"}
 COLOR = {"classical": "#3b6fb6", "ito_2": "#111111", "lagrangian_mc": "#b33c2e"}
 MARKER = {"classical": "o", "ito_2": "x", "lagrangian_mc": "+"}
 
@@ -108,13 +109,165 @@ def check_data():
     convergence = read_csv("converging_flow_metrics.csv")
     assert len(convergence) == 45
     assert len({(r["resolution"], r["pusher"], r["seed"]) for r in convergence}) == 45
-    print("PASS: bundled-data consistency (not a new native simulation acceptance run)")
+    paper = read_json("paper_comparisons.json")
+    assert hashlib.sha256((DATA / "paper_comparisons.npz").read_bytes()).hexdigest() == paper["data_sha256"]
+    with np.load(DATA / "paper_comparisons.npz") as values:
+        for pusher in PUSHERS:
+            valid = values["converging_valid"]
+            relative = values[f"converging_{pusher}"] / values["converging_gas"] - 1
+            expected = next(r for r in convergence if r["pusher"] == pusher
+                            and int(r["resolution"]) == 128 and int(r["seed"]) == 42)
+            np.testing.assert_allclose(np.abs(relative[valid]).mean(), float(expected["mean_abs_valid"]), atol=1e-14)
+            case = paper["families"]["square_hi"]["cases"][pusher]
+            profile = values[f"square_hi_{pusher}_cic"]
+            error = profile / values["square_gas"] - 1
+            np.testing.assert_allclose(np.sqrt(np.mean(error**2)), case["cic_relative_rms"])
+            np.testing.assert_allclose(profile.mean(), values["square_gas"].mean())
+            case = paper["families"]["turb64_iso"]["cases"][pusher]
+            column = values[f"turb64_iso_{pusher}_column"]
+            np.testing.assert_allclose(column.mean(), 1)
+            np.testing.assert_allclose(np.log10(column / values["turb_gas_column"]).std(),
+                                       case["column_log10_ratio_std"])
+            np.testing.assert_allclose(np.sum(values[f"turb64_iso_{pusher}_ratio_pdf"] *
+                                               np.diff(values["turb_ratio_edges"])), 1)
+            np.testing.assert_allclose(np.sum(values[f"turb64_iso_{pusher}_sampled_gas_pdf"] *
+                                               np.diff(values["turb_gas_log_edges"])), 1)
+            assert values[f"turb64_iso_{pusher}_joint"].sum() == round(
+                (1-case["empty_cic_cell_fraction"]) * 64**3)
+        for name in ("turb_mass_pdf", "turb_volume_pdf"):
+            np.testing.assert_allclose(np.sum(values[name] * np.diff(values["turb_gas_log_edges"])), 1)
+    print("PASS: bundled numerical data and figure summaries")
 
 
 def save(fig, out, name):
     fig.savefig(out / name, dpi=170)
     plt.close(fig)
     print(name)
+
+
+def plot_square(out):
+    data = np.load(DATA / "paper_comparisons.npz")
+    fig, axes = plt.subplots(2, 1, figsize=(9, 6.5), sharex=True,
+                             gridspec_kw={"height_ratios": [2, 1]}, layout="constrained")
+    x, gas = data["square_x"], data["square_gas"]
+    axes[0].step(x, data["square_initial"], where="mid", color="0.6", ls="--",
+                 lw=1.2, label="Translated initial profile")
+    axes[0].plot(x, gas, color="#d8a020", lw=3, label="Finite-volume gas")
+    for pusher in PUSHERS:
+        tracer = data[f"square_hi_{pusher}_cic"]
+        axes[0].plot(x, tracer, color=COLOR[pusher], lw=1.5, label=LABEL[pusher])
+        axes[1].plot(x, tracer/gas-1, color=COLOR[pusher], lw=1.5)
+    axes[0].set(ylabel=r"Transverse-mean density $\rho$", ylim=(0.85, 2.15))
+    axes[1].set(xlabel=r"$x/L$", ylabel=r"$\rho_{\rm tr}/\rho_{\rm gas}-1$", xlim=(-0.5, 0.5))
+    axes[0].legend(ncol=2, fontsize=9)
+    axes[1].axhline(0, color="0.5", lw=0.8)
+    for axis in axes:
+        axis.grid(alpha=0.18)
+    fig.suptitle("Periodic square-pulse advection: three crossings\n"
+                 r"$128\times128\times4$ cells; 1,310,720 tracers; CIC deposition")
+    save(fig, out, "square_pulse.png")
+
+
+def plot_turbulent_maps(out):
+    from matplotlib.colors import LogNorm
+    data = np.load(DATA / "paper_comparisons.npz")
+    fig, axes = plt.subplots(2, 4, figsize=(13, 6.3), sharex=True, sharey=True,
+                             layout="constrained")
+    gas = data["turb_gas_column"]
+    density_norm = LogNorm(vmin=0.15, vmax=6)
+    for axis, array, label in zip(axes[0], [gas]+[data[f"turb64_iso_{p}_column"] for p in PUSHERS],
+                                   ["Gas"]+[LABEL[p] for p in PUSHERS]):
+        image = axis.imshow(array, origin="lower", extent=(-0.5, 0.5, -0.5, 0.5),
+                            norm=density_norm, cmap="magma", interpolation="nearest")
+        axis.set_title(label)
+    axes[1, 0].imshow(gas, origin="lower", extent=(-0.5, 0.5, -0.5, 0.5),
+                      norm=density_norm, cmap="magma", interpolation="nearest", alpha=0)
+    axes[1, 0].axis("off")
+    axes[1, 0].text(0.05, 0.85, "Isothermal turbulence\n\n"
+                    r"$64^3$ cells; 16 tracers/cell" "\n"
+                    r"$t=0.2\,L/c_s$" "\n\nCIC deposition\nProjection along z",
+                    transform=axes[1, 0].transAxes, va="top", fontsize=10)
+    for axis, pusher in zip(axes[1, 1:], PUSHERS):
+        ratio = data[f"turb64_iso_{pusher}_column"] / gas
+        image_ratio = axis.imshow(ratio, origin="lower", extent=(-0.5, 0.5, -0.5, 0.5),
+                                   cmap="RdBu_r", norm=LogNorm(vmin=0.5, vmax=2),
+                                   interpolation="nearest")
+        axis.set_title("Tracer / gas")
+        axis.set_xlabel(r"$x/L$")
+    axes[0, 0].set_ylabel(r"$y/L$")
+    axes[1, 1].set_ylabel(r"$y/L$")
+    fig.colorbar(image, ax=axes[0], shrink=0.85, extend="both", label=r"$\Sigma/\langle\Sigma\rangle$")
+    bar = fig.colorbar(image_ratio, ax=axes[1, 1:], shrink=0.85, extend="both",
+                       label=r"$\Sigma_{\rm tr}/\Sigma_{\rm gas}$")
+    bar.set_ticks([0.5, 1, 2], labels=["0.5", "1", "2"])
+    bar.minorticks_off()
+    fig.suptitle("Gas structures and tracer sampling in compressible turbulence")
+    save(fig, out, "turbulence_columns.png")
+
+
+def plot_turbulent_statistics(out):
+    from matplotlib.colors import LogNorm
+    data = np.load(DATA / "paper_comparisons.npz")
+    metadata = read_json("paper_comparisons.json")["families"]["turb64_iso"]["cases"]
+    fig = plt.figure(figsize=(12, 7), layout="constrained")
+    grid = fig.add_gridspec(2, 3, height_ratios=[1.1, 1])
+    axes = [fig.add_subplot(grid[0, i]) for i in range(3)]
+    pdf = fig.add_subplot(grid[1, :])
+    for axis, pusher in zip(axes, PUSHERS):
+        count = data[f"turb64_iso_{pusher}_joint"]
+        im = axis.pcolormesh(data["turb_gas_log_edges"], data["turb_tracer_log_edges"],
+                             count.T, norm=LogNorm(vmin=1, vmax=10000), cmap="viridis",
+                             shading="flat", rasterized=True)
+        axis.plot([-4, 3], [-4, 3], color="white", ls="--", lw=1)
+        axis.set(xlim=(-3, 2), ylim=(-4, 2), xlabel=r"$\log_{10}(\rho_{\rm gas}/\bar\rho)$",
+                 ylabel=r"$\log_{10}(\rho_{\rm tr}/\bar\rho_{\rm tr})$",
+                 title=f"{LABEL[pusher]}: {100*metadata[pusher]['empty_cic_cell_fraction']:.2f}% empty cells")
+        edges = data["turb_ratio_edges"]
+        values = data[f"turb64_iso_{pusher}_ratio_pdf"]
+        case = metadata[pusher]
+        pdf.stairs(values, edges, color=COLOR[pusher], lw=1.5,
+                   label=f"{LABEL[pusher]}: mean={case['cell_log10_ratio_mean_positive']:.3f}, "
+                         f"std={case['cell_log10_ratio_std_positive']:.3f}")
+    fig.colorbar(im, ax=axes, label="Cells per bin", shrink=0.9)
+    pdf.set(yscale="log", xlim=(-3, 2), ylim=(1e-5, 10),
+            xlabel=r"$\log_{10}(\rho_{\rm tr}/\rho_{\rm gas})$", ylabel="Probability density",
+            title="Three-dimensional density ratio in cells with positive tracer density")
+    pdf.axvline(0, color="0.5", ls=":")
+    pdf.legend(fontsize=9)
+    pdf.grid(alpha=0.15)
+    fig.suptitle("Cell-by-cell tracer fidelity: joint density and ratio distributions")
+    save(fig, out, "turbulence_statistics.png")
+
+
+def plot_turbulent_mass_spectra(out):
+    data = np.load(DATA / "paper_comparisons.npz")
+    fig, axes = plt.subplots(1, 3, figsize=(14, 4.3), layout="constrained")
+    edges = data["turb_gas_log_edges"]
+    axes[0].stairs(data["turb_volume_pdf"], edges, color="0.6", ls="--", label="Gas: volume weighted")
+    axes[0].stairs(data["turb_mass_pdf"], edges, color="#d8a020", lw=2.5, label="Gas: mass weighted")
+    k = data["turb_shell_k"]
+    mask = (k > 0) & (k <= 32)
+    gas = data["turb_gas_power"]
+    axes[1].loglog(k[mask], gas[mask], color="#d8a020", lw=2.5, label="Gas")
+    for pusher in PUSHERS:
+        axes[0].stairs(data[f"turb64_iso_{pusher}_sampled_gas_pdf"], edges,
+                        color=COLOR[pusher], label=LABEL[pusher])
+        power = data[f"turb64_iso_{pusher}_power"]
+        axes[1].loglog(k[mask], power[mask], color=COLOR[pusher], label=LABEL[pusher])
+        axes[2].semilogx(k[mask], power[mask]/gas[mask], color=COLOR[pusher], label=LABEL[pusher])
+    axes[0].set(xlim=(-3, 2), xlabel=r"Gas density $\log_{10}(\rho/\bar\rho)$",
+                ylabel="Probability density", title="Gas environments sampled by tracers")
+    axes[1].set(xlabel=r"Shell wavenumber $kL/(2\pi)$", ylabel=r"$\langle|\widetilde\delta|^2\rangle_k$",
+                title="Three-dimensional density spectra")
+    axes[2].set(xlabel=r"Shell wavenumber $kL/(2\pi)$", ylabel=r"$P_{\rm tr}/P_{\rm gas}$",
+                title="Scale-dependent tracer power")
+    axes[0].legend(fontsize=8)
+    axes[1].legend(fontsize=8)
+    axes[2].axhline(1, color="0.5", ls=":")
+    for axis in axes:
+        axis.grid(alpha=0.15)
+    fig.suptitle("Mass sampling and spatial structure in compressible turbulence")
+    save(fig, out, "turbulence_mass_spectra.png")
 
 
 def plot_mass(out):
@@ -225,7 +378,23 @@ def plot_spectra(out):
 def plot_convergence(out):
     data = read_csv("converging_flow_metrics.csv")
     resolutions = (64, 128, 256)
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4.3), layout="constrained")
+    fig = plt.figure(figsize=(10, 7.5), layout="constrained")
+    layout = fig.add_gridspec(2, 2, height_ratios=[1, 1])
+    profile = fig.add_subplot(layout[0, :])
+    axes = [fig.add_subplot(layout[1, i]) for i in range(2)]
+    values = np.load(DATA / "paper_comparisons.npz")
+    valid = values["converging_valid"]
+    x = values["converging_x"][valid]
+    profile.plot(x, values["converging_analytic"][valid], color="0.55", ls="--",
+                 lw=2.5, label="Characteristic solution")
+    profile.plot(x, values["converging_gas"][valid], color="#d8a020", lw=2, label="Gas")
+    for pusher in PUSHERS:
+        profile.plot(x, values[f"converging_{pusher}"][valid], color=COLOR[pusher],
+                     lw=1, label=LABEL[pusher])
+    profile.set(xlabel=r"$x/L$", ylabel="Density / interior mean",
+                 title=r"Initially $v_x=-x$: $N_x=128$, seed 42, $t=0.3$")
+    profile.legend(ncol=3, fontsize=8)
+    profile.grid(alpha=0.2)
     for pusher in PUSHERS:
         for axis, metric in zip(axes, ("mean_abs_valid", "mean_abs_center4")):
             groups = [np.array([float(r[metric]) for r in data
@@ -241,8 +410,8 @@ def plot_convergence(out):
         axis.set(xlabel=r"$N_x$", ylabel="Mean absolute tracer/gas relative error", title=title)
         axis.grid(alpha=0.2)
     axes[0].legend(fontsize=9)
-    fig.suptitle("Converging flow: 45 cases, five seeds per point\n"
-                 "Error bars: seed standard deviation")
+    fig.suptitle("Density compression and tracer fidelity\n"
+                 "Resolution study: 45 cases; error bars show seed standard deviation")
     save(fig, out, "converging_flow.png")
 
 
@@ -256,7 +425,9 @@ def main():
         return
     args.output_dir.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update({"font.size": 10, "axes.titlesize": 11, "figure.titlesize": 12})
-    for plot in (plot_mass, plot_boundary, plot_amr, plot_spectra, plot_convergence):
+    for plot in (plot_square, plot_turbulent_maps, plot_turbulent_statistics,
+                 plot_turbulent_mass_spectra, plot_mass, plot_boundary, plot_amr,
+                 plot_spectra, plot_convergence):
         plot(args.output_dir)
 
 
