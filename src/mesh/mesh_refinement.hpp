@@ -36,6 +36,7 @@ struct AMRBufferData {
 
 // Forward declaration
 class RefinementCriteria;
+struct EOS_Data;
 
 //----------------------------------------------------------------------------------------
 //! \class MeshRefinement
@@ -114,6 +115,8 @@ class MeshRefinement {
 
   void RefineCC(DualArray1D<int> &n2o, DvceArray5D<Real> &a, DvceArray5D<Real> &ca,
                 bool is_z4c=false);
+  bool RefineHydroPositive(DualArray1D<int> &n2o, DvceArray5D<Real> &a,
+                           DvceArray5D<Real> &ca, const EOS_Data &eos);
   void RefineFC(DualArray1D<int> &n2o, DvceFaceFld4D<Real> &b, DvceFaceFld4D<Real> &cb);
   void RepairAMRFC(DvceFaceFld4D<Real> &b);
 

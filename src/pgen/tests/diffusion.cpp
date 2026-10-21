@@ -131,9 +131,10 @@ void ProblemGenerator::Diffusion(ParameterInput *pin, const bool restart) {
   pgen_final_func = DiffusionErrors;
   // user-defined BC
   user_bcs_func = GaussianProfileBCs;
-  if (restart) return;
+  // Analytic ghost assignments have no mutable state or external side effects.
+  user_bcs_retry_safe = true;
 
-  // Read problem parameters
+  // Reconstruct boundary/error parameters on fresh starts and restarts alike.
   diffvars.amp = pin->GetOrAddReal("problem", "amp", 1.e-6);
   diffvars.x10 = pin->GetOrAddReal("problem", "x10", 0.0);
   diffvars.x20 = pin->GetOrAddReal("problem", "x20", 0.0);
@@ -154,6 +155,10 @@ void ProblemGenerator::Diffusion(ParameterInput *pin, const bool restart) {
             << "set true (got " << ntests << ")" << std::endl;
     exit(EXIT_FAILURE);
   }
+
+  // Restart has already restored the evolved fields. Re-enroll callbacks and
+  // their parameters above, but do not overwrite that state with fresh ICs.
+  if (restart) return;
 
   // capture variables for the kernel
   auto &indcs = pmy_mesh_->mb_indcs;

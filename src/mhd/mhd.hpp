@@ -217,7 +217,7 @@ class MHD {
   TaskStatus Prolongate(Driver* pdrive, int stage);
   TaskStatus ConToPrim(Driver *d, int stage);
   TaskStatus NewTimeStep(Driver *d, int stage);
-  void RecomputeTimeStepFromCurrentState(Driver *pdrive);
+  void RecomputeTimeStepFromCurrentState(Driver *pdrive, bool update_sources = true);
   TaskStatus ClearSTSFlux(Driver *d, int stage);
   TaskStatus ClearSTSEField(Driver *d, int stage);
   TaskStatus STSFluxes(Driver *d, int stage);

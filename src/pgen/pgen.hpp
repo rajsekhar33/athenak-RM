@@ -44,11 +44,22 @@ class ProblemGenerator {
   // true if user BCs are specified on any face
   bool user_bcs;
 
+  // Code-enrolled promise for retryable viscosity STS (never an input toggle).
+  // The callback deterministically and idempotently writes only ghost cells in
+  // snapshotted Hydro/MHD fields, without active writes or persistent/external
+  // side effects. This certifies rollback safety, not boundary time accuracy.
+  bool user_bcs_retry_safe = false;
+
   // true if user srcterms are specified
   bool user_srcs;
 
   // true if user dt is specified
   bool user_dt;
+  // Code-enrolled promise for retryable viscosity STS (never an input toggle).
+  // Recompute dtnew deterministically from current state/time and immutable
+  // configuration. Modify only dtnew: no fluid writes, RNG, counters, persistent
+  // state or external side effects. Repeated trials must be safe.
+  bool user_dt_retry_safe = false;
   // store user_dt in dtnew here
   Real dtnew = 1e10;
 

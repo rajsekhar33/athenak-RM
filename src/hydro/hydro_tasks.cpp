@@ -435,7 +435,20 @@ TaskStatus Hydro::Prolongate(Driver *pdrive, int stage) {
       pbval_u->PrimToConsFineBndry(w0, u0);
     } else {
       // Step 2: prolongate fine ghost zones from the coarse array.
-      pbval_u->ProlongateCC(u0, coarse_u0);
+      const auto *coord = pmy_pack->pcoord;
+      if (has_sts_viscosity && peos->eos_data.is_ideal &&
+          !coord->is_special_relativistic && !coord->is_general_relativistic) {
+        if (!pbval_u->ProlongateHydroPositive(u0, coarse_u0, peos->eos_data)) {
+          if (pdrive->sts.viscosity_retry) {
+            pdrive->sts.attempt_failed = true;
+            pdrive->sts.rejection_reason = "invalid_prolongation_parent";
+          } else {
+            Kokkos::abort("Invalid parent or range in ideal-Hydro ghost prolongation");
+          }
+        }
+      } else {
+        pbval_u->ProlongateCC(u0, coarse_u0);
+      }
     }
   }
   return TaskStatus::complete;
@@ -446,6 +459,13 @@ TaskStatus Hydro::Prolongate(Driver *pdrive, int stage) {
 //! \brief Wrapper task list function to call ConsToPrim over entire mesh (including gz)
 
 TaskStatus Hydro::ConToPrim(Driver *pdrive, int stage) {
+  if (pdrive->sts.viscosity_retry && pdrive->sts.current_stage > 0 &&
+      pdrive->sts.sweep != Driver::STSSweep::none) {
+    // Check the exchanged/prolongated stencil before any EOS floor can hide
+    // an invalid trial. The after-stage list still drains posted exchanges.
+    pdrive->CheckViscositySTSState(pmy_pack->pmesh, true);
+    if (pdrive->sts.attempt_failed) return TaskStatus::complete;
+  }
   if (pdrive->sts.nonlinear && pdrive->sts.current_stage > 0 &&
       pdrive->sts.sweep != Driver::STSSweep::none &&
       pcond != nullptr && pcond->UsesNonlinearSTS()) {
