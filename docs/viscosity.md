@@ -1,10 +1,5 @@
 # Viscosity
 
-See the [verification figures](#verification-figures) below for physical,
-Braginskii and fourth-order hyperviscosity, including RKL2 integration.
-The [detailed validation report](feature-validation/viscosity/README.md)
-provides numerical criteria, source inventories and reproducible figure data.
-
 Newtonian Hydro and MHD support constant isotropic kinematic shear viscosity.
 Uniform-grid Newtonian MHD also supports leading parallel Braginskii viscosity
 with ideal or isothermal equations of state. Set `nu_iso` and/or `nu_aniso`
@@ -13,6 +8,10 @@ For a dimensional coefficient, use
 `nu_code = nu_cgs * time_cgs / length_cgs^2`; the input is not converted
 automatically. The corresponding dynamic coefficients are `rho * nu_iso`
 and `rho * nu_aniso`.
+
+[Verification figures](#verification-figures) cover damping, heating and RKL2
+convergence. The [validation report](feature-validation/viscosity/README.md)
+provides test setups, measured errors and data for reproducing the figures.
 
 Ideal-gas Hydro/MHD additionally support constant **dynamic** fourth-order
 hyperviscosity, `mu_hyper4`, on uniform periodic meshes. Its code units are
@@ -77,9 +76,9 @@ active direction, no SMR/AMR, at least two ghost cells and `fofc = false`.
 It is not available with an isothermal EOS or relativistic physics.
 
 The positive `sts_max_dt_ratio` caps the full cycle relative to the combined
-CFL-scaled STS diffusion bound; `-1` removes that cap. Start conservatively and
-check time-step convergence before increasing it. Stability is not accuracy,
-particularly when the cycle length changes the timing of adaptive refinement.
+CFL-scaled STS diffusion bound; `-1` removes that cap. Check timestep convergence
+before increasing it: large cycles can lose accuracy and change the timing of
+adaptive refinement.
 
 ## Spatial operator and time integration
 
@@ -111,13 +110,14 @@ fields. The momentum flux receives `-tau`; ideal-gas total energy receives
 the matching conservative work flux `-v_face dot tau`. Explicit and RKL2 use the same
 operator with current-stage fields. Braginskii damping, heating and RKL2
 benchmarks are also described by
-[Berlok, Pakmor & Pfrommer (2020)](https://arxiv.org/abs/1911.05694);
-their moving-mesh reconstruction and energy time integration are not copied here.
+[Berlok, Pakmor & Pfrommer (2020)](https://arxiv.org/abs/1911.05694).
+Those benchmarks use a moving mesh; AthenaK uses the Cartesian face-flux
+discretization above.
 
 The continuum heating rate is `3*rho*nu_aniso*S^2`, but the centered discrete
 operator does not guarantee local thermal positivity for arbitrary states.
-At exactly zero reconstructed face B, the anisotropic stress is skipped;
-this is not a physical transition to unmagnetized viscosity.
+At exactly zero reconstructed face B, the code sets the anisotropic stress
+to zero. Unmagnetized viscosity requires a separate isotropic coefficient.
 
 ### Fourth-order stress and ideal-gas energy
 
@@ -136,17 +136,17 @@ F_energy,j = -v_i tau4_ij - J_j
 The general-order constant-dynamic hyperstress is described by
 [Haugen & Brandenburg (2004), equations 2--5](https://arxiv.org/html/astro-ph/0402301v2#S2).
 Their simulations use sixth-order hyperviscosity and an isothermal EOS;
-the fourth-order specialization here is not a reproduction of those runs.
+AthenaK uses the fourth-order specialization with ideal-gas energy evolution.
 Higher-stress mechanical work in an ideal-gas total-energy balance has a
 continuum precedent in
 [Necas, Novotny & Silhavy (1989), equation 2.12 and Example 2.21](https://dml.cz/bitstream/handle/10338.dmlcz/106776/CommentatMathUnivCarol_030-1989-3_14.pdf).
-These are continuum precedents, not a published implementation of this
-finite-volume stencil or a proof of its numerical properties.
+These references supply the continuum formulation. The finite-volume stencil
+is evaluated in the [verification tests](#verification-figures).
 
 For constant `mu4`, the extra mechanical-work term is
 `J = mu4 grad(S:S)`. Including it yields the continuum heat production
 `Q4 = 2 mu4 sum_ijk (d_k S_ij)^2`; using only `-v dot tau4` would give a
-different local thermal-energy equation. This is not thermal conduction.
+different local thermal-energy equation. The term describes mechanical work.
 The code evaluates the momentum and complete energy contributions as shared
 face fluxes using current-stage primitive velocities, without a new evolved
 field. The stencil uses two primitive ghost cells in each active direction.
@@ -187,7 +187,7 @@ RKL methods and their application to viscosity are described by
 see also [Vaidya et al. (2017)](https://arxiv.org/abs/1702.05487)
 for anisotropic-diffusion STS.
 
-STS adds safeguards, not a new stress discretization:
+STS uses the same stress discretization with the following safeguards:
 
 - `Viscosity::InspectRawState` checks finite density, momentum and, where
   applicable, positive internal energy and the configured EOS floors before
@@ -200,11 +200,9 @@ STS adds safeguards, not a new stress discretization:
   start and repeats the first half-sweep at a smaller cycle length.
   Source application and work callbacks are not executed inside these retries.
 
-These checks do not estimate time-integration error or guarantee dissipation
-for arbitrary density contrasts. In particular, a stable large RKL2 timestep
-can poorly resolve stiff fourth-order modes. Check timestep convergence of
-both velocity and thermal energy; passing raw-state checks or agreeing across
-CPU/GPU backends is not an accuracy criterion.
+The checks enforce admissible states but do not estimate truncation error or
+guarantee dissipation at arbitrary density contrast. Stiff fourth-order modes
+require timestep-convergence checks of both velocity and thermal energy.
 
 ## Refinement and callbacks
 
@@ -224,8 +222,8 @@ User boundaries and user timestep setters require explicit code enrollment via
 `user_bcs_retry_safe` and `user_dt_retry_safe` in `ProblemGenerator`.
 A boundary callback may only deterministically update snapshotted ghost fields;
 a timestep callback may only deterministically recompute `dtnew`.
-Neither may have persistent side effects. These are contracts, not input switches,
-and do not certify boundary time accuracy.
+Neither may have persistent side effects. Enrollment is set in the problem
+generator code; time accuracy still depends on the boundary implementation.
 
 Viscosity STS rejects primitive prolongation, cyclic zoom, simultaneous Hydro/MHD
 owners, and co-selected STS resistivity. General STS restrictions also exclude
@@ -249,37 +247,34 @@ python tst/functional/hyperviscosity.py --binary /path/to/athena --output /path/
 NumPy is required. The tests check the one-dimensional tensor symbol and
 complete energy-work flux, coefficient-off behavior, circular-shear decay
 and generated heat with explicit/RKL2 integration, and selected input guards.
-The evolution oracle uses the discrete spatial operator and time-integrator
-polynomial; it is not a general nonlinear or continuum-convergence test.
+The reference solution uses the discrete spatial operator and time-integrator
+polynomial to check their implementation.
 Use the same script with a GPU executable and `--gpu` for that backend.
 This custom problem build is not suitable for the standard regression suite,
 which requires `-DPROBLEM=built_in_pgens`.
 
 ## Verification figures
 
-These figures show AthenaK test measurements and their numerical references,
-not copied paper artwork. The studies span successive implementation versions;
-their scopes, recorded source hashes and retained failures are documented in the
+The tests below measure damping, viscous heating and convergence. Test setups,
+acceptance tolerances and the code version used for each study are listed in the
 [validation report](feature-validation/viscosity/README.md).
 
 ### Physical viscosity and RKL2
 
 ![Physical-viscosity operator and refined-mesh verification](feature-validation/viscosity/figures/physical_viscosity.png)
 
-Operator damping, generated heat and refined-mesh accuracy are checked separately.
-The cold active-AMR profile error is 2.598%, 1.050% and 0.352% at RKL ratio caps
-16, 4 and 1, respectively, against a 0.5% criterion. Changing the remapping
-schedule is not a pure temporal-convergence test; stable steps need not be accurate.
+In the cold active-AMR test, reducing the RKL ratio cap from 16 to 4 to 1
+reduces the profile error from 2.598% to 1.050% to 0.352%. Only cap 1 meets
+the 0.5% tolerance. These errors include changes in the refinement schedule
+as well as time-integration error.
 
 ### Parallel Braginskii viscosity
 
 ![Braginskii coupled-wave and isolated-heating verification](feature-validation/viscosity/figures/braginskii_validation.png)
 
-Rotated coupled waves and isolated native heating tests check the parallel
-stress and its energy work. The overdamped fast-wave error decreases from
-4.0943% at N32 to 0.9536% and 0.2311% at N64 and N128; the N32 case retains
-its failure against the 3% criterion. Isolated heating tests do not establish
-arbitrary-state positivity or coupled-MHD STS heating accuracy.
+The overdamped fast-wave error decreases from 4.0943% at N32 to 0.9536%
+at N64 and 0.2311% at N128; N64 and N128 meet the 3% tolerance.
+Separate RK2 tests of viscous heating approach second-order convergence.
 
 ### Fourth-order damping and coupled-wave dispersion
 
@@ -288,7 +283,7 @@ arbitrary-state positivity or coupled-MHD STS heating accuracy.
 Sound, Alfvén and magnetosonic modes are compared with their coupled dispersion
 relations. The harmonic-2/fundamental damping ratios are 15.9611 for sound and
 15.9311 for Alfvén waves, compared with the fourth-order prediction of 16.
-The comparisons distinguish continuum damping from the discrete stencil response.
+The report also compares the discrete stencil response with continuum damping.
 
 ### Ideal-gas hyperviscous heating
 
@@ -297,14 +292,13 @@ The comparisons distinguish continuum damping from the discrete stencil response
 Generated heat is compared with an independently refined continuum integration.
 The heating-field error decreases from 0.403% at N64 to 0.122% at N128.
 Omitting the higher-stress work flux J changes the reference heating by 122.5%,
-despite conserving periodic total energy. These are heating-field results,
-not a claim that every weak fluid component meets a 3% error criterion.
+despite conserving periodic total energy. At N128, the weaker density and
+longitudinal-momentum signals have errors of 6.12% and 3.50%, respectively.
 
 ### Hyperviscosity RKL2 temporal convergence
 
-![Hyperviscosity RKL2 temporal verification with retained coarse failure](feature-validation/viscosity/figures/sts_convergence.png)
+![Hyperviscosity RKL2 convergence at coarse and refined timesteps](feature-validation/viscosity/figures/sts_convergence.png)
 
-The coarse ratio-128 window fails the temporal-order criterion; smaller steps
-recover thermal orders 1.889 and 1.916, while ratio 8 gives 1.945.
-The failed coarse window is retained: stability and CPU/GPU agreement alone
-do not establish temporal accuracy.
+At ratio cap 128, the coarse timestep sequence fails the temporal-order test.
+Smaller steps give thermal orders of 1.889 and 1.916, while ratio cap 8 gives
+1.945, approaching the expected second order.

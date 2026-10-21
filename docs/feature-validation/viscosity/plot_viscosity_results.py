@@ -39,12 +39,12 @@ def physical_figure(data, output):
                            markersize=7, label=f"{thermal}, {backend.upper()}")
     gate = data["scalar_sts"]["cpu"]["gates"][
         "sts_velocity_semidiscrete_initial_amplitude_scaled"]
-    axes[0].axhline(gate, color="black", linestyle="--", label="0.05% accuracy gate")
+    axes[0].axhline(gate, color="black", linestyle="--", label="0.05% tolerance")
     axes[0].set(xlabel="Full-cycle / parabolic time-step ratio",
                 ylabel="Velocity time error / initial amplitude",
                 title="Uniform-grid RKL2 time accuracy")
     axes[0].set_xticks(ratios, [str(r) for r in ratios])
-    axes[0].text(0.03, 0.96, "Warm/cold curves overlap\nRatio 16 misses the accuracy gate",
+    axes[0].text(0.03, 0.96, "Warm/cold curves overlap",
                  transform=axes[0].transAxes, va="top", fontsize=9)
     axes[0].legend(fontsize=8, loc="lower right")
     end = data["amr_end_to_end"]["comparisons"]
@@ -54,15 +54,13 @@ def physical_figure(data, output):
     axes[1].loglog(ratios, [fixed[f"r{r}_vs025"]["energy"] for r in ratios],
                    "s-", label="Common post-refinement checkpoint")
     axes[1].axhline(data["amr_fixed_remap"]["gate"], color="black",
-                    linestyle="--", label="0.5% profile-error gate")
+                    linestyle="--", label="0.5% tolerance")
     axes[1].set(xlabel="Full-cycle / parabolic time-step ratio",
                 ylabel="Energy-profile L1 / initial total energy",
-                title="Cold active-AMR accuracy qualification")
+                title="Cold gas with adaptive mesh refinement")
     axes[1].set_xticks(ratios, [str(r) for r in ratios])
     axes[1].legend(fontsize=8, loc="lower right")
-    fig.suptitle("Standard isotropic viscosity: time-step accuracy is not guaranteed by stability\n"
-                 "Standard-operator follow-up preceding the final 31556aa8 source selection",
-                 fontsize=12)
+    fig.suptitle("Isotropic viscosity: RKL2 temporal and AMR accuracy", fontsize=12)
     style_axes(axes)
     fig.savefig(output / "physical_viscosity.png", dpi=170)
     plt.close(fig)
@@ -83,7 +81,7 @@ def braginskii_figure(data, output):
                 ylabel="Field-relative L2 error")
     axes[0].set_xticks([32, 64], ["32", "64"])
     axes[0].xaxis.set_minor_formatter(NullFormatter())
-    axes[0].text(0.03, 0.03, "Earlier centered-operator spatial study;\npre-final STS guards, explicit evolution",
+    axes[0].text(0.03, 0.03, "Centered spatial operator, explicit integration",
                  transform=axes[0].transAxes, fontsize=8, va="bottom")
     axes[0].legend(fontsize=8, loc="upper right")
     for kind, label, color in [("sheet", "Sheet", "tab:blue"),
@@ -101,13 +99,11 @@ def braginskii_figure(data, output):
                 ylabel="Normalized thermal-gain L1 error")
     axes[1].set_xticks([32, 64, 128], ["32", "64", "128"])
     axes[1].xaxis.set_minor_formatter(NullFormatter())
-    axes[1].text(0.03, 0.03, "Isolated production kernel, native RK2; not MHD/STS\n"
-                 "Null case normalized by initial kinetic energy",
+    axes[1].text(0.03, 0.03, "Isolated viscous evolution with RK2\n"
+                 "Null case: error / initial kinetic energy",
                  transform=axes[1].transAxes, fontsize=8, va="bottom")
     axes[1].legend(fontsize=8, loc="upper right", ncol=2)
-    fig.suptitle("Braginskii viscosity: centered CT-aware stress\n"
-                 "Thermal-gain kernel source matches feature commit 02b50eca",
-                 fontsize=12)
+    fig.suptitle("Braginskii viscosity: wave and heating convergence", fontsize=12)
     style_axes(axes)
     fig.savefig(output / "braginskii_validation.png", dpi=170)
     plt.close(fig)

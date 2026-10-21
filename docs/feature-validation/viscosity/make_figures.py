@@ -49,13 +49,13 @@ def dispersion():
         ax.set_yscale('log')
         ax.set_xticks([32, 64])
         ax.set_xlabel('Cells per wavelength')
-        ax.axhline(.03, color='k', ls=':', label='3% acceptance gate')
+        ax.axhline(.03, color='k', ls=':', label='3% tolerance')
     axes[0].set_ylabel('Relative error in added damping rate')
-    axes[0].set_title('Matched zero-hyperviscosity control subtracted')
+    axes[0].set_title('Damping relative to the zero-hyperviscosity control')
     axes[1].set_ylabel('Relative phase-frequency error')
-    axes[1].set_title('Hyperviscous eigenmode: full MHD/Hydro evolution')
+    axes[1].set_title('Wave frequency')
     axes[0].legend(fontsize=8, ncol=2)
-    fig.suptitle('Linear-wave dispersion — analytic continuum reference, harmonic 1')
+    fig.suptitle('Hyperviscous wave dispersion: fundamental mode')
     save(fig, 'dispersion.png')
 
 
@@ -73,17 +73,17 @@ def heating():
                      style+marker, color='C0', label=f'Full energy flux, {backend.upper()}')
         if backend == 'cpu':
             axes[1].plot([c['n'] for c in rows], [c['missing_J_relative_error'] for c in rows],
-                         's:', color='C3', label='Missing-J reference (counterfactual)')
+                         's:', color='C3', label='Reference with J = 0')
     for ax in axes:
         ax.set_yscale('log')
         ax.set_xlabel('Cells per direction')
         ax.set_ylabel('Relative thermal-increment error')
-        ax.axhline(.03, color='k', ls=':', label='3% acceptance gate')
+        ax.axhline(.03, color='k', ls=':', label='3% tolerance')
         ax.legend(fontsize=8)
     axes[0].set_xticks([32, 64]); axes[1].set_xticks([64, 128])
     axes[0].set_title('Circular shear: finite-volume analytic reference')
     axes[1].set_title('Nonuniform strain: independent continuum reference')
-    fig.suptitle('Ideal-gas heating and the additional mechanical-energy flux J')
+    fig.suptitle('Hyperviscous heating and mechanical-energy flux J')
     save(fig, 'heating.png')
 
 
@@ -105,10 +105,9 @@ def sts():
         ax.legend(fontsize=8)
     axes[0].set_ylabel('Thermal-increment error / reference heat RMS')
     axes[1].set_ylabel('Velocity error / initial velocity RMS')
-    axes[0].set_title('Thermal error recovers second-order decrease')
-    axes[1].set_title('Separate velocity normalization; not heat accuracy')
-    fig.suptitle('Nonzero-J RKL2: timestep refinement against a fine explicit run\n'
-                 'Coarse ratio-128 temporal gate failed; preserved, not reclassified')
+    axes[0].set_title('Thermal-energy convergence')
+    axes[1].set_title('Velocity convergence')
+    fig.suptitle('Hyperviscosity: RKL2 timestep convergence')
     save(fig, 'sts_convergence.png')
 
 
