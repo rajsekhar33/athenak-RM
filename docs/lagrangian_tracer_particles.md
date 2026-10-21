@@ -6,6 +6,10 @@ cell-jump method, a continuous stochastic-displacement method built from the
 same flux moments, and a classical CIC-velocity tracer, plus the RK-integrator
 support and optional accuracy constraint added alongside them.
 
+See [Verification](#verification) below for test figures, and the
+[particle validation report](feature-validation/particles/README.md) for
+revision-specific results, source locations, numerical data and figure reproduction.
+
 - `pusher = lagrangian_mc`: flux-based stochastic cell-jump tracer, after
   Genel et al. 2013 (arXiv:1305.2195). After each hydro/MHD update, each
   particle uses the mass fluxes through the faces of its current cell to
@@ -339,18 +343,69 @@ or pgen placement settings across a restart (the particle restart reader
 maps particles back to ranks by `PGID`, which changing the mesh layout can
 disturb).
 
-## Validation
+## Verification
 
-Extensively cross-checked across CPU, MPI-CPU, and GPU builds: stock
-regression suites; a 12-leg RK1/RK3/RK4 x Hydro/MHD x MC/Ito-2 saved-flux
-matrix; single- and two-node GPU particle restart and migration checks
-(exact bitwise match); a two-node rank-local (`single_file_per_rank`)
-restart check (exact match); square-wave/advection and driven-turbulence
-paper-comparison suites (against Genel et al. 2013 and Moseley, Teyssier &
-Abel 2026); a Mach-0.315, 64-particles/cell case with CIC-deposited
-gas-tracer cross-spectra; and a resolution/seed study on a converging-flow
-setup targeting the exact stagnation-point regime the CIC interpolation was
-built for (mean error 18.6% -> 1.3% after CIC vs. nearest-grid-point).
+The figures below summarize particle-specific checks. The
+[validation report](feature-validation/particles/README.md) identifies the
+implementation revision for each campaign and documents CPU, GPU and MPI
+coverage. The turbulence and converging-flow comparisons are historical
+diagnostics, not exact reproductions of every published experiment or
+substitutes for the boundary, AMR and checkpoint tests.
+
+### MC allocation during refinement
+
+![Monte Carlo tracer allocation compared with post-prolongation child masses](feature-validation/particles/figures/mc_child_mass_allocation.png)
+
+Across 33,191 refined tracers and 64 child comparisons, all mass-weighted
+count residuals satisfy the simultaneous statistical bound at
+`alpha = 1e-6`; equal child probabilities are rejected. The independent
+reference uses child geometry and post-prolongation density. MC allocation
+is statistical: individual child counts need not equal their expectations.
+
+### Physical boundaries
+
+![Particle count, ownership and frozen exits at physical boundaries](feature-validation/particles/figures/boundary_contracts.png)
+
+All 12 cases retain 256 records with valid active owners. Periodic and
+reflecting cases have no frozen exits. Outflow and diode exits are retained
+as frozen records; their different counts for classical, MC and Ito tracers
+are not an accuracy ranking or a requirement for identical trajectories.
+
+### Dynamic AMR and restart
+
+![Particle conservation and mesh topology through dynamic AMR and restart](feature-validation/particles/figures/amr_restart_contracts.png)
+
+The reference evolution preserves 512 tracers through repeated changes
+between 8 and 15 MeshBlocks. Split, reload and resumed states are checked
+against their lifecycle contracts; continuation assertions pass separately
+from the plotted count check. The report records SMR cases with reconstructed
+`PLASTLEVEL` differences, so immediate bitwise equality of every bookkeeping
+field is not claimed.
+
+### Low-Mach gas and tracer spectra
+
+![Gas and tracer spectra, response and signed cross-correlation](feature-validation/particles/figures/mach03_spectra.png)
+
+This comparison uses a `128^3` mesh, 64 tracers per cell and measured RMS
+Mach number about 0.315 at time 0.1. Mean gas-tracer correlations over
+`k = 1–6` are 0.998854, 0.986461 and 0.983874 for classical, Ito and MC
+tracers, respectively. High-wavenumber spectra become noise dominated;
+the displayed response window is a diagnostic, not an acceptance tolerance.
+
+### Converging-flow resolution and seed dependence
+
+![Converging-flow errors across three resolutions and five random seeds](feature-validation/particles/figures/converging_flow.png)
+
+The 45 cases combine three resolutions (`Nx = 64, 128, 256`), three pushers
+and five seeds. Error bars show seed sample standard deviations. Profiles
+are separately mean-normalized in the stated valid region at time 0.3,
+and the central diagnostic uses four cells. No accuracy gate was prescribed
+for this comparison; the central Ito error is not monotonic, so the figure
+does not establish a fixed convergence order.
+
+All five figures and their numerical inputs are stored in the repository.
+[Reproduction instructions](feature-validation/particles/README.md#reproduction-and-references)
+regenerate them without rerunning simulations.
 
 ## Common Gotchas
 
