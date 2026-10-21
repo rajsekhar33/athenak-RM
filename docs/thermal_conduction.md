@@ -5,6 +5,10 @@ conductivity, Cowie–McKee saturation, and RKL2 super-time-stepping (STS) for
 Newtonian ideal-gas Hydro/MHD. This guide covers configuration, numerical
 methods, implementation locations and scientific references.
 
+On this feature branch, [numerical verification figures](#numerical-verification)
+are embedded below. The [detailed validation report](feature-validation/conduction/README.md)
+provides the measured results, source inventory, limitations and reproducible data.
+
 ## Constant-coefficient conduction
 
 The code-temperature variable is `T = p/rho`. The conductive energy flux is
@@ -249,6 +253,70 @@ completed before an attempt is abandoned or retried. The conduction recurrence c
 only energy, but the existing refined-mesh boundary pipeline can also prolongate
 CT fields; absence of a conductive induction term does not imply bitwise
 unchanged faces throughout that pipeline.
+
+## Numerical verification
+
+These figures show AthenaK measurements and numerical reference values, not
+copied paper artwork. Studies span successive implementation versions;
+earlier constant-coefficient tests are not reruns of the final nonlinear code.
+The [validation report](feature-validation/conduction/README.md) identifies
+each study's scope, comparison criteria and source provenance.
+
+### Anisotropic ring: comparison with Sharma & Hammett
+
+![Anisotropic ring error norms compared with Sharma and Hammett](feature-validation/conduction/figures/ring_errors.png)
+
+Both limiters were tested through `t=200` at N50/100/200/400. N400 norm
+differences from the published asymmetric-limiter values are below 0.23%
+for van Leer and 0.12% for MC. N50 uses historical CPU data and N100–400
+GPU data, so this is not a uniform-build convergence sequence. The van-Leer
+L-infinity increase from N200 to N400 is retained; the ambiguous published
+N100 perpendicular-diffusivity entry is not an acceptance target.
+
+### Explicit and RKL2 temporal convergence
+
+![Explicit nonlinear conduction temporal convergence](feature-validation/conduction/figures/explicit_temporal.png)
+
+The fixed-grid nonlinear pulse gives RK1/RK2/RK3 self-orders of
+1.01222/2.02432/3.02180. Errors use double-precision temperature diagnostics
+against a finer same-grid RK3 solution, normalized by the initial amplitude.
+Self-orders compare adjacent numerical solutions, not an exact nonlinear
+solution; this measures temporal, not spatial, accuracy.
+
+![Coupled MHD conduction RKL2 temporal convergence](feature-validation/conduction/figures/coupled_rkl_temporal.png)
+
+Eleven scaled conserved-fluid/CT component norms are checked separately from
+temperature. Finest combined-field orders are 1.99617/2.03556 and temperature
+orders are 2.09397/2.14279. The adaptive timestep measure is
+`H=sqrt(sum(dt^3)/elapsed_time)`; explicit-reference halving differences remain
+below 1% of the finest RKL error.
+
+### Saturation: Vaidya et al. sawtooth setup
+
+![Saturated sawtooth explicit and RKL2 conduction comparison](feature-validation/conduction/figures/saturated_sawtooth.png)
+
+Native temperature profiles use the isotropic 1-D setup in
+[Vaidya et al., section 4.1.2](https://arxiv.org/html/1702.05487v2#S4.SS1.SSS2),
+comparing RKL2 with a refined explicit solution rather than digitized paper
+curves. At N400 and `t=0.1`, normalized L1/L-infinity differences are
+`1.84469e-8/6.26363e-7` for the ratio-40 cap and
+`2.31719e-5/4.80778e-4` for the ratio-1000 cap. These caps are not measured
+speedups: donor bounds remain active. This case does not test retry recovery.
+
+### Retained coarse-resolution limitations
+
+![Retained coarse Sovinec accuracy and refined-mesh comparison limits](feature-validation/conduction/figures/retained_coarse_limits.png)
+
+The N8/N16 ratio-100 Sovinec equilibria become stationary but fail their
+original accuracy criteria. Six static N32 3-D refinement CPU/GPU energy
+comparisons also miss the strict `5e-12` agreement criterion, with a maximum
+relative discrepancy of `5.4542320335866934e-9`. These results remain recorded
+as failures of their original criteria. Conservation, backend agreement and
+continuum accuracy are distinct checks.
+
+All five figures and their numerical data are stored in this branch. Regenerate
+them with `python docs/feature-validation/conduction/plot_results.py`
+(NumPy and Matplotlib required); this does not rerun the simulations.
 
 ## Validation resources
 
