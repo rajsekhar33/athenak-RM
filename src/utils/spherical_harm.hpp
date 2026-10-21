@@ -28,11 +28,18 @@ double fac(int i) {
   return(result);
 }
 
+KOKKOS_INLINE_FUNCTION
+void SphericalHarm(Real *ylmR, Real *ylmI, int l, int m, Real theta, Real phi);
+
 //Calculate spin-weighted spherical harmonics using Wigner-d matrix notation
 // see e.g. Eq II.7, II.8 in 0709.0093
 KOKKOS_INLINE_FUNCTION
 void SWSphericalHarm(Real * ylmR, Real * ylmI, int l, int m, int s,
                      Real theta, Real phi) {
+  if (s == 0) {
+    SphericalHarm(ylmR, ylmI, l, m, theta, phi);
+    return;
+  }
   Real wignerd = 0;
   int k1,k2,k;
   k1 = Kokkos::max(0, m-s);
@@ -50,29 +57,41 @@ void SWSphericalHarm(Real * ylmR, Real * ylmI, int l, int m, int s,
   *ylmI = wignerd*Kokkos::sin(m*phi);
 }
 
-// Calculate spherical harmonics using Wigner-d matrix notation
+// Normalized associated-Legendre recurrence, avoiding cancellation in the Wigner sum.
+// See DLMF 14.10.3 (recurrence), 14.30.1 (normalization), 14.30.6 (negative m).
 KOKKOS_INLINE_FUNCTION
 void SphericalHarm(Real *ylmR, Real *ylmI, int l, int m, Real theta, Real phi) {
-  Real wignerd = 0.0;
-  int k1, k2;
-
-  k1 = Kokkos::max(0, m);
-  k2 = Kokkos::min(l + m, l);
-
-  for (int k = k1; k <= k2; ++k) {
-    wignerd += Kokkos::pow(-1.0, k)
-               * Kokkos::pow(Kokkos::cos(theta/2.0), 2 * l + m - 2 * k)
-               * Kokkos::pow(Kokkos::sin(theta/2.0), 2 * k - m)
-               / ( fac(l + m - k) * fac(l - k) * fac(k) * fac(k - m) );
+  const int am = (m < 0) ? -m : m;
+  if (am > l) {
+    *ylmR = 0.0;
+    *ylmI = 0.0;
+    return;
   }
-
-  wignerd *= Kokkos::sqrt((2 * l + 1)/(4 * M_PI))
-             * fac(l)
-             * Kokkos::sqrt(fac(l + m))
-             * Kokkos::sqrt(fac(l - m));
-
-  *ylmR = wignerd * Kokkos::cos(m * phi);
-  *ylmI = wignerd * Kokkos::sin(m * phi);
+  const Real ct = Kokkos::cos(theta);
+  const Real st = Kokkos::sin(theta);
+  Real plm = 1.0/Kokkos::sqrt(4.0*M_PI);
+  // The signed sine preserves the old angular continuation outside [0, pi].
+  for (int k = 1; k <= am; ++k) {
+    plm *= -st*Kokkos::sqrt((2.0*k + 1.0)/(2.0*k));
+  }
+  if (l > am) {
+    Real prev = plm;
+    plm *= ct*Kokkos::sqrt(2.0*am + 3.0);
+    for (int k = am + 2; k <= l; ++k) {
+      const Real kd = k;
+      const Real md = am;
+      const Real denom = kd*kd - md*md;
+      const Real a = Kokkos::sqrt((4.0*kd*kd - 1.0)/denom);
+      const Real b = Kokkos::sqrt((2.0*kd + 1.0)*((kd - 1.0)*(kd - 1.0) - md*md)
+                                 /((2.0*kd - 3.0)*denom));
+      const Real next = a*ct*plm - b*prev;
+      prev = plm;
+      plm = next;
+    }
+  }
+  if (m < 0 && am%2 != 0) plm = -plm;
+  *ylmR = plm*Kokkos::cos(m*phi);
+  *ylmI = plm*Kokkos::sin(m*phi);
 }
 
 // Calculate first derivatives of spherical harmonics using Wigner-d matrix notation

@@ -33,6 +33,7 @@ class Driver {
   struct STSController {
     bool enabled = false;
     bool nonlinear = false;
+    bool viscosity_retry = false;
     bool attempt_failed = false;
     Real temperature_min = 0.0, temperature_max = 0.0;
     const char *rejection_reason = "none";
@@ -76,8 +77,19 @@ class Driver {
   void Execute(Mesh *pmesh, ParameterInput *pin, Outputs *pout, bool wdflag);
   void Finalize(Mesh *pmesh, ParameterInput *pin, Outputs *pout);
   void InitBoundaryValuesAndPrimitives(Mesh *pm);
+  void CheckViscositySTSState(Mesh *pm, bool include_ghosts = false);
+  void RestoreViscositySTSTrial(Mesh *pm);
 
  private:
+  // Trial and pre-sweep snapshots are separate: an admissible half-sweep may
+  // still require whole-cycle rollback if viscous heating lowers the fluid CFL.
+  struct ViscositySnapshot {
+    DvceArray5D<Real> u, w, bcc, coarse_u, coarse_w;
+    DvceArray4D<Real> b1, b2, b3, coarse_b1, coarse_b2, coarse_b3;
+    void Save(Mesh *pm);
+    void Restore(Mesh *pm) const;
+  };
+  ViscositySnapshot viscosity_trial_, viscosity_cycle_;
   Kokkos::Timer run_time_;      // generalized timer for cpu/gpu/etc
   std::uint64_t nmb_updated_;   // running total of MB updated during run
   std::uint64_t npart_updated_; // running total of particles updated during run
@@ -89,6 +101,8 @@ class Driver {
   void SetSTSStage(int stage);
   void EndSTSSweep();
   void ExecuteSTSSweep(Mesh *pm, STSSweep sweep);
+  void ExecuteViscositySTSSweep(Mesh *pm, STSSweep sweep);
+  void ExecutePreSTSSweep(Mesh *pm);
   void OutputCycleDiagnostics(Mesh *pm);
   Real UpdateWallClock();
 };

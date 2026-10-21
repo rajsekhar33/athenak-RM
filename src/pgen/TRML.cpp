@@ -124,6 +124,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   user_hist_func = UserHistOutput;
   user_bcs_func = UserZBoundaryConditions;
   user_time_step_func = UserTimeStep;
+  user_dt_retry_safe = true;
   user_work_in_loop_func = UserWorkInLoop;
   user_ref_func= UserRefine;
   pgen_final_func = TRMLFinalWork;

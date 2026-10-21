@@ -31,6 +31,7 @@
 #include "particles/particles.hpp"
 #include "radiation/radiation.hpp"
 #include "coordinates/adm.hpp"
+#include "coordinates/coordinates.hpp"
 #include "z4c/z4c.hpp"
 #include "z4c/z4c_amr.hpp"
 #include "prolongation.hpp"
@@ -620,7 +621,19 @@ void MeshRefinement::RedistAndRefineMeshBlocks(ParameterInput *pin, int nnew, in
 
   if (nnew > 0) {
     if (phydro != nullptr) {
-      RefineCC(new_to_old, phydro->u0, phydro->coarse_u0);
+      const auto *coord = pmy_mesh->pmb_pack->pcoord;
+      if (phydro->has_sts_viscosity && phydro->peos->eos_data.is_ideal &&
+          !prolong_prims && !coord->is_special_relativistic &&
+          !coord->is_general_relativistic) {
+        if (!RefineHydroPositive(new_to_old, phydro->u0, phydro->coarse_u0,
+                                 phydro->peos->eos_data)) {
+          // Redistribution has already changed the topology/data layout. An STS
+          // trial rollback cannot undo it; fail before EOS can repair the state.
+          Kokkos::abort("Invalid parent/state in ideal-Hydro AMR refinement");
+        }
+      } else {
+        RefineCC(new_to_old, phydro->u0, phydro->coarse_u0);
+      }
     }
     if (pmhd != nullptr) {
       RefineCC(new_to_old, pmhd->u0, pmhd->coarse_u0);
@@ -1119,6 +1132,91 @@ void MeshRefinement::RefineCC(DualArray1D<int> &n2o, DvceArray5D<Real> &a,
   });
 
   return;
+}
+
+//----------------------------------------------------------------------------------------
+// One thread owns a complete sibling group, not one conserved component. The
+// coarse buffers include received parents, but pack metadata is still OLD here.
+// All ranks participate in the validity reduction, even with no local children.
+bool MeshRefinement::RefineHydroPositive(DualArray1D<int> &n2o, DvceArray5D<Real> &a,
+                                        DvceArray5D<Real> &ca, const EOS_Data &eos) {
+  const int nmb = new_nmb_eachrank[global_variable::my_rank];
+  const int gid0 = new_gids_eachrank[global_variable::my_rank];
+  const auto indcs = pmy_mesh->mb_indcs;
+  const int ni = indcs.cie-indcs.cis+1;
+  const int nj = indcs.cje-indcs.cjs+1;
+  const int nk = indcs.cke-indcs.cks+1;
+  const int ncells = ni*nj*nk;
+  const int nvar = a.extent_int(1);
+  const bool multi_d = pmy_mesh->multi_d, three_d = pmy_mesh->three_d;
+  const auto eos_copy = eos;
+  auto &flags = refine_flag;
+  int invalid = 0;
+  Kokkos::parallel_reduce("RefineHydroPositive",
+      Kokkos::RangePolicy<>(DevExeSpace(), 0, nmb*ncells),
+      KOKKOS_LAMBDA(const int idx, int &bad) {
+    const int m = idx/ncells;
+    if (flags.d_view(n2o.d_view(m+gid0)) <= 0) return;
+    const int i = idx%ni+indcs.cis;
+    const int j = (idx/ni)%nj+indcs.cjs;
+    const int k = (idx/(ni*nj))%nk+indcs.cks;
+    const int fi = 2*i-indcs.cis, fj = 2*j-indcs.cjs, fk = 2*k-indcs.cks;
+    const int ny = multi_d ? 2 : 1, nz = three_d ? 2 : 1;
+    // Only active siblings may be written; reject unexpected shapes/ranges
+    // before reading a stencil or writing a destination.
+    if (nvar < 5 || ca.extent_int(1) != nvar || m >= ca.extent_int(0) ||
+        m >= a.extent_int(0) || i < 1 || i+1 >= ca.extent_int(4) ||
+        (multi_d && (j < 1 || j+1 >= ca.extent_int(3))) ||
+        (three_d && (k < 1 || k+1 >= ca.extent_int(2))) ||
+        fi < indcs.is || fi+1 > indcs.ie || fj < indcs.js ||
+        fj+ny-1 > indcs.je || fk < indcs.ks || fk+nz-1 > indcs.ke ||
+        fi+1 >= a.extent_int(4) || fj+ny > a.extent_int(3) ||
+        fk+nz > a.extent_int(2)) {
+      ++bad;
+      return;
+    }
+    Real parent[5], child[8][5];
+    for (int v = 0; v < 5; ++v) parent[v] = ca(m,v,k,j,i);
+    if (!HydroProlongAdmissible(parent, eos_copy)) {
+      ++bad;
+      return;
+    }
+    const Real largest = std::numeric_limits<Real>::max();
+    for (int v = 0; v < nvar; ++v) {
+      // Finite stencil checks include passive conserved variables. fmin may
+      // otherwise hide a NaN in one slope operand.
+      const Real center = ca(m,v,k,j,i);
+      if (!(center >= -largest && center <= largest)) { ++bad; return; }
+      for (int dir = 0; dir < 1+multi_d+three_d; ++dir) {
+        const int di = dir == 0, dj = dir == 1, dk = dir == 2;
+        const Real left = ca(m,v,k-dk,j-dj,i-di);
+        const Real right = ca(m,v,k+dk,j+dj,i+di);
+        if (!(left >= -largest && left <= largest &&
+              right >= -largest && right <= largest)) { ++bad; return; }
+      }
+      ProlongCC(m,v,k,j,i,fk,fj,fi,multi_d,three_d,ca,a);
+      for (int c = 0; c < 2*ny*nz; ++c) {
+        const Real u = a(m,v,fk+c/(2*ny),fj+(c/2)%ny,fi+c%2);
+        if (!(u >= -largest && u <= largest)) { ++bad; return; }
+        if (v < 5) child[c][v] = u;
+      }
+    }
+    const Real theta = HydroProlongTheta(parent, child, 2*ny*nz, eos_copy);
+    if (theta < 0.0) { ++bad; return; }
+    if (theta == 1.0) return;
+    for (int c = 0; c < 2*ny*nz; ++c) {
+      for (int v = 0; v < nvar; ++v) {
+        Real &u = a(m,v,fk+c/(2*ny),fj+(c/2)%ny,fi+c%2);
+        const Real center = ca(m,v,k,j,i);
+        u = theta == 0.0 ? center : center+theta*(u-center);
+        if (!(u >= -largest && u <= largest)) ++bad;
+      }
+    }
+  }, invalid);
+#if MPI_PARALLEL_ENABLED
+  MPI_Allreduce(MPI_IN_PLACE, &invalid, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+#endif
+  return invalid == 0;
 }
 
 //----------------------------------------------------------------------------------------
