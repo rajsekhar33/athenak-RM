@@ -9,7 +9,7 @@ For a dimensional coefficient, use
 automatically. The corresponding dynamic coefficients are `rho * nu_iso`
 and `rho * nu_aniso`.
 
-[Verification figures](#verification-figures) cover damping, heating and RKL2
+[Physical verification](#physical-verification) covers damping, heating and RKL2
 convergence. The [validation report](feature-validation/viscosity/README.md)
 provides test setups, measured errors and data for reproducing the figures.
 
@@ -141,7 +141,7 @@ Higher-stress mechanical work in an ideal-gas total-energy balance has a
 continuum precedent in
 [Necas, Novotny & Silhavy (1989), equation 2.12 and Example 2.21](https://dml.cz/bitstream/handle/10338.dmlcz/106776/CommentatMathUnivCarol_030-1989-3_14.pdf).
 These references supply the continuum formulation. The finite-volume stencil
-is evaluated in the [verification tests](#verification-figures).
+is evaluated in the [verification tests](#physical-verification).
 
 For constant `mu4`, the extra mechanical-work term is
 `J = mu4 grad(S:S)`. Including it yields the continuum heat production
@@ -253,52 +253,102 @@ Use the same script with a GPU executable and `--gpu` for that backend.
 This custom problem build is not suitable for the standard regression suite,
 which requires `-DPROBLEM=built_in_pgens`.
 
-## Verification figures
+## Physical verification
 
-The tests below measure damping, viscous heating and convergence. Test setups,
-acceptance tolerances and the code version used for each study are listed in the
-[validation report](feature-validation/viscosity/README.md).
+The [feature validation report](feature-validation/viscosity/README.md) gives
+the physical setups, reference solutions, measured errors and complete
+implementation trace. The figures below use archived native profiles, not
+curves inferred from error summaries. All quantities are in code units;
+$u$ denotes internal-energy density.
 
-### Physical viscosity and RKL2
+### Newtonian viscosity: a shear loses kinetic energy and heats the gas
 
-![Physical-viscosity operator and refined-mesh verification](feature-validation/viscosity/figures/physical_viscosity.png)
+For isolated transverse shear $v_z=A\cos(kx)$ in constant-density gas,
+the amplitude decays as $e^{-\nu k^2t}$ and kinetic energy as
+$e^{-2\nu k^2t}$. The lost kinetic energy must appear as thermal energy.
+The plotted RK2 test uses $L=\rho=1$, $k=2\pi/L$, $A=0.3$, $\nu=0.1$,
+N32 and initial $u=10^{-8}$.
 
-In the cold active-AMR test, reducing the RKL ratio cap from 16 to 4 to 1
-reduces the profile error from 2.598% to 1.050% to 0.352%. Only cap 1 meets
-the 0.5% tolerance. These errors include changes in the refinement schedule
-as well as time-integration error.
+![Measured shear decay and kinetic-to-thermal energy exchange](feature-validation/viscosity/figures/physical_viscosity.png)
 
-### Parallel Braginskii viscosity
+The measured decay rate differs from the continuum value by 0.3214%;
+the actual centered-grid/RK2 prediction matches the amplitude to
+$1.76\times10^{-15}$. The kinetic-loss/heat-gain mismatch is
+$1.73\times10^{-18}$.
 
-![Braginskii coupled-wave and isolated-heating verification](feature-validation/viscosity/figures/braginskii_validation.png)
+Separate RKL2 tests compare with the time-dependent solution of the same
+discrete spatial operator. They recover accurate diffusion at resolved
+timesteps; stability alone does not ensure accuracy. In a cold active-AMR
+case, reducing the ratio cap from 16 to 4 to 1 lowers the energy-profile error
+from 2.598% to 1.050% to 0.352%. This comparison includes changes in
+refinement timing; common post-remap restart controls have much smaller errors.
+The report shows both comparisons and their normalizations.
 
-The overdamped fast-wave error decreases from 4.0943% at N32 to 0.9536%
-at N64 and 0.2311% at N128; N64 and N128 meet the 3% tolerance.
-Separate RK2 tests of viscous heating approach second-order convergence.
+### Braginskii viscosity: an oblique field couples velocity components
 
-### Fourth-order damping and coupled-wave dispersion
+The shear-layer solution in
+[Berlok et al. (2020), §4.2 and Appendix C](https://arxiv.org/html/1911.05694)
+starts with only $v_y(x)$ and an oblique magnetic direction
+$b=(1,1,0)/\sqrt2$. Parallel viscosity smooths the layer, generates $v_x$
+and deposits heat near its gradients. This isolated-operator test keeps the
+field fixed, with $L=\rho=c=1$, $\nu_\parallel=10^{-3}$ and $t=25L/c$.
 
-![Hyperviscosity dispersion and fourth-order damping verification](feature-validation/viscosity/figures/dispersion.png)
+![Measured Braginskii velocity and local-heating profiles](feature-validation/viscosity/figures/braginskii_profiles.png)
 
-Sound, Alfvén and magnetosonic modes are compared with their coupled dispersion
-relations. The harmonic-2/fundamental damping ratios are 15.9611 for sound and
-15.9311 for Alfvén waves, compared with the fourth-order prediction of 16.
-The report also compares the discrete stencil response with continuum damping.
+Native profiles approach the Fourier-series solution at second order:
+N32→N64→N128 thermal-gain errors are 1.4430%→0.3602%→0.09235%.
+The reference is compared after conserved-variable cell averaging.
 
-### Ideal-gas hyperviscous heating
+Full MHD wave tests separately include pressure and magnetic restoring forces.
+Rotated fast/slow wave errors decrease with resolution, while linear Alfvén
+polarization tests the Braginskii null mode. Mixed
+$\nu_{\rm iso}=0.02$, $\nu_\parallel=0.05$ RKL2 runs give temporal orders
+1.991 and 1.980. The report distinguishes these coupled tests from isolated
+RK2 heating and records the unresolved/coarse-resolution cases.
 
-![Hyperviscous heating and higher-stress work verification](feature-validation/viscosity/figures/heating.png)
+### Hyperviscosity: preferential damping of short wavelengths
 
-Generated heat is compared with an independently refined continuum integration.
-The heating-field error decreases from 0.403% at N64 to 0.122% at N128.
-Omitting the higher-stress work flux J changes the reference heating by 122.5%,
-despite conserving periodic total energy. At N128, the weaker density and
-longitudinal-momentum signals have errors of 6.12% and 3.50%, respectively.
+The continuum fourth-order stress gives isolated transverse velocity decay
+$\nu_4k^4$, where $\nu_4=\mu_4/\rho$.
+A propagating wave has a different coupled eigenvalue: for the underdamped
+sound and aligned Alfvén cases, amplitude decay rates are
+$2\nu_4k^4/3$ and $\nu_4k^4/2$, respectively. Their quadratic energies
+decay twice as fast. These tests use $\rho=p=L=1$, $\gamma=5/3$,
+$\mu_4=10^{-4}$, perturbation amplitude $10^{-5}$ and $t=0.1$.
 
-### Hyperviscosity RKL2 temporal convergence
+![Measured wave profile, fourth-order damping and dispersion errors](feature-validation/viscosity/figures/dispersion.png)
 
-![Hyperviscosity RKL2 convergence at coarse and refined timesteps](feature-validation/viscosity/figures/sts_convergence.png)
+Doubling $k=2\pi m/L$ should multiply the amplitude-decay rate by 16.
+The measured ratios are 15.9611 for sound and 15.9311 for Alfvén waves.
+Fundamental-wave added-damping errors decrease from approximately 0.9–1.5%
+at N32 to 0.19–0.26% at N64. Separate matched zero-hyperviscosity runs
+account for the fluid solver's intrinsic dissipation.
 
-At ratio cap 128, the coarse timestep sequence fails the temporal-order test.
-Smaller steps give thermal orders of 1.889 and 1.916, while ratio cap 8 gives
-1.945, approaching the expected second order.
+### Hyperviscous heating: the location of energy deposition matters
+
+Circular transverse shear has spatially uniform kinetic energy and an exact
+uniform-heating solution. A two-harmonic shear,
+$v_y=0.8[\sin(2\pi x)-0.2\sin(4\pi x)]$, is more demanding: nonuniform
+heating drives pressure, density and longitudinal-velocity changes.
+For $\rho=p=L=1$, $\gamma=5/3$, $\mu_4=10^{-4}$ and $t=0.02$,
+the measured profiles are compared with an independently refined integration
+of the coupled continuum equations.
+
+![Measured velocity and internal-energy-density gain](feature-validation/viscosity/figures/heating.png)
+
+Heating-field error decreases from 0.403% at N64 to 0.122% at N128.
+The comparison without higher-stress work flux $J$ changes the reference
+heating by 122.5%, even though periodic total energy is still conserved.
+Thus the test checks both the amount and spatial distribution of heat.
+The weaker N128 density and longitudinal-momentum signals have measured
+errors of 6.12% and 3.50%.
+
+RKL2 must converge to that same evolution as its step decreases:
+
+![RKL2 convergence of the nonuniform heating and velocity profiles](feature-validation/viscosity/figures/sts_convergence.png)
+
+A coarse ratio-cap-128 sequence does not show second-order temporal
+convergence. Smaller steps recover thermal orders 1.889 and 1.916;
+ratio cap 8 gives 1.945. These accuracy checks are distinct from a successful
+linear-stability test. The report also includes multidimensional evolution,
+variable-density, mixed-stress, conservation and restart comparisons.

@@ -62,7 +62,7 @@ def physical_figure(data, output):
     axes[1].legend(fontsize=8, loc="lower right")
     fig.suptitle("Isotropic viscosity: RKL2 temporal and AMR accuracy", fontsize=12)
     style_axes(axes)
-    fig.savefig(output / "physical_viscosity.png", dpi=170)
+    fig.savefig(output / "physical_convergence.png", dpi=170)
     plt.close(fig)
 
 
@@ -109,9 +109,52 @@ def braginskii_figure(data, output):
     plt.close(fig)
 
 
+def measured_profiles(data, output):
+    """Plot archived native arrays; analytic references are labeled separately."""
+    physical = data['physical_shear']
+    fig, axes = plt.subplots(1, 2, figsize=(11.8, 4.4), layout='constrained')
+    x = np.asarray(physical['x'])
+    axes[0].plot(x, .3*np.cos(2*np.pi*x), ':', color='0.5', label='Initial velocity')
+    axes[0].plot(x, physical['continuum_velocity'], 'k-', label='Continuum diffusion')
+    axes[0].plot(x, physical['final_velocity'], 'o', ms=4, mfc='none', label='AthenaK, N=32')
+    axes[0].set(xlabel=r'$x/L$', ylabel=r'$v_z$', title=f"Shear decay at t={physical['time']:.5f}")
+    t = np.asarray(physical['times'])
+    kinetic = np.asarray(physical['kinetic'])
+    axes[1].plot(t, kinetic/kinetic[0], color='C0', label='AthenaK kinetic energy / initial kinetic')
+    axes[1].plot(t, np.asarray(physical['thermal_gain'])/kinetic[0], color='C1', label='AthenaK generated heat / initial kinetic')
+    axes[1].plot(t, np.asarray(physical['continuum_kinetic'])/kinetic[0], 'k--', label='Continuum kinetic decay')
+    axes[1].set(xlabel=r'$t$ (code time units)', ylabel='Volume-averaged energy fraction', title='Kinetic energy becomes heat')
+    for ax in axes:
+        ax.legend(fontsize=8)
+    style_axes(axes)
+    fig.suptitle(r'Isotropic viscosity: $v_z(x,0)=0.3\cos(2\pi x)$, $\nu=0.1$')
+    fig.savefig(output/'physical_viscosity.png', dpi=170)
+    plt.close(fig)
+
+    sheet = data['braginskii_sheet']
+    fig, axes = plt.subplots(1, 3, figsize=(13, 4.1), layout='constrained')
+    finest = sheet['profiles'][-1]
+    for ax, field, label in zip(axes, ['vx', 'vy', 'heat'], [r'$v_x/c$', r'$v_y/c$', r'$\Delta u$']):
+        ax.plot(finest['x'], finest['exact_'+field], 'k-', label='Fourier-series reference')
+        for row, marker, color in zip(sheet['profiles'][:2], ['s', 'o'], ['C1', 'C0']):
+            ax.plot(row['x'], row[field], marker, ms=3.5, mfc='none', color=color,
+                    label=f"AthenaK, N={row['n']}")
+        if field in ('vx', 'vy'):
+            ax.plot(finest['x'], finest['initial_'+field], ':', color='0.5', label='Initial profile')
+        ax.set(xlabel=r'$x/L$', ylabel=label)
+    axes[0].set_title('Oblique stress generates transverse motion')
+    axes[1].set_title('The initial shear broadens')
+    axes[2].set_title('Heat is generated near velocity gradients')
+    axes[1].legend(fontsize=8)
+    style_axes(axes)
+    fig.suptitle(r'Braginskii shear layer: $\hat b=(\hat x+\hat y)/\sqrt{2}$, $\nu_\parallel=10^{-3}$, $t=25$')
+    fig.savefig(output/'braginskii_profiles.png', dpi=170)
+    plt.close(fig)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, help="Destination for the two PNGs")
+    parser.add_argument("--output", type=Path, help="Destination for the four PNGs")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent
     output = args.output or root / "figures"
@@ -119,6 +162,7 @@ def main():
     plt.rcParams.update({"font.size": 10, "axes.titlesize": 11})
     physical_figure(read_data(root, "viscosity_sts_results.json"), output)
     braginskii_figure(read_data(root, "braginskii_results.json"), output)
+    measured_profiles(read_data(root, "physical_profiles.json"), output)
 
 
 if __name__ == "__main__":
