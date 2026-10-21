@@ -71,7 +71,7 @@ def main():
         order = m["observed_self_convergence_order"]
         ax.loglog(h, error, "o-", color=color, label=f"RK{i}: self-order {order:.3f}")
         ax.loglog(h, error[-1] * (h / h[-1])**i, ":", color=color, alpha=.7)
-    ax.set(xlabel="Mean actual timestep", ylabel="Max double-observable error / amplitude")
+    ax.set(xlabel="Mean timestep", ylabel="Max temperature-diagnostic error / amplitude")
     fig.suptitle("Nonlinear saturated pulse: explicit temporal refinement\n"
                  "N8, t = 0.2; numerical RK3 reference; dotted orders 1, 2, 3", fontsize=11)
     ax.legend()
@@ -85,14 +85,14 @@ def main():
         error = np.asarray([e[key] for e in m["errors"]])
         ax.loglog(h, error, "o-", color=color, label=label)
         ax.loglog(h, error[-1] * (h/h[-1])**2, ":", color=color, alpha=.7)
-    ax.axhline(.005, color=".4", linestyle="--", label="Declared component/temperature gate")
+    ax.axhline(.005, color=".4", linestyle="--", label="Component/temperature tolerance (0.005)")
     ax.set(xlabel=r"Effective timestep $H=[\sum(\Delta t)^3/t]^{1/2}$",
-           ylabel="Normalized difference from fine explicit control",
-           title="Coupled MHD + harmonic Spitzer/saturation: RKL2")
+           ylabel="Normalized difference from explicit reference",
+           title="Coupled MHD: harmonic Spitzer + saturation (RKL2)")
     ax.legend(fontsize=8, loc="upper left")
     ax.text(.97, .04, "N16, t = 0.2; RKL ratio cap 64\n"
             "Dotted lines: second order\n"
-            "Same-grid adaptive temporal study, not spatial convergence",
+            "Fixed-grid temporal convergence",
             transform=ax.transAxes, fontsize=8, ha="right")
     save(fig, "coupled_rkl_temporal")
 
@@ -101,23 +101,23 @@ def main():
     reference = profiles["saw_N400_explicit_cfl0p2"]
     x = np.asarray(reference["final"]["x"])
     ref = np.asarray(reference["final"]["temperature"])
-    axs[0].plot(x, reference["initial"]["temperature"], color=".7", label="Initial averages")
+    axs[0].plot(x, reference["initial"]["temperature"], color=".7", label="Initial cell averages")
     axs[0].plot(x, ref, color="black", label="Explicit RK2 CFL 0.2")
     for ratio, color, style in ((40, "#0072B2", "--"), (1000, "#D55E00", ":")):
         t = np.asarray(profiles[f"saw_N400_rkl{ratio}"]["final"]["temperature"])
         axs[0].plot(x, t, linestyle=style, color=color, label=f"RKL2 ratio cap {ratio}")
         axs[1].plot(x, (t-ref)/20, color=color, label=f"RKL2 ratio cap {ratio}")
     other = np.asarray(profiles["saw_N400_explicit_cfl0p4"]["final"]["temperature"])
-    axs[1].plot(x, (other-ref)/20, ":", color=".4", label="Explicit timestep-halving gap")
+    axs[1].plot(x, (other-ref)/20, ":", color=".4", label="Explicit timestep-halving difference")
     axs[0].set(xlabel="x", ylabel="Temperature", title="N400 profiles at t = 0.1")
     axs[1].set(xlabel="x", ylabel="Temperature difference / 20",
-               title="Difference from numerical explicit reference", yscale="symlog")
+               title="Difference from explicit RK2 reference", yscale="symlog")
     axs[1].set_yscale("symlog", linthresh=1e-8)
     for ax in axs:
         ax.legend(fontsize=8)
     axs[1].legend(fontsize=8, loc="upper center", bbox_to_anchor=(.5, -.16))
-    fig.suptitle("Saturated sawtooth: Vaidya et al. setup\n"
-                 "Own explicit/RKL2 comparison, not digitized paper curves", fontsize=12)
+    fig.suptitle("Saturated sawtooth: Vaidya et al. (2017)\n"
+                 "Explicit RK2 and RKL2 temperature profiles", fontsize=12)
     save(fig, "saturated_sawtooth")
 
     fig, axs = plt.subplots(1, 2, figsize=(10, 4.3), constrained_layout=True)
@@ -127,14 +127,14 @@ def main():
                     color=COLORS[limiter], label=limiter)
         axs[1].plot([8, 16], [r["fraction_of_parallel"] for r in rows], "o-",
                     color=COLORS[limiter], label=limiter)
-    axs[0].set(ylabel="Measured L1 temperature error", title="Stationary does not mean accurate")
+    axs[0].set(ylabel="Measured L1 temperature error", title="Steady-state temperature error")
     axs[1].set(ylabel="Numerical perpendicular / parallel diffusivity",
                title="Cross-field leakage decreases with refinement")
     for ax in axs:
         ax.set(xlabel="Cells per direction", xticks=[8, 16])
         ax.legend()
-    fig.suptitle("Retained coarse Sovinec ratio-100 accuracy FAILs\n"
-                 "No relaxed gate and no extrapolated high-resolution acceptance", fontsize=12)
+    fig.suptitle("Coarse Sovinec equilibrium: diffusivity ratio 100\n"
+                 "N8 and N16 exceed the accuracy tolerance", fontsize=12)
     save(fig, "retained_coarse_limits")
     print("Created five figures from bundled results.json only; no native tests run.")
 

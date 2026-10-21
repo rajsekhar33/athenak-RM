@@ -5,9 +5,9 @@ conductivity, Cowie–McKee saturation, and RKL2 super-time-stepping (STS) for
 Newtonian ideal-gas Hydro/MHD. This guide covers configuration, numerical
 methods, implementation locations and scientific references.
 
-On this feature branch, [numerical verification figures](#numerical-verification)
-are embedded below. The [detailed validation report](feature-validation/conduction/README.md)
-provides the measured results, source inventory, limitations and reproducible data.
+See the [verification figures](#numerical-verification) for benchmark comparisons
+and convergence studies. The [validation report](feature-validation/conduction/README.md)
+includes numerical results, source locations and data for reproducing the figures.
 
 ## Constant-coefficient conduction
 
@@ -55,9 +55,9 @@ The anisotropic face coefficient is the harmonic mean of the neighboring
 densities times `alpha_aniso`. Unsaturated isotropic conduction uses arithmetic
 face-density interpolation. Transverse temperature slopes use nested van-Leer
 limiting by default; `anisotropic_limiter = mc` selects monotonized-central
-limiting, not Monte Carlo particles. Both limiters return zero for opposing
-slopes; for same-sign slopes, van Leer uses their harmonic combination while
-MC bounds their centered average by twice the smaller magnitude.
+limiting. Both limiters return zero for opposing slopes; for same-sign slopes,
+van Leer uses their harmonic combination while MC bounds their centered average
+by twice the smaller magnitude.
 
 Explicit conduction contributes to the energy flux in the ordinary RK update.
 Its conservative density-aware timestep bound uses
@@ -163,9 +163,8 @@ Exceeding that bound is fatal: explicit stepping has no automatic retry.
 
 Raw conserved-state checks precede the normal EOS conversion. States requiring
 density, pressure, temperature or entropy floors are rejected, with failures
-coordinated across MPI ranks. These checks do not replace unrelated modules'
-state validation. The conduction-only drain bound is not a coupled-MHD
-positivity guarantee.
+coordinated across MPI ranks. Other modules retain their own state checks;
+the conduction drain bound alone cannot ensure positivity in coupled MHD.
 
 ### RKL2 super-time-stepping
 
@@ -248,19 +247,18 @@ choosing the ratio from stability alone.
 | [hydro_newdt.cpp](../src/hydro/hydro_newdt.cpp), [mhd_newdt.cpp](../src/mhd/mhd_newdt.cpp) | `Hydro::NewTimeStep` and `MHD::RecomputeTimeStepFromCurrentState` include the unaccelerated saturation donor bound in the fluid timestep. |
 | [hydro_sts.cpp](../src/hydro/hydro_sts.cpp), [mhd_sts.cpp](../src/mhd/mhd_sts.cpp), [hydro_tasks.cpp](../src/hydro/hydro_tasks.cpp), [mhd_tasks.cpp](../src/mhd/mhd_tasks.cpp) | `STSFluxes`, `Hydro::STSUpdate`, `MHD::STSUpdateU`, `STSCheckState` and `ConToPrim` integrate fluxes, recurrence, raw-state checks and boundary exchanges. Active state is checked before restriction/EOS conversion; consumed halos are checked after prolongation and physical BCs. |
 
-Trial failures are coordinated across MPI ranks. Posted communication is
-completed before an attempt is abandoned or retried. The conduction recurrence changes
-only energy, but the existing refined-mesh boundary pipeline can also prolongate
-CT fields; absence of a conductive induction term does not imply bitwise
-unchanged faces throughout that pipeline.
+Trial failures are coordinated across MPI ranks, and posted communication
+completes before an attempt is abandoned or retried. The conduction recurrence
+updates only energy. Refined-mesh boundary exchanges also prolongate CT fields,
+so face fields can change during those exchanges.
 
 ## Numerical verification
 
-These figures show AthenaK measurements and numerical reference values, not
-copied paper artwork. Studies span successive implementation versions;
-earlier constant-coefficient tests are not reruns of the final nonlinear code.
-The [validation report](feature-validation/conduction/README.md) identifies
-each study's scope, comparison criteria and source provenance.
+The benchmarks below compare AthenaK results with published values and numerical
+reference solutions. They cover successive implementation versions: the early
+constant-coefficient tests predate the final nonlinear implementation. The
+[validation report](feature-validation/conduction/README.md) records the source
+versions and comparison criteria for each study.
 
 ### Anisotropic ring: comparison with Sharma & Hammett
 
@@ -268,10 +266,10 @@ each study's scope, comparison criteria and source provenance.
 
 Both limiters were tested through `t=200` at N50/100/200/400. N400 norm
 differences from the published asymmetric-limiter values are below 0.23%
-for van Leer and 0.12% for MC. N50 uses historical CPU data and N100–400
-GPU data, so this is not a uniform-build convergence sequence. The van-Leer
-L-infinity increase from N200 to N400 is retained; the ambiguous published
-N100 perpendicular-diffusivity entry is not an acceptance target.
+for van Leer and 0.12% for MC. The sequence combines historical N50 CPU data
+with N100–400 GPU data from different builds. Van-Leer L-infinity error
+increases from N200 to N400. The ambiguous published N100 perpendicular-
+diffusivity entry is excluded from the comparison criteria.
 
 ### Explicit and RKL2 temporal convergence
 
@@ -280,8 +278,8 @@ N100 perpendicular-diffusivity entry is not an acceptance target.
 The fixed-grid nonlinear pulse gives RK1/RK2/RK3 self-orders of
 1.01222/2.02432/3.02180. Errors use double-precision temperature diagnostics
 against a finer same-grid RK3 solution, normalized by the initial amplitude.
-Self-orders compare adjacent numerical solutions, not an exact nonlinear
-solution; this measures temporal, not spatial, accuracy.
+The orders are estimated from adjacent numerical solutions at fixed spatial
+resolution.
 
 ![Coupled MHD conduction RKL2 temporal convergence](feature-validation/conduction/figures/coupled_rkl_temporal.png)
 
@@ -295,28 +293,27 @@ below 1% of the finest RKL error.
 
 ![Saturated sawtooth explicit and RKL2 conduction comparison](feature-validation/conduction/figures/saturated_sawtooth.png)
 
-Native temperature profiles use the isotropic 1-D setup in
-[Vaidya et al., section 4.1.2](https://arxiv.org/html/1702.05487v2#S4.SS1.SSS2),
-comparing RKL2 with a refined explicit solution rather than digitized paper
-curves. At N400 and `t=0.1`, normalized L1/L-infinity differences are
+Temperature profiles use the isotropic 1-D setup in
+[Vaidya et al., section 4.1.2](https://arxiv.org/html/1702.05487v2#S4.SS1.SSS2)
+and compare RKL2 with a refined explicit solution. At N400 and `t=0.1`,
+normalized L1/L-infinity differences are
 `1.84469e-8/6.26363e-7` for the ratio-40 cap and
-`2.31719e-5/4.80778e-4` for the ratio-1000 cap. These caps are not measured
-speedups: donor bounds remain active. This case does not test retry recovery.
+`2.31719e-5/4.80778e-4` for the ratio-1000 cap. Actual acceleration also
+depends on the active donor bounds. Retry recovery is tested separately.
 
-### Retained coarse-resolution limitations
+### Coarse-resolution accuracy
 
-![Retained coarse Sovinec accuracy and refined-mesh comparison limits](feature-validation/conduction/figures/retained_coarse_limits.png)
+![Coarse Sovinec accuracy and refined-mesh comparisons](feature-validation/conduction/figures/retained_coarse_limits.png)
 
 The N8/N16 ratio-100 Sovinec equilibria become stationary but fail their
 original accuracy criteria. Six static N32 3-D refinement CPU/GPU energy
-comparisons also miss the strict `5e-12` agreement criterion, with a maximum
-relative discrepancy of `5.4542320335866934e-9`. These results remain recorded
-as failures of their original criteria. Conservation, backend agreement and
-continuum accuracy are distinct checks.
+comparisons also fail the `5e-12` agreement criterion, with a maximum relative
+discrepancy of `5.4542320335866934e-9`. Accuracy, conservation and CPU/GPU
+agreement are assessed separately.
 
-All five figures and their numerical data are stored in this branch. Regenerate
-them with `python docs/feature-validation/conduction/plot_results.py`
-(NumPy and Matplotlib required); this does not rerun the simulations.
+Regenerate all five figures from the bundled numerical data with
+`python docs/feature-validation/conduction/plot_results.py`
+(NumPy and Matplotlib required).
 
 ## Validation resources
 
@@ -352,7 +349,3 @@ They are development/validation tools, not required to build or use conduction.
   MNRAS 472, 3147–3160. [Paper](https://arxiv.org/html/1702.05487v2).
   RKL conduction and the smooth saturation interpolation/isothermal convention
   used above.
-
-These articles motivate the physical closures and discretization. The
-raw-state checks, numerical range rejection and retry policy are implementation
-choices, not guarantees established by those papers.

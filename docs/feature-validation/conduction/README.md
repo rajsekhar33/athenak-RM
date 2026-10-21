@@ -14,11 +14,11 @@ RKL2 integration, refinement and restart. Configuration is documented in
 - [Numerical results](results.json): measured values, comparison criteria,
   figure arrays and source-report hashes.
 
-Studies span successive implementation versions, identified by recorded
-binary hashes. Earlier constant-coefficient measurements are not reruns of
-the final nonlinear implementation. Harmonic Spitzer results supersede the
-potential-flux prototype. The final file consolidation changed organization,
-not formulas or the class interface.
+The studies cover successive implementation versions, identified by binary
+hashes. Early constant-coefficient measurements predate the final nonlinear
+implementation. Harmonic Spitzer results supersede the potential-flux
+prototype. The final file consolidation preserves the formulas and class
+interface.
 
 ## Methods
 
@@ -32,9 +32,9 @@ temperature-slope limiters follow the limited-asymmetric construction of
 [Sharma & Hammett (2007)](https://arxiv.org/abs/0707.2616).
 Unsaturated constant-isotropic conduction retains arithmetic face density.
 
-Spitzer conductivity uses harmonic endpoint `K=K0*T^(5/2)`, multiplied by
-temperature gradients—not thermal-potential differences. The Units module
-converts a supplied cgs prefactor when requested. Saturation limits the summed
+Spitzer conductivity uses the harmonic mean of endpoint `K=K0*T^(5/2)`,
+multiplied by temperature gradients. The Units module converts a supplied
+cgs prefactor when requested. Saturation limits the summed
 classical vector once:
 `F=C*q_sat/(q_sat+|C|)`,
 `q_sat=5*phi*P_donor^(3/2)/sqrt(rho_face)`.
@@ -44,10 +44,10 @@ The donor convention and smooth interpolation are described in the
 
 Explicit SSP stages check their current CFL-free conduction bound. RKL2
 half-sweeps surround fluid evolution, refreshing nonlinear fluxes and primitive
-states at each stage. Invalid trial states trigger collective communication
-completion, U/W restoration and interval halving, limited to 32 halvings per
-segment. Invalid initial states or unrepresentable closure/rate intermediates
-are fatal. These safeguards do not establish universal nonlinear monotonicity.
+states at each stage. If a trial state is invalid, MPI communication completes
+before U/W restoration and interval halving. Each segment allows up to 32
+halvings. Invalid initial states or unrepresentable closure/rate intermediates
+terminate the run. Nonlinear monotonicity still requires problem-specific checks.
 
 ## Changed implementation locations
 
@@ -78,9 +78,8 @@ unit; the earlier closure, Spitzer and saturated auxiliary files were removed.
 
 ### Fixtures, oracles and feature tests
 
-The complete per-file/hunk list is in the manifest. Fixture initializers and
-diagnostics use the production conduction operator rather than evolving an
-independent replacement solver.
+The manifest lists every changed file and hunk. Test initializers and
+diagnostics exercise the production conduction operator.
 
 | Location | Feature-specific responsibility |
 |---|---|
@@ -99,14 +98,11 @@ independent replacement solver.
 
 ## Conduction-specific validation
 
-Case counts, numerical comparisons and helper assertions are different units.
-Results below retain their measured scope and original comparison criteria.
-
 | Test family | Result and scope |
 |---|---|
 | Fourier/tensor modes | Aligned/oblique, isotropic/mixed, field reversal, out-of-plane/zero fields, density weighting and decomposition; bounded operator checks pass. |
-| Positivity/checkerboard kernels | Both limiters tested against raw bounds and a discrete damping oracle; not a general coupled-MHD positivity proof. |
-| Patches/fronts and Gaussian diffusion | Localized contrasts, conserved heat and raw stages; Gaussian and refinement cases independently audited against cell-average references. |
+| Positivity/checkerboard kernels | Kernel tests compare both limiters with raw thermal bounds and a discrete damping reference; coupled-MHD positivity requires separate checks. |
+| Patches/fronts and Gaussian diffusion | Localized contrasts, conserved heat and raw stages; Gaussian and refinement cases compared independently with cell-average references. |
 | Circular ring | Eight N50/100/200/400 cases, both limiters, to t=200. N400 published norm differences <0.23% for van Leer and <0.12% for MC. |
 | Sovinec ratio-100 equilibrium | Four N8/N16 cases become stationary but fail their original accuracy criterion; measured leakage decreases with refinement. |
 | Helical/curved fields | Three-component projection, perpendicular-null/heat-flow and restart checks; geometry-/resolution-specific accuracy. |
@@ -115,7 +111,7 @@ Results below retain their measured scope and original comparison criteria.
 | Nonlinear face oracles | CPU/GPU checks of both limiters, mixed terms, units/scaling and exact perpendicular-null configurations. |
 | Harmonic Spitzer pulses | Spatial-refinement comparisons against a finer-grid solution; CPU/MPI2/GPU pulse and restart checks. |
 | Explicit temporal refinement | Ten cases/four comparisons; RK1/RK2/RK3 self-orders 1.01222/2.02432/3.02180 for a fixed-grid nonlinear pulse. |
-| Constitutive/raw-state guards | Invalid selectors/units, saturation-only raw faults, one-owner MPI failure and extreme rate/spacing checks; successful rejection is distinct from successful evolution. |
+| Constitutive/raw-state guards | Rejection tests for invalid selectors/units, saturation-only raw faults, one-owner MPI failure and extreme rate/spacing values. |
 | Nonlinear RKL2 recovery | Test-instrumented Hydro and post-refinement MHD CPU/MPI2/GPU: raw/envelope/donor faults, exact U/W restore, clean retry equivalence and bounded exhaustion. |
 | Coupled nonlinear MHD | Eight CPU cases/eleven checks to t=.2; GPU/MPI2 restart pairs and within-backend restart endpoint agreement. |
 | Static SMR | Plane-flux conservation, stage CFL and explicit-reference checks. Density-step largest RKL normalized error 0.00481588 versus 0.005 criterion. |
@@ -129,10 +125,10 @@ Results below retain their measured scope and original comparison criteria.
 ![Ring error comparison](figures/ring_errors.png)
 
 Measured norms are compared with the tabulated asymmetric-limiter values in
-[Sharma & Hammett](https://arxiv.org/abs/0707.2616). N50 is historical CPU data;
-N100–400 are GPU data, not a uniform-build convergence sequence. The van-Leer
-L-infinity increase from N200 to N400 is retained. The published N100
-perpendicular-diffusivity table ambiguity is not used as an acceptance target.
+[Sharma & Hammett](https://arxiv.org/abs/0707.2616). The sequence combines
+historical N50 CPU data with N100–400 GPU data from different builds. Van-Leer
+L-infinity error increases from N200 to N400. The ambiguous published N100
+perpendicular-diffusivity entry is excluded from the comparison criteria.
 
 ### Explicit and RKL2 temporal accuracy
 
@@ -141,7 +137,7 @@ perpendicular-diffusivity table ambiguity is not used as an acceptance target.
 The plotted error is the maximum double-precision cosine/minimum/maximum
 temperature difference divided by initial amplitude, against a finer same-grid
 RK3 solution. Double diagnostics resolve errors below float32 field precision.
-Self-orders use adjacent numerical solutions, not an exact nonlinear reference.
+The orders are estimated from adjacent numerical solutions.
 
 ![Coupled RKL2 temporal accuracy](figures/coupled_rkl_temporal.png)
 
@@ -149,33 +145,33 @@ Eleven scaled U/CT component norms are distinguished from temperature. The
 adaptive timestep measure is `H=sqrt(sum(dt^3)/elapsed_time)`. Finest
 combined-field empirical orders are 1.99617/2.03556; temperature orders
 2.09397/2.14279. Explicit-reference halving differences are below 1% of the
-finest RKL error. This is temporal, not spatial, convergence.
+finest RKL error. Spatial resolution is fixed throughout this temporal study.
 
 ### Saturated sawtooth
 
 ![Saturated sawtooth](figures/saturated_sawtooth.png)
 
-Native temperature fields follow the
-[Vaidya et al. section 4.1.2 setup](https://arxiv.org/html/1702.05487v2#S4.SS1.SSS2).
-This is an explicit/RKL2 comparison, not digitized paper curves. RKL40/fine-
-explicit normalized L1/L-infinity differences are 1.84469e-8/6.26363e-7;
-RKL1000 gives 2.31719e-5/4.80778e-4, below 0.002/0.02. The explicit-halving
-gap is smaller. Requested ratio is not measured acceleration: donor bounds
-remain active. This case does not exercise retry recovery.
+Temperature fields follow the
+[Vaidya et al. section 4.1.2 setup](https://arxiv.org/html/1702.05487v2#S4.SS1.SSS2),
+with a refined explicit solution as the reference. RKL40/fine-explicit
+normalized L1/L-infinity differences are 1.84469e-8/6.26363e-7;
+RKL1000 gives 2.31719e-5/4.80778e-4, below 0.002/0.02. Explicit timestep
+halving produces a smaller difference. Actual acceleration also depends on
+the active donor bounds. Retry recovery is tested separately.
 
 ## Numerical limitations
 
 ![Coarse accuracy limitations](figures/retained_coarse_limits.png)
 
-- Coarse Sovinec cases attain stationarity and close heat budgets but miss
-  accuracy criteria. Reproducing their metrics does not change their FAIL status.
+- Coarse Sovinec cases reach stationarity and close their heat budgets, but
+  fail the accuracy criteria.
 - Six static N32 3D refinement CPU/GPU energy comparisons fail the strict
   `5e-12` agreement criterion. Maximum relative discrepancy is
   `5.4542320335866934e-9`; temperature difference/initial amplitude is
-  `7.690473591281943e-8`. All 24 case outcomes, the six FAILs and original
-  tolerance are included in the numerical dataset.
-- Earlier potential-flux Spitzer accuracy failures concern a superseded
-  discretization, not evidence for the production harmonic stencil.
+  `7.690473591281943e-8`. The numerical dataset includes all 24 case outcomes,
+  including these six failures and their tolerance.
+- The earlier potential-flux Spitzer tests had accuracy failures. That
+  discretization was replaced by the harmonic stencil tested here.
 - CPU/GPU agreement, conservation, restart agreement and continuum accuracy
   are separate tests. CT checks use native plane-integrated magnetic flux;
   cell-centered mean field is not a general composite-mesh invariant.
@@ -183,9 +179,9 @@ remain active. This case does not exercise retry recovery.
   conserved prolongation on refined meshes. Cyclic zoom and custom boundary
   callbacks are unsupported. Thermal flux depends on ghost states; a fluid
   boundary label alone does not imply insulation or prescribed heat flux.
-- RKL linear stability is not universal nonlinear monotonicity. Sharp fronts
-  require spatial and temporal refinement; unsafe constitutive/rate ranges
-  are rejected rather than silently disabling transport.
+- RKL linear stability alone does not ensure nonlinear monotonicity. Sharp
+  fronts require spatial and temporal refinement. Unrepresentable
+  constitutive values and timestep rates terminate the run.
 
 ## Reproduction
 
@@ -199,7 +195,7 @@ NumPy and Matplotlib are required. All five figures use only bundled data;
 reports. Native conduction checks use the existing
 [runners](../../../tst/transport) and
 [backend adapters](../../../tst/test_suite/diffusion) with a supplied executable.
-Plot generation does not run those simulations.
+The plotting script reads the bundled results; the runners execute simulations.
 
 ## References
 
@@ -208,7 +204,3 @@ Plot generation does not run those simulations.
 - [Cowie & McKee (1977)](https://doi.org/10.1086/154911): saturated heat-flux scale.
 - [Meyer, Balsara & Aslam (2014)](https://doi.org/10.1016/j.jcp.2013.08.021): stabilized RKL formulation.
 - [Vaidya et al. (2017)](https://arxiv.org/html/1702.05487v2): RKL anisotropic diffusion, saturation and benchmarks.
-
-Figures render AthenaK measurements and cited numerical reference values,
-not copied artwork. The papers do not certify implementation-specific guards,
-retry policies or arbitrary coupled/refined configurations.
