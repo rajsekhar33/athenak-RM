@@ -9,7 +9,107 @@
 //! \brief prolongation operators for cell-centered and face-centered variables,
 //! implemented as inline functions so they can be used both in Bval and AMR functions.
 
+#include <limits>
+
+#include "mesh/mesh.hpp"
+#include "eos/eos.hpp"
+#include "eos/ideal_c2p_hyd.hpp"
 #include "z4c/z4c.hpp"
+
+// Shared ideal-Hydro conservative sibling policy for ghosts and active AMR.
+// Callers select Newtonian ideal Hydro with viscosity STS; not MHD/CT.
+KOKKOS_INLINE_FUNCTION
+bool HydroProlongAdmissible(const Real u[5], const EOS_Data &eos) {
+  const Real largest = std::numeric_limits<Real>::max();
+  for (int v = 0; v < 5; ++v) {
+    if (!(u[v] >= -largest && u[v] <= largest)) return false;
+  }
+  if (!(u[IDN] > 0.0)) return false;
+  HydCons1D cell;
+  cell.d = u[IDN]; cell.mx = u[IM1]; cell.my = u[IM2];
+  cell.mz = u[IM3]; cell.e = u[IEN];
+  const Real thermal = cell.e - 0.5*(1.0/cell.d)*
+      (SQR(cell.mx) + SQR(cell.my) + SQR(cell.mz));
+  if (!(thermal > 0.0 && thermal <= largest)) return false;
+  HydPrim1D primitive;
+  bool df = false, ef = false, tf = false;
+  SingleC2P_IdealHyd(cell, eos, primitive, df, ef, tf);
+  const Real temperature = (eos.gamma-1.0)*primitive.e/primitive.d;
+  return !df && !ef && !tf && primitive.e > 0.0 && primitive.e <= largest &&
+      temperature > 0.0 && temperature <= largest &&
+      primitive.vx >= -largest && primitive.vx <= largest &&
+      primitive.vy >= -largest && primitive.vy <= largest &&
+      primitive.vz >= -largest && primitive.vz <= largest;
+}
+
+KOKKOS_INLINE_FUNCTION
+bool HydroProlongSiblingsAdmissible(const Real parent[5], const Real child[8][5],
+    const int nc, const Real theta, const EOS_Data &eos, const Real cushion = 0.0) {
+  for (int c = 0; c < nc; ++c) {
+    Real trial[5];
+    for (int v = 0; v < 5; ++v) {
+      trial[v] = theta == 1.0 ? child[c][v] :
+          parent[v] + theta*(child[c][v]-parent[v]);
+    }
+    trial[IEN] -= cushion;
+    if (!HydroProlongAdmissible(trial, eos)) return false;
+  }
+  return true;
+}
+
+// One common contraction preserves every sibling conserved mean. The exact
+// production EOS is evaluated on copies: it must not invoke any of its floors.
+// Admissible children take the theta=1 fast path without being rewritten.
+KOKKOS_INLINE_FUNCTION
+Real HydroProlongTheta(const Real parent[5], const Real child[8][5],
+                    const int nc, const EOS_Data &eos) {
+  if (!HydroProlongAdmissible(parent, eos)) return -1.0;
+  const Real largest = std::numeric_limits<Real>::max();
+  for (int c = 0; c < nc; ++c) {
+    for (int v = 0; v < 5; ++v) {
+      if (!(child[c][v] >= -largest && child[c][v] <= largest)) return -1.0;
+    }
+  }
+  if (HydroProlongSiblingsAdmissible(parent, child, nc, 1.0, eos)) return 1.0;
+  // Separate kernels/compilers may contract the kinetic-energy arithmetic
+  // differently. Keep limited states several rounding units inside ALL EOS
+  // constraints, not merely theta several epsilons below the root (which gives
+  // no thermal margin when thermal energy is tiny relative to total energy).
+  // Checking a lower-energy COPY is a stricter test, never an energy update.
+  // Reduce the cushion if the valid parent itself is very near an EOS floor.
+  Real cushion = 64.0*std::numeric_limits<Real>::epsilon()*fabs(parent[IEN]);
+  Real safe_parent[5];
+  for (int v = 0; v < 5; ++v) safe_parent[v] = parent[v];
+  for (int iter = 0; iter < std::numeric_limits<Real>::digits+2; ++iter) {
+    safe_parent[IEN] = parent[IEN]-cushion;
+    if (HydroProlongAdmissible(safe_parent, eos)) break;
+    cushion *= 0.5;
+  }
+  safe_parent[IEN] = parent[IEN]-cushion;
+  if (!HydroProlongAdmissible(safe_parent, eos)) cushion = 0.0;
+  Real lo = 0.0, hi = 1.0;
+  for (int iter = 0; iter < std::numeric_limits<Real>::digits+2; ++iter) {
+    const Real mid = 0.5*(lo+hi);
+    if (HydroProlongSiblingsAdmissible(parent, child, nc, mid, eos, cushion)) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  // Retreat from the roundoff-sensitive boundary, then recheck the very same
+  // arithmetic used to write the cells. This changes slopes, never total energy
+  // alone. The valid parent is the safe zero-slope endpoint.
+  Real retreat = 128.0*std::numeric_limits<Real>::epsilon();
+  for (int iter = 0; iter < std::numeric_limits<Real>::digits+2; ++iter) {
+    const Real theta = lo*(1.0-retreat);
+    if (HydroProlongSiblingsAdmissible(parent, child, nc, theta, eos, cushion)) return theta;
+    // Floating-point admissibility is not exactly monotone at the root. Expand
+    // the small retreat before using the zero-slope endpoint; an immediate
+    // theta=0 fallback can create a macroscopic backend-dependent flux change.
+    retreat = fmin(1.0, 2.0*retreat);
+  }
+  return 0.0;
+}
 
 //----------------------------------------------------------------------------------------
 //! \fn ProlongCC()

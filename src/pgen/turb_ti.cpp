@@ -136,6 +136,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   user_srcs_func = AddUserSrcs;
   user_hist_func = UserHistOutput;
   user_time_step_func = UserTimeStep;
+  // Recomputes only dtnew from the current fluid state and fixed cooling parameters.
+  user_dt_retry_safe = true;
   user_work_in_loop_func = UserWorkInLoop;
   pgen_final_func = TurbTiFinalWork;
   MeshBlockPack *pmbp = pmy_mesh_->pmb_pack;

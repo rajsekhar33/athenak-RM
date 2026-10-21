@@ -164,6 +164,7 @@ class Hydro {
   TaskStatus Prolongate(Driver* pdrive, int stage);
   TaskStatus ConToPrim(Driver *d, int stage);
   TaskStatus NewTimeStep(Driver *d, int stage);
+  void RecomputeTimeStepFromCurrentState(Driver *d, bool update_sources = true);
   TaskStatus ClearSTSFlux(Driver *d, int stage);
   TaskStatus STSFluxes(Driver *d, int stage);
   TaskStatus STSUpdate(Driver *d, int stage);

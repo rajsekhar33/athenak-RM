@@ -659,6 +659,13 @@ TaskStatus MHD::Prolongate(Driver *pdrive, int stage) {
 //! \brief Wrapper task list function to call ConsToPrim over entire mesh (including gz)
 
 TaskStatus MHD::ConToPrim(Driver *pdrive, int stage) {
+  if (pdrive->sts.viscosity_retry && pdrive->sts.current_stage > 0 &&
+      pdrive->sts.sweep != Driver::STSSweep::none) {
+    // Check the exchanged/prolongated stencil before any EOS floor can hide
+    // an invalid trial. The after-stage list still drains posted exchanges.
+    pdrive->CheckViscositySTSState(pmy_pack->pmesh, true);
+    if (pdrive->sts.attempt_failed) return TaskStatus::complete;
+  }
   if (pdrive->sts.nonlinear && pdrive->sts.current_stage > 0 &&
       pdrive->sts.sweep != Driver::STSSweep::none &&
       pcond != nullptr && pcond->UsesNonlinearSTS()) {

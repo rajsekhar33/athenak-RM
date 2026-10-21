@@ -11,18 +11,25 @@
 #include <cstdlib>
 #include <iostream>
 #include <iomanip>    // std::setprecision()
+#include <limits>
 
 #include "athena.hpp"
+#if MPI_PARALLEL_ENABLED
+#include <mpi.h>
+#endif
 #include "parameter_input.hpp"
 #include "mesh/mesh.hpp"
 #include "mesh/nghbr_index.hpp"
 #include "bvals.hpp"
+#include "eos/eos.hpp"
+#include "eos/ideal_c2p_hyd.hpp"
 #include "mesh/prolongation.hpp" // implements prolongation operators
 #include "mesh/restriction.hpp" // implements restriction operators
 
 #include "coordinates/cell_locations.hpp"
 
 namespace {
+
 
 KOKKOS_INLINE_FUNCTION
 void NeighborOffsetFromIndex(const int n, int &ox1, int &ox2, int &ox3) {
@@ -544,6 +551,94 @@ void MeshBoundaryValuesCC::ProlongateCC(DvceArray5D<Real> &a, DvceArray5D<Real> 
     tmember.team_barrier();
   });
   return;
+}
+
+//----------------------------------------------------------------------------------------
+// Coupled ideal-Hydro prolongation for viscosity STS. A coarse parent has exactly
+// one thread, even when multiple neighbor buffers cover it. Only complete ghost
+// sibling groups in the existing coarse-neighbor ranges may be written.
+bool MeshBoundaryValuesCC::ProlongateHydroPositive(DvceArray5D<Real> &a,
+    DvceArray5D<Real> &ca, const EOS_Data &eos) {
+  const int nmb = pmy_pack->nmb_thispack;
+  const int nnghbr = pmy_pack->pmb->nnghbr;
+  const int nvar = a.extent_int(1);
+  const int ni = ca.extent_int(4), nj = ca.extent_int(3), nk = ca.extent_int(2);
+  const int ncells = ni*nj*nk;
+  const int fi_max = a.extent_int(4), fj_max = a.extent_int(3);
+  const int fk_max = a.extent_int(2);
+  const auto indcs = pmy_pack->pmesh->mb_indcs;
+  const auto eos_copy = eos;
+  const bool multi_d = pmy_pack->pmesh->multi_d;
+  const bool three_d = pmy_pack->pmesh->three_d;
+  auto &nghbr = pmy_pack->pmb->nghbr;
+  auto &mblev = pmy_pack->pmb->mb_lev;
+  auto &rbuf = recvbuf;
+  int invalid = 0;
+  Kokkos::parallel_reduce("ProlHydroPositive",
+      Kokkos::RangePolicy<>(DevExeSpace(), 0, nmb*ncells),
+      KOKKOS_LAMBDA(const int idx, int &bad) {
+    const int m = idx/ncells;
+    const int i = idx%ni, j = (idx/ni)%nj, k = (idx/(ni*nj))%nk;
+    bool selected = false;
+    for (int n = 0; n < nnghbr; ++n) {
+      if (nghbr.d_view(m,n).gid < 0 || nghbr.d_view(m,n).lev >= mblev.d_view(m)) {
+        continue;
+      }
+      const auto b = rbuf[n].iprol[0];
+      if (i >= b.bis && i <= b.bie && j >= b.bjs && j <= b.bje &&
+          k >= b.bks && k <= b.bke) {
+        selected = true;
+        break;
+      }
+    }
+    if (!selected) return;
+    const int fi = (i-indcs.cis)*2+indcs.is;
+    const int fj = (j-indcs.cjs)*2+indcs.js;
+    const int fk = (k-indcs.cks)*2+indcs.ks;
+    const int ny = multi_d ? 2 : 1, nz = three_d ? 2 : 1;
+    // Refinement uses even ghost widths, so siblings never straddle the active
+    // region. Reject an unexpected range rather than touching active data.
+    if (i < 1 || i+1 >= ni || (multi_d && (j < 1 || j+1 >= nj)) ||
+        (three_d && (k < 1 || k+1 >= nk)) || fi < 0 || fi+1 >= fi_max ||
+        fj < 0 || fj+ny > fj_max || fk < 0 || fk+nz > fk_max ||
+        (fi <= indcs.ie && fi+1 >= indcs.is &&
+         fj <= indcs.je && fj+ny-1 >= indcs.js &&
+         fk <= indcs.ke && fk+nz-1 >= indcs.ks)) {
+      ++bad;
+      return;
+    }
+    Real parent[5], child[8][5];
+    for (int v = 0; v < 5; ++v) parent[v] = ca(m,v,k,j,i);
+    if (!HydroProlongAdmissible(parent, eos_copy)) {
+      ++bad;
+      return;
+    }
+    for (int v = 0; v < nvar; ++v) {
+      ProlongCC(m,v,k,j,i,fk,fj,fi,multi_d,three_d,ca,a);
+    }
+    for (int c = 0; c < 2*ny*nz; ++c) {
+      for (int v = 0; v < 5; ++v) {
+        child[c][v] = a(m,v,fk+c/(2*ny),fj+(c/2)%ny,fi+c%2);
+      }
+    }
+    const Real theta = HydroProlongTheta(parent, child, 2*ny*nz, eos_copy);
+    if (theta < 0.0) {
+      ++bad;
+      return;
+    }
+    if (theta == 1.0) return;
+    for (int c = 0; c < 2*ny*nz; ++c) {
+      for (int v = 0; v < nvar; ++v) {
+        Real &u = a(m,v,fk+c/(2*ny),fj+(c/2)%ny,fi+c%2);
+        const Real center = ca(m,v,k,j,i);
+        u = theta == 0.0 ? center : center+theta*(u-center);
+      }
+    }
+  }, invalid);
+#if MPI_PARALLEL_ENABLED
+  MPI_Allreduce(MPI_IN_PLACE, &invalid, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+#endif
+  return invalid == 0;
 }
 
 //----------------------------------------------------------------------------------------
