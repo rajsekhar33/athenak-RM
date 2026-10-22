@@ -217,18 +217,30 @@ Viscosity::Viscosity(std::string block, MeshBlockPack *pp, ParameterInput *pin) 
   if (mu_hyper4 > 0.0) {
     const auto *mesh = pmy_pack->pmesh;
     const int ndim = mesh->three_d ? 3 : (mesh->multi_d ? 2 : 1);
-    bool periodic = true;
+    bool supported_boundaries = true;
     for (int face=0; face<2*ndim; ++face) {
-      periodic = periodic && mesh->mesh_bcs[face] == BoundaryFlag::periodic;
+      const auto bc = mesh->mesh_bcs[face];
+      supported_boundaries = supported_boundaries &&
+          (bc == BoundaryFlag::periodic || bc == BoundaryFlag::outflow);
     }
     if (pin->GetString(block, "eos") != "ideal" || mesh->multilevel ||
-        !periodic || mesh->mb_indcs.ng < 2 ||
+        !supported_boundaries || mesh->mb_indcs.ng < 2) {
+      std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+                << std::endl
+                << "mu_hyper4 requires ideal-gas, uniform Newtonian Hydro/MHD "
+                << "with periodic/outflow boundaries and nghost >= 2; "
+                << "refinement is not supported" << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
+    // STS advances hyperstress separately from the FOFC-protected fluid step.
+    // Explicit diffusion shares the flux array that FOFC replaces; keep that
+    // combination disabled until its transport fallback is handled explicitly.
+    if (mode == parabolic::DiffusionSelection::explicit_only &&
         pin->GetOrAddBoolean(block, "fofc", false)) {
       std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
                 << std::endl
-                << "mu_hyper4 requires ideal-gas, uniform-periodic Newtonian "
-                << "Hydro/MHD with nghost >= 2 and fofc=false; "
-                << "refinement is not supported" << std::endl;
+                << "mu_hyper4 with fofc=true requires viscosity_integrator=sts"
+                << std::endl;
       std::exit(EXIT_FAILURE);
     }
   }
@@ -321,6 +333,9 @@ void Viscosity::AddViscousFluxes(const DvceArray5D<Real> &w0, const EOS_Data &eo
 // Add -tau_ij to momentum flux and -(v_i*tau_ij+J_j) to total-energy flux.
 // The periodic force is globally dissipative. The matched semidiscrete heat
 // is nonnegative in 1D; multidimensional local heating positivity is NOT claimed.
+// Outflow retains the ordinary extrapolated ghosts for interior faces and
+// imposes zero hyperviscous momentum/work flux at physical domain faces.
+// Advective, conductive and ordinary-viscosity boundary fluxes are unchanged.
 void Viscosity::AddViscousFluxHyper4(const DvceArray5D<Real> &w0,
     DvceFaceFld5D<Real> &flx) {
   const auto &indcs = pmy_pack->pmesh->mb_indcs;
@@ -331,11 +346,19 @@ void Viscosity::AddViscousFluxHyper4(const DvceArray5D<Real> &w0,
   const int nmb = pmy_pack->nmb_thispack;
   const Real mu = mu_hyper4;
   auto size = pmy_pack->pmb->mb_size;
+  auto mb_bcs = pmy_pack->pmb->mb_bcs.d_view;
   for (int normal=0; normal<ndim; ++normal) {
     auto flux = normal == 0 ? flx.x1f : (normal == 1 ? flx.x2f : flx.x3f);
     const int ni = (normal == 0), nj = (normal == 1), nk = (normal == 2);
     par_for("hyper4_flux", DevExeSpace(), 0, nmb-1, ks, ke+nk, js, je+nj, is, ie+ni,
     KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
+      const int face_index = ni*i+nj*j+nk*k;
+      const int inner = ni*is+nj*js+nk*ks;
+      const int outer = ni*(ie+1)+nj*(je+1)+nk*(ke+1);
+      if ((face_index == inner && mb_bcs(m,2*normal) == BoundaryFlag::outflow) ||
+          (face_index == outer && mb_bcs(m,2*normal+1) == BoundaryFlag::outflow)) {
+        return;
+      }
       const Real inv_dx[3] = {1.0/size.d_view(m).dx1,
                              ndim > 1 ? 1.0/size.d_view(m).dx2 : 0.0,
                              ndim > 2 ? 1.0/size.d_view(m).dx3 : 0.0};
