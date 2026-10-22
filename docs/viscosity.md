@@ -14,7 +14,8 @@ convergence. The [validation report](feature-validation/viscosity/README.md)
 provides test setups, measured errors and data for reproducing the figures.
 
 Ideal-gas Hydro/MHD additionally support constant **dynamic** fourth-order
-hyperviscosity, `mu_hyper4`, on uniform periodic meshes. Its code units are
+hyperviscosity, `mu_hyper4`, on uniform meshes with periodic or outflow
+boundaries. Its code units are
 `density * length^4 / time`; convert a dimensional coefficient with
 `mu4_code = mu4_cgs * time_cgs / (density_cgs * length_cgs^4)`.
 The local kinematic coefficient is `mu_hyper4 / rho`, not a constant input.
@@ -71,8 +72,13 @@ viscosity_integrator = explicit
 
 Use `<mhd>` for MHD; `viscosity_integrator = sts` uses the RKL2 settings above.
 `mu_hyper4` defaults to zero and may be combined with the supported ordinary
-viscosities. Nonzero hyperviscosity requires periodic boundaries in every
-active direction, no SMR/AMR, at least two ghost cells and `fofc = false`.
+viscosities. Nonzero hyperviscosity requires periodic or outflow boundaries in
+every active direction, no SMR/AMR and at least two ghost cells.
+FOFC can be enabled with `viscosity_integrator = sts`; explicit
+hyperviscosity requires `fofc = false`.
+At physical outflow faces, the hyperviscous momentum and energy fluxes are zero.
+Adjacent interior faces use the extrapolated fluid ghosts. Advective,
+conductive and ordinary-viscous boundary treatments are unchanged.
 It is not available with an isothermal EOS or relativistic physics.
 
 The positive `sts_max_dt_ratio` caps the full cycle relative to the combined
@@ -208,8 +214,8 @@ require timestep-convergence checks of both velocity and thermal energy.
 
 The refinement support below is for isotropic viscosity only. Parallel
 Braginskii viscosity and fourth-order hyperviscosity currently reject both
-static and adaptive refinement. Hyperviscosity also rejects nonperiodic
-boundaries; the callback contracts below do not override that restriction.
+static and adaptive refinement. Hyperviscosity supports periodic and outflow
+boundaries only; the callback contracts below do not extend that set.
 
 For Newtonian ideal Hydro with viscosity STS and conserved prolongation,
 `HydroProlongTheta` contracts inadmissible reconstructed siblings toward their

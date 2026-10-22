@@ -451,8 +451,12 @@ AMR profile-accuracy comparison above; MHD magnetic prolongation is unchanged.
 
 ## Supported configurations and remaining tests
 
-Hyperviscosity does not support SMR/AMR, nonperiodic boundaries,
-isothermal/relativistic fluids, variable `mu4`, or automatic CGS conversion.
+Hyperviscosity supports uniform meshes with periodic or outflow boundaries.
+At physical outflow faces its momentum and energy fluxes are zero; adjacent
+interior faces retain the extrapolated fluid ghosts. FOFC is supported with
+RKL2 STS; explicit hyperviscosity still requires FOFC disabled.
+SMR/AMR, other physical boundary types, isothermal/relativistic fluids,
+variable `mu4` and automatic CGS conversion are unsupported.
 Braginskii supports uniform ideal/isothermal MHD but not refinement,
 temperature-dependent coefficients, gyroviscosity or mirror/firehose clipping.
 Viscosity STS rejects primitive prolongation, cyclic zoom and incompatible
@@ -474,7 +478,7 @@ The manifest supplies all hunks; links below identify the changed functions and 
 | [viscosity.hpp](../../../src/diffusion/viscosity.hpp#L33) | Coefficient/process selection, raw-state API and declarations for the shared ordinary, parallel and hyperviscous operators. |
 | [viscosity.cpp: InspectRawState / AddViscousFluxAniso](../../../src/diffusion/viscosity.cpp#L254) | Checks raw density/thermal state before floors; parallel stress (539) uses current CT geometry, conservative work and the summed timestep bound. Ordinary `AddViscousFluxIso` (377) retains the centered Newtonian stencil. |
 | [viscosity.cpp: Hyper4Strain](../../../src/diffusion/viscosity.cpp#L53) | Cell/face symmetric trace-free gradients, including centered transverse derivatives. |
-| [Viscosity constructor](../../../src/diffusion/viscosity.cpp#L201) | Strict finite/nonnegative coefficient parsing; ideal-gas, Newtonian, periodic, uniform-mesh, two-ghost-cell and `fofc=false` guards; positive hyper4 counts as an active STS process. |
+| [Viscosity constructor](../../../src/diffusion/viscosity.cpp#L201) | Strict finite/nonnegative coefficient parsing; ideal-gas, Newtonian, periodic/outflow, uniform-mesh and two-ghost-cell guards. FOFC requires STS when hyper4 is enabled; positive hyper4 counts as an active STS process. |
 | [AddViscousFluxes / AddViscousFluxHyper4](../../../src/diffusion/viscosity.cpp#L310) | Dispatch; device face loops (324); strain Laplacian (343); momentum and velocity-work fluxes (355); higher-stress work `J` (363). |
 | [NewTimeStep](../../../src/diffusion/viscosity.cpp#L606) | Preserves the zero-hyper4 path; current-density reduction (612), summed fourth-order rate (663), representability checks and collective invalid-state decision (670–677). |
 | [hydro.cpp: Hydro::Hydro](../../../src/hydro/hydro.cpp#L83) | Constructs and activates viscosity when hyper4 is the only enabled viscous coefficient. |

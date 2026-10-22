@@ -356,8 +356,8 @@ def main():
                      'Viscosity coefficients must be finite and nonnegative'),
                     ('isothermal', ('eos=ideal', 'eos=isothermal'),
                      'mu_hyper4 requires ideal-gas'),
-                    ('nonperiodic', ('ix1_bc=periodic\nox1_bc=periodic',
-                                     'ix1_bc=outflow\nox1_bc=outflow'),
+                    ('unsupported-boundary', ('ix1_bc=periodic\nox1_bc=periodic',
+                                             'ix1_bc=reflect\nox1_bc=reflect'),
                      'mu_hyper4 requires ideal-gas')]:
                 cases.append((f'reject-{name}', 'hydro', 'explicit', False,
                               MU, replacement, message))
