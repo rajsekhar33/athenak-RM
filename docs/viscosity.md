@@ -7,7 +7,8 @@ and dynamic coefficients `rho*nu`. Convert dimensional inputs manually using
 `nu_code = nu_cgs*time_cgs/length_cgs^2`.
 
 Ideal-gas Hydro/MHD support constant **dynamic** fourth-order hyperviscosity,
-`mu_hyper4`, on uniform periodic meshes, in code units `density*length^4/time`:
+`mu_hyper4`, on uniform meshes with periodic or outflow boundaries, in code
+units `density*length^4/time`:
 `mu4_code = mu4_cgs*time_cgs/(density_cgs*length_cgs^4)`.
 The local kinematic coefficient is `mu_hyper4/rho`.
 
@@ -39,8 +40,12 @@ sts_max_dt_ratio = 1
 All coefficients default to zero and share one `viscosity_integrator`.
 Malformed, negative or nonfinite values are rejected; STS requires a positive
 coefficient. Nonzero `nu_aniso` requires MHD without SMR/AMR in either mode.
-Nonzero `mu_hyper4` requires ideal gas, periodic boundaries in every active
-direction, no SMR/AMR, at least two ghost cells and `fofc = false`.
+Nonzero `mu_hyper4` requires ideal gas, periodic or outflow boundaries in every
+active direction, no SMR/AMR and at least two ghost cells. FOFC can be enabled
+with `viscosity_integrator = sts`; explicit hyperviscosity requires `fofc = false`.
+At physical outflow faces, the hyperviscous momentum and energy fluxes are zero.
+Adjacent interior faces use the usual extrapolated fluid ghosts. Advective,
+conductive and ordinary-viscous fluxes retain their existing boundary treatment.
 There is no temperature-dependent viscosity, gyroviscosity or mirror/firehose
 pressure-anisotropy clipping.
 
@@ -157,7 +162,7 @@ Viscosity STS rejects primitive prolongation, cyclic zoom, simultaneous Hydro/MH
 owners and co-selected STS resistivity. General STS restrictions exclude
 relativity, radiation, ion-neutral physics, shearing boxes and orbital advection.
 Nonlinear conduction cannot share an STS sweep with viscosity; see
-[thermal_conduction.md](thermal_conduction.md). Hyperviscosity's periodic-only
-restriction remains in force regardless of callback enrollment.
+[thermal_conduction.md](thermal_conduction.md). Hyperviscosity supports periodic
+and outflow boundaries only; callback enrollment does not extend that set.
 
 See the [feature validation report](https://github.com/rajsekhar33/athenak-RM/blob/feature/viscosity/docs/feature-validation/viscosity/README.md) for results, figures and reproduction instructions.
