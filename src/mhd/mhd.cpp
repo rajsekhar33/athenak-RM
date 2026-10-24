@@ -114,10 +114,14 @@ MHD::MHD(MeshBlockPack *ppack, ParameterInput *pin) :
   if (pin->DoesParameterExist("mhd","nu_iso") ||
       pin->DoesParameterExist("mhd","nu_aniso") ||
       pin->DoesParameterExist("mhd","mu_hyper4") ||
+      pin->DoesParameterExist("mhd","mu_spitzer") ||
+      pin->DoesParameterExist("mhd","spitzer_mu0_code") ||
+      pin->DoesParameterExist("mhd","spitzer_mu0_cgs") ||
+      pin->DoesParameterExist("mhd","spitzer_viscosity_geometry") ||
       pin->DoesParameterExist("mhd","viscosity_integrator")) {
     pvisc = new Viscosity("mhd", ppack, pin);
     const bool active = (pvisc->nu_iso != 0.0 || pvisc->nu_aniso != 0.0 ||
-                         pvisc->mu_hyper4 != 0.0);
+                         pvisc->mu_hyper4 != 0.0 || pvisc->mu_spitzer);
     has_sts_viscosity = active &&
         (pvisc->mode == parabolic::DiffusionSelection::sts_only);
     has_explicit_viscosity = active &&
@@ -131,13 +135,15 @@ MHD::MHD(MeshBlockPack *ppack, ParameterInput *pin) :
     pvisc = nullptr;
   }
 
-  // Resistivity / non-ideal MHD (only constructed if needed). The Resistivity class now
-  // also implements ambipolar diffusion, so it is constructed if either the Ohmic
-  // coefficient (eta_ohm) or the ambipolar coefficient (eta_ad) is supplied in <mhd>.
+  // Resistivity / non-ideal MHD: constant Ohmic, Spitzer Ohmic, or ambipolar.
   if (pin->DoesParameterExist("mhd","eta_ohm") ||
-      pin->DoesParameterExist("mhd","eta_ad")) {
+      pin->DoesParameterExist("mhd","eta_ad") ||
+      pin->DoesParameterExist("mhd","eta_spitzer") ||
+      pin->DoesParameterExist("mhd","spitzer_eta0_code") ||
+      pin->DoesParameterExist("mhd","spitzer_eta0_cgs")) {
     presist = new Resistivity(ppack, pin);
-    const bool active = (presist->eta_ohm != 0.0 || presist->eta_ad != 0.0);
+    const bool active = (presist->eta_ohm != 0.0 || presist->eta_ad != 0.0 ||
+                         presist->eta_spitzer);
     has_sts_resistivity = active &&
         (presist->mode == parabolic::DiffusionSelection::sts_only);
     has_explicit_resistivity = active &&

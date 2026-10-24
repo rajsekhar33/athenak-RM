@@ -190,12 +190,22 @@ dt_sweep / dt_exp <= (s*s + s - 2)/4.
 
 For nonlinear conduction, conductivity, limiters and saturation are recomputed
 at every RKL stage. Both split halves refresh primitives from the current
-conserved state. Trial stages must remain inside the trial-start thermal
+conserved state. With conduction as the sole STS process, trial stages must
+remain inside the trial-start thermal
 envelope, allowing temperature-scaled roundoff, without EOS floors. A rejected
 trial restores conserved and primitive fluid arrays and halves the interval
 after communication completes. At most 32 halvings are allowed per segment.
 Rollback covers fluid U/W, not the CT field or arbitrary problem state.
 Invalid initial states and constitutive/rate representability errors are fatal.
+
+When conduction shares STS with viscosity or Ohmic resistivity, the driver
+uses the full-state diffusion snapshot: conserved and primitive fluid arrays,
+cell-centered magnetic fields, and fine/coarse CT face fields. It reconstructs
+scratch primitives from each raw stage and sums the current inverse diffusion
+bounds of all selected processes. Trials must retain positive thermal energy
+without EOS floors and fit the selected RKL2 stage budget. Viscous and Ohmic
+heating can raise temperature above its trial-start value. A rejected trial
+restores the shared snapshot, completes communication and halves the interval.
 
 Regridding occurs at completed cycles, not within a retry. Subsequent sweeps
 refresh the state and timestep bounds and resize the primitive-state backup.
@@ -211,9 +221,13 @@ choosing the ratio from stability alone.
 
 ## Restrictions and numerical limitations
 
-- Nonlinear Spitzer/saturated STS requires one fluid and conduction as the sole
-  STS process. Custom user-boundary callbacks and cyclic zoom are rejected.
-  Refined meshes must use conserved-variable prolongation.
+- Nonlinear Spitzer/saturated STS requires one fluid owner and rejects cyclic
+  zoom. Refined meshes must use conserved-variable prolongation.
+- Standalone nonlinear-conduction STS rejects custom user boundaries. Joint
+  full-state STS requires callbacks to enroll `user_bcs_retry_safe` and
+  `user_dt_retry_safe` in the problem generator. Boundary callbacks may update
+  only snapshotted ghost fields, and timestep callbacks only `dtnew`,
+  deterministically and without persistent side effects.
 - Thermal boundary fluxes depend on the ghost-state prescription. A fluid
   boundary label alone does not establish insulation or a prescribed heat flux.
 - SMR/AMR is supported through the existing flux-correction and mesh-transfer
@@ -237,10 +251,10 @@ choosing the ratio from stability alone.
 
 | Source | Functions and responsibilities |
 | --- | --- |
-| [conduction.hpp](../src/diffusion/conduction.hpp), [conduction.cpp](../src/diffusion/conduction.cpp) | `Conduction::Conduction` reads and validates inputs; `AddHeatFluxes` dispatches the combined saturated flux or separate classical terms; `AddHeatFluxIso/Aniso` implement constant-coefficient fluxes. `NewTimeStep`, `SpitzerTimeStep`, `CheckExplicitStage` and `InspectRawState` supply timestep and state checks. |
+| [conduction.hpp](../src/diffusion/conduction.hpp), [conduction.cpp](../src/diffusion/conduction.cpp) | `Conduction::Conduction` reads and validates inputs; `AddHeatFluxes` dispatches the combined saturated flux or separate classical terms; `AddHeatFluxIso/Aniso` implement constant-coefficient fluxes. `NewTimeStep`, `SpitzerTimeStep`, `CheckExplicitStage` and `InspectRawState` supply timestep and state checks. `RawStageTimeStep` reconstructs scratch primitives for the joint current-stage budget. |
 | [conduction.cpp](../src/diffusion/conduction.cpp) | File-local `HarmonicMeanPositive`, `SpitzerConductivity`, `SpitzerLimited4` and `SaturateHeatFlux` provide device-callable constitutive arithmetic; `SpitzerCoefficientCode` converts Units scales. `AddHeatFluxSpitzer` constructs harmonic temperature-dependent face fluxes. The private `SaturatedFace` helper builds and caps the summed vector; `AddHeatFluxSaturated` adds its normal component to energy flux; `SaturationTimeStep` computes donor-response and thermal-drain restrictions. |
 | [sts_rkl2.cpp](../src/diffusion/sts_rkl2.cpp) | `parabolic::ComputeRKL2StageCount` and `ComputeRKL2Coefficients` select the stage count and recurrence coefficients. |
-| [driver.cpp](../src/driver/driver.cpp), [driver.hpp](../src/driver/driver.hpp) | `Driver::ValidateSTSConfiguration` checks supported combinations; `ExecuteSTSSweep` schedules half-sweeps and nonlinear retries. It calls `Conduction::BeginSTSTrial/RestoreSTSTrial`, defined in `conduction.cpp`, to snapshot and restore fluid U/W. |
+| [driver.cpp](../src/driver/driver.cpp), [driver.hpp](../src/driver/driver.hpp) | `Driver::ValidateSTSConfiguration` checks supported combinations; `ExecuteSTSSweep` schedules half-sweeps and nonlinear retries. Standalone conduction uses `Conduction::BeginSTSTrial/RestoreSTSTrial` for fluid U/W. Joint sweeps use `DiffusionSnapshot::Save/Restore`, `CheckFullStateSTSState` and `ExecuteGuardedSTSSweep` for shared fields and current-stage bounds. |
 | [hydro_newdt.cpp](../src/hydro/hydro_newdt.cpp), [mhd_newdt.cpp](../src/mhd/mhd_newdt.cpp) | `Hydro::NewTimeStep` and `MHD::RecomputeTimeStepFromCurrentState` include the unaccelerated saturation donor bound in the fluid timestep. |
 | [hydro_sts.cpp](../src/hydro/hydro_sts.cpp), [mhd_sts.cpp](../src/mhd/mhd_sts.cpp), [hydro_tasks.cpp](../src/hydro/hydro_tasks.cpp), [mhd_tasks.cpp](../src/mhd/mhd_tasks.cpp) | `STSFluxes`, `Hydro::STSUpdate`, `MHD::STSUpdateU`, `STSCheckState` and `ConToPrim` integrate fluxes, recurrence, raw-state checks and boundary exchanges. Active state is checked before restriction/EOS conversion; consumed halos are checked after prolongation and physical BCs. |
 
