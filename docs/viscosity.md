@@ -3,8 +3,24 @@
 Newtonian Hydro/MHD support constant isotropic kinematic shear viscosity, `nu_iso`.
 Uniform-grid MHD also supports parallel Braginskii viscosity, `nu_aniso`, with
 ideal or isothermal equations of state. Both have code units `length^2/time`
-and dynamic coefficients `rho*nu`. Convert dimensional inputs manually using
+and dynamic coefficients `rho*nu`. Convert dimensional constant inputs using
 `nu_code = nu_cgs*time_cgs/length_cgs^2`.
+
+Ideal-gas Hydro/MHD also support temperature-dependent **dynamic** viscosity
+`mu = mu0*T^(5/2)`, with `T = p/rho` in code units. Select it with
+`mu_spitzer = true`, exactly one of `spitzer_mu0_code` or `spitzer_mu0_cgs`,
+and `spitzer_viscosity_geometry = isotropic` (default) or `parallel`. Constant
+`nu_iso` and `nu_aniso` must be zero with this option. Parallel geometry requires
+uniform-grid MHD. The constitutive law assumes a single gas temperature and a
+prescribed coefficient normalization; it does not evolve ionization or the
+Coulomb logarithm. The classical ion normalization is given in
+[FLASH's Spitzer prescription](https://flash.rochester.edu/site/flashcode/user_support/flash_ug_devel/node147.html).
+
+CGS normalization requires an explicit `<units>` block. With its length,
+time, density and temperature scales `L0`, `t0`, `rho0` and `T0`, the conversion is
+`mu0_code = mu0_cgs*T0^(5/2)*t0/(rho0*L0^2)`.
+The local kinematic coefficient is `mu(T)/rho`. Both explicit RK1/2/3 and RKL2
+evaluate the coefficient from the current stage temperature.
 
 Ideal-gas Hydro/MHD support constant **dynamic** fourth-order hyperviscosity,
 `mu_hyper4`, on uniform meshes with periodic or outflow boundaries, in code
@@ -46,8 +62,7 @@ with `viscosity_integrator = sts`; explicit hyperviscosity requires `fofc = fals
 At physical outflow faces, the hyperviscous momentum and energy fluxes are zero.
 Adjacent interior faces use the usual extrapolated fluid ghosts. Advective,
 conductive and ordinary-viscous fluxes retain their existing boundary treatment.
-There is no temperature-dependent viscosity, gyroviscosity or mirror/firehose
-pressure-anisotropy clipping.
+Gyroviscosity and mirror/firehose pressure-anisotropy clipping are not included.
 
 The positive `sts_max_dt_ratio` caps the full cycle relative to the combined
 CFL-scaled STS diffusion bound; `-1` removes that cap. Start conservatively and
@@ -68,6 +83,9 @@ F_energy,j = -v_face,i tau_ij
 ```
 
 Face velocity is arithmetic; isothermal fluids have no evolved energy equation.
+For the Spitzer option, the face dynamic coefficient is the arithmetic mean
+of the two cell coefficients, replacing `rho_face*nu_iso`. The velocity-gradient
+and energy-work formulas are unchanged.
 `AddViscousFluxAniso` evaluates the parallel Braginskii stress:
 
 ```text
@@ -87,6 +105,9 @@ coefficient. The continuum heating rate is `3*rho*nu_aniso*S^2`; discrete local
 thermal positivity remains dependent on the state and discretization. See
 [Berlok, Pakmor & Pfrommer (2020)](https://arxiv.org/abs/1911.05694) for Braginskii
 damping, heating and RKL2 benchmarks on a moving mesh.
+The parallel Spitzer option replaces `rho_face*nu_aniso` by the arithmetic mean
+of cell dynamic coefficients, following the centered branch of
+[IDEFIX](https://github.com/idefix-code/idefix/blob/aee4e07775be9061ce6d48f169e9a1b248e9a949/src/fluid/braginskii/bragViscosity.hpp).
 
 `AddViscousFluxHyper4` uses centered face strains and their discrete Laplacian.
 In continuum notation, summing repeated indices:
@@ -130,13 +151,21 @@ refreshed after fluid evolution. The rate bound controls diffusion stability;
 variable-density thermal positivity is checked separately.
 Zero hyperviscosity preserves the ordinary-viscosity timestep arithmetic.
 
+Spitzer viscosity instead uses a conservative absolute-row-sum envelope of
+the existing stress stencil, scaled by `max(mu)/min(rho)` over the active cells
+and coefficient halo and reduced across ranks. `NewTimeStep` refreshes this
+bound as temperature and density evolve. The full-state RKL2 checks also reject
+a trial whose interval exceeds the stage count's capacity at its current
+coefficient. This controls the evolving diffusion budget; timestep convergence
+must still be checked for accuracy.
+
 The driver places an RKL2 half-sweep before and after the fluid update, reusing
 conservative fluxes and boundary exchanges. References are
 [Meyer, Balsara & Aslam (2014)](https://www.sciencedirect.com/science/article/pii/S0021999113005597)
 and [Vaidya et al. (2017)](https://arxiv.org/abs/1702.05487).
 `InspectRawState` checks finite density/momentum and applicable positive internal
 energy/EOS floors before EOS conversion, using current CT faces in MHD.
-`Driver::ExecuteViscositySTSSweep` restores rejected trials and halves intervals
+`Driver::ExecuteGuardedSTSSweep` restores rejected trials and halves intervals
 collectively after boundary exchanges finish. Invalid starting states and
 exhausted retries are fatal. `ExecutePreSTSSweep` refreshes fluid, source, user
 and explicit-diffusion bounds after heating and repeats from the cycle start
@@ -158,11 +187,16 @@ update only snapshotted ghost fields; timestep callbacks may deterministically
 update only `dtnew`. Persistent side effects are forbidden. Enrollment is set
 in the problem generator code; time accuracy depends on the boundary implementation.
 
-Viscosity STS rejects primitive prolongation, cyclic zoom, simultaneous Hydro/MHD
-owners and co-selected STS resistivity. General STS restrictions exclude
+Viscosity STS rejects primitive prolongation, cyclic zoom and simultaneous
+Hydro/MHD owners. Joint viscosity/Ohmic STS requires ideal-gas MHD and uses
+the shared full-state snapshot. When a Spitzer coefficient is selected, its
+stage-budget check sums the current inverse bounds of all selected operators.
+General STS restrictions exclude
 relativity, radiation, ion-neutral physics, shearing boxes and orbital advection.
-Nonlinear conduction cannot share an STS sweep with viscosity; see
-[thermal_conduction.md](thermal_conduction.md). Hyperviscosity supports periodic
+Joint nonlinear conduction uses the same full-state snapshot and contributes
+its current raw-stage diffusion bound; saturation retains its unaccelerated
+donor bound. See [thermal_conduction.md](thermal_conduction.md).
+Hyperviscosity supports periodic
 and outflow boundaries only; callback enrollment does not extend that set.
 
 See the [feature validation report](https://github.com/rajsekhar33/athenak-RM/blob/feature/viscosity/docs/feature-validation/viscosity/README.md) for results, figures and reproduction instructions.

@@ -766,6 +766,79 @@ bool Conduction::UsesNonlinearSTS() const {
          (saturated || (alpha_spitzer && spitzer_kappa0_code > 0.0));
 }
 
+// Evaluate the existing timestep stencil on the current raw stage, without
+// repairing live U/W or changing EOS counters. A joint diffusion sweep may heat
+// the gas above its initial temperature. Its raw-state/budget guard replaces
+// the conduction-only maximum principle, while the saturation donor cap remains.
+Real Conduction::RawStageTimeStep(const DvceArray5D<Real> &u0,
+    const DvceArray5D<Real> &w0, const EOS_Data &eos_data,
+    const DvceFaceFld4D<Real> *b, bool include_ghosts) {
+  const int nm = u0.extent_int(0), nk = u0.extent_int(2);
+  const int nj = u0.extent_int(3), ni = u0.extent_int(4);
+  if (sts_stage_w.extent_int(0) != nm || sts_stage_w.extent_int(2) != nk ||
+      sts_stage_w.extent_int(3) != nj || sts_stage_w.extent_int(4) != ni) {
+    sts_stage_w = DvceArray5D<Real>("conduction_stage_primitives", nm,
+                                   w0.extent_int(1), nk, nj, ni);
+  }
+  // Before exchange, ghost U and interface B belong to different stages. Keep
+  // their last valid primitive stencil; after exchange, inspect raw ghosts too.
+  // Every new flux evaluation follows the refreshed-ghost check.
+  if (!include_ghosts) Kokkos::deep_copy(DevExeSpace(), sts_stage_w, w0);
+  const auto wstage = sts_stage_w;
+  const auto eos = eos_data;
+  const auto idx = pmy_pack->pmesh->mb_indcs;
+  const bool mhd = b != nullptr;
+  DvceArray4D<Real> b1, b2, b3;
+  if (mhd) { b1 = b->x1f; b2 = b->x2f; b3 = b->x3f; }
+  const int nji = nj*ni, ncell = nk*nji;
+  // AMR reserves extra array slots for future MeshBlocks. They have no current
+  // fluid state; keep the allocated scratch shape but inspect active blocks only.
+  const int active_blocks = pmy_pack->nmb_thispack;
+  int invalid = 0;
+  Kokkos::parallel_reduce("conduction_raw_stage_primitives", Kokkos::RangePolicy<>(
+      DevExeSpace(), 0, active_blocks*ncell),
+  KOKKOS_LAMBDA(const int n, int &bad) {
+    const int m = n/ncell, cell = n-m*ncell;
+    const int k = cell/nji, j = (cell%nji)/ni, i = cell%ni;
+    if (!include_ghosts && (i < idx.is || i > idx.ie || j < idx.js || j > idx.je ||
+                           k < idx.ks || k > idx.ke)) return;
+    HydCons1D u;
+    u.d = u0(m,IDN,k,j,i); u.e = u0(m,IEN,k,j,i);
+    u.mx = u0(m,IM1,k,j,i); u.my = u0(m,IM2,k,j,i); u.mz = u0(m,IM3,k,j,i);
+    bool df = false, ef = false, tf = false;
+    HydPrim1D primitive;
+    if (mhd) {
+      MHDCons1D um;
+      um.d = u.d; um.e = u.e; um.mx = u.mx; um.my = u.my; um.mz = u.mz;
+      um.bx = 0.5*(b1(m,k,j,i)+b1(m,k,j,i+1));
+      um.by = 0.5*(b2(m,k,j,i)+b2(m,k,j+1,i));
+      um.bz = 0.5*(b3(m,k,j,i)+b3(m,k+1,j,i));
+      SingleC2P_IdealMHD(um, eos, primitive, df, ef, tf);
+    } else {
+      SingleC2P_IdealHyd(u, eos, primitive, df, ef, tf);
+    }
+    if (df || ef || tf || !conduction::IsFinitePositive(primitive.d) ||
+        !conduction::IsFinitePositive(primitive.e) ||
+        !conduction::IsFinite(primitive.vx) || !conduction::IsFinite(primitive.vy) ||
+        !conduction::IsFinite(primitive.vz)) {
+      ++bad;
+      return;
+    }
+    wstage(m,IDN,k,j,i) = primitive.d;
+    wstage(m,IEN,k,j,i) = primitive.e;
+    wstage(m,IVX,k,j,i) = primitive.vx;
+    wstage(m,IVY,k,j,i) = primitive.vy;
+    wstage(m,IVZ,k,j,i) = primitive.vz;
+  }, Kokkos::Sum<int>(invalid));
+#if MPI_PARALLEL_ENABLED
+  MPI_Allreduce(MPI_IN_PLACE, &invalid, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+#endif
+  if (invalid != 0) return 0.0;
+  // The unsuppressed diffusion budget is STS-accelerated. Check the separate
+  // saturation donor bound from current primitives before each flux evaluation.
+  return SpitzerTimeStep(wstage, eos_data, false, true);
+}
+
 void Conduction::BeginSTSTrial(const DvceArray5D<Real> &u,
     const DvceArray5D<Real> &w, DvceArray5D<Real> &snapshot) {
   // AMR may resize the owner arrays between completed cycles.
@@ -803,7 +876,17 @@ bool Conduction::CheckSTSTransport(const DvceArray5D<Real> &w,
 // deliberately conservative, not a general nonlinear stability theorem.
 Real Conduction::SpitzerTimeStep(const DvceArray5D<Real> &w0,
                                  const EOS_Data &eos_data,
-                                 bool include_saturation) const {
+                                 bool include_saturation, bool retryable) const {
+  auto reject = [&](int local_count, const char *reason) {
+    if (!retryable) {
+      FailIfInvalid(local_count, reason);
+      return false;
+    }
+#if MPI_PARALLEL_ENABLED
+    MPI_Allreduce(MPI_IN_PLACE, &local_count, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+#endif
+    return local_count != 0;
+  };
   const auto &idx = pmy_pack->pmesh->mb_indcs;
   const bool multi = pmy_pack->pmesh->multi_d, three = pmy_pack->pmesh->three_d;
   const int ndim = three ? 3 : (multi ? 2 : 1);
@@ -830,16 +913,16 @@ Real Conduction::SpitzerTimeStep(const DvceArray5D<Real> &w0,
     if (!conduction::IsFiniteNonNegative(temp)) { ++bad; return; }
     maximum = fmax(maximum, temp);
   }, Kokkos::Max<Real>(tmax), Kokkos::Sum<int>(invalid));
-  FailIfInvalid(invalid, "invalid thermal state in timestep stencil");
+  if (reject(invalid, "invalid thermal state in timestep stencil")) return 0.0;
 #if MPI_PARALLEL_ENABLED
   MPI_Allreduce(MPI_IN_PLACE, &tmax, 1, MPI_ATHENA_REAL, MPI_MAX, MPI_COMM_WORLD);
 #endif
   const Real kcap = conduction::SpitzerConductivity(tmax, spitzer_kappa0_code);
   // Positive conductivity underflow is not a physical zero coefficient.
   // Reject it consistently with the face operator instead of dropping dt.
-  FailIfInvalid(!std::isfinite(kcap) || kcap < 0.0 ||
+  if (reject(!std::isfinite(kcap) || kcap < 0.0 ||
                 (spitzer_kappa0_code > 0.0 && tmax > 0.0 && kcap == 0.0),
-                "unrepresentable conductivity cap");
+                "unrepresentable conductivity cap")) return 0.0;
   // Whole-vector saturation couples transverse gradients even for isotropic
   // transport. Retain an unsuppressed diffusion budget, not only a cap speed.
   const Real alpha0 = saturated ? 4.0*ndim*(alpha_iso+alpha_aniso) :
@@ -908,15 +991,15 @@ Real Conduction::SpitzerTimeStep(const DvceArray5D<Real> &w0,
         (active_diffusion && rate < conduction::kMinNormal)) { ++bad; return; }
     if (rate > 0.0) minimum = fmin(minimum, 1.0/rate);
   }, Kokkos::Min<Real>(bound), Kokkos::Sum<int>(invalid));
-  FailIfInvalid(invalid || !std::isfinite(bound) || bound <= 0.0,
-                "invalid explicit conduction timestep");
+  if (reject(invalid || !std::isfinite(bound) || bound <= 0.0,
+             "invalid explicit conduction timestep")) return 0.0;
   if (saturated && include_saturation) {
     // Saturation's donor-pressure response is hyperbolic. Add its rate; it
     // must never be counted as an independently STS-accelerated diffusion rate.
     const Real adv_bound = SaturationTimeStep(w0, eos_data);
     const Real rate = 1.0/bound+1.0/adv_bound;
-    FailIfInvalid(!std::isfinite(rate) || rate < 0.0,
-                  "invalid combined diffusion/saturation rate");
+    if (reject(!std::isfinite(rate) || rate < 0.0,
+               "invalid combined diffusion/saturation rate")) return 0.0;
     bound = rate > 0.0 ? 1.0/rate : std::numeric_limits<float>::max();
   }
   return bound;

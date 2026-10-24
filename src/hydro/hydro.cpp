@@ -84,10 +84,14 @@ Hydro::Hydro(MeshBlockPack *ppack, ParameterInput *pin) :
   if (pin->DoesParameterExist("hydro","nu_iso") ||
       pin->DoesParameterExist("hydro","nu_aniso") ||
       pin->DoesParameterExist("hydro","mu_hyper4") ||
+      pin->DoesParameterExist("hydro","mu_spitzer") ||
+      pin->DoesParameterExist("hydro","spitzer_mu0_code") ||
+      pin->DoesParameterExist("hydro","spitzer_mu0_cgs") ||
+      pin->DoesParameterExist("hydro","spitzer_viscosity_geometry") ||
       pin->DoesParameterExist("hydro","viscosity_integrator")) {
     pvisc = new Viscosity("hydro", ppack, pin);
     const bool active = (pvisc->nu_iso != 0.0 || pvisc->nu_aniso != 0.0 ||
-                         pvisc->mu_hyper4 != 0.0);
+                         pvisc->mu_hyper4 != 0.0 || pvisc->mu_spitzer);
     has_explicit_viscosity =
         active && pvisc->mode == parabolic::DiffusionSelection::explicit_only;
     has_sts_viscosity =
