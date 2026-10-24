@@ -15,7 +15,9 @@
 //! 3->Bz, stored on the corresponding cell face and uniform along its own axis so that
 //! div(B)=0).  Must be run in kinematic mode.  Errors in the final solution are computed
 //! from the analytic profile at final time in DiffusionErrors().  Resistivity runs use
-//! the <mhd> block; conduction/viscosity use the <hydro> block.
+//! the <mhd> block; conduction/viscosity use the <hydro> block. The optional
+//! resistivity_profile=helix instead evolves a force-free field with dynamical gas,
+//! providing an analytic check of Ohmic decay and Joule heating.
 
 // C headers
 
@@ -58,6 +60,211 @@ struct DiffusionVariables {
 };
 
 DiffusionVariables diffvars;
+
+// Circular transverse shear supplies isotropic heating and general initial-RHS
+// tests. With rho=1 and a constant transverse magnetic field, isotropic viscosity
+// gives V'=-k^2*mu(T)*V. The functional harness integrates this ODE.
+void ViscousHelix(ParameterInput *pin, Mesh *pm, const bool restart) {
+  auto *pack = pm->pmb_pack;
+  auto *ph = pack->phydro;
+  auto *pb = pack->pmhd;
+  auto *pvisc = ph != nullptr ? ph->pvisc : (pb != nullptr ? pb->pvisc : nullptr);
+  const int axis = pin->GetOrAddInteger("problem", "helix_axis", 1);
+  const int mode = pin->GetOrAddInteger("problem", "helix_mode", 1);
+  const Real amp = pin->GetOrAddReal("problem", "amp", 0.5);
+  const Real rho = pin->GetOrAddReal("problem", "rho", 1.0);
+  const Real pres = pin->GetOrAddReal("problem", "pres", 0.1);
+  const Real bg = pin->GetOrAddReal("problem", "helix_bfield", 0.0);
+  const Real bx = pin->GetOrAddReal("problem", "helix_bx", axis%3 == 0 ? bg : 0.0);
+  const Real by = pin->GetOrAddReal("problem", "helix_by", axis%3 == 1 ? bg : 0.0);
+  const Real bz = pin->GetOrAddReal("problem", "helix_bz", axis%3 == 2 ? bg : 0.0);
+  const Real magnetic_amp = pin->GetOrAddReal("problem", "helix_magnetic_amp", 0.0);
+  const Real bulk[3] = {pin->GetOrAddReal("problem", "helix_bulk_v1", 0.0),
+                        pin->GetOrAddReal("problem", "helix_bulk_v2", 0.0),
+                        pin->GetOrAddReal("problem", "helix_bulk_v3", 0.0)};
+  const Real drho = pin->GetOrAddReal("problem", "helix_density_amp", 0.0);
+  if ((ph == nullptr && pb == nullptr) || (ph != nullptr && pb != nullptr) ||
+      pvisc == nullptr || axis < 1 || axis > 3 || mode < 1 ||
+      (axis == 2 && !pm->multi_d) || (axis == 3 && !pm->three_d) ||
+      !std::isfinite(amp) || amp <= 0.0 || !std::isfinite(rho) || rho <= 0.0 ||
+      !std::isfinite(pres) || pres <= 0.0 || !std::isfinite(bg) ||
+      !std::isfinite(bx) || !std::isfinite(by) || !std::isfinite(bz) ||
+      !std::isfinite(magnetic_amp) || magnetic_amp < 0.0 ||
+      !std::isfinite(bulk[0]) || !std::isfinite(bulk[1]) || !std::isfinite(bulk[2]) ||
+      !std::isfinite(drho) || fabs(drho) >= 1.0 ||
+      pin->GetString("time", "evolution") != "dynamic") {
+    Kokkos::abort("Viscous helix needs one fluid, viscosity and positive finite data");
+  }
+  const auto eos = ph != nullptr ? ph->peos->eos_data : pb->peos->eos_data;
+  if (!eos.is_ideal || (ph != nullptr && (bx != 0.0 || by != 0.0 || bz != 0.0))) {
+    Kokkos::abort("Viscous helix requires ideal gas and MHD for a magnetic field");
+  }
+  if (magnetic_amp > 0.0 && (!pb || bx != 0.0 || by != 0.0 || bz != 0.0)) {
+    Kokkos::abort("Coupled helix requires MHD and zero uniform magnetic background");
+  }
+  for (const char *face : {"ix1_bc", "ox1_bc", "ix2_bc", "ox2_bc",
+                           "ix3_bc", "ox3_bc"}) {
+    if (pin->GetString("mesh", face) != "periodic") {
+      Kokkos::abort("Viscous helix requires periodic boundaries");
+    }
+  }
+  if (restart) return;
+  const auto idx = pm->mb_indcs;
+  const auto domain = pm->mesh_size;
+  const Real xmin = axis == 1 ? domain.x1min : (axis == 2 ? domain.x2min : domain.x3min);
+  const Real xmax = axis == 1 ? domain.x1max : (axis == 2 ? domain.x2max : domain.x3max);
+  const Real twopi = 2.0*std::acos(-1.0), wave = twopi*mode/(xmax-xmin);
+  auto size = pack->pmb->mb_size;
+  auto u = ph != nullptr ? ph->u0 : pb->u0;
+  const int nvars = ph != nullptr ? ph->nhydro+ph->nscalars : pb->nmhd+pb->nscalars;
+  DvceArray4D<Real> b1, b2, b3;
+  const bool mhd = pb != nullptr;
+  if (mhd) { b1 = pb->b0.x1f; b2 = pb->b0.x2f; b3 = pb->b0.x3f; }
+  const bool multi_d = pm->multi_d, three_d = pm->three_d;
+  par_for("pgen_viscous_helix", DevExeSpace(), 0, pack->nmb_thispack-1,
+          idx.ks, idx.ke, idx.js, idx.je, idx.is, idx.ie,
+  KOKKOS_LAMBDA(int m, int k, int j, int i) {
+    const Real x[3] = {
+        CellCenterX(i-idx.is,idx.nx1,size.d_view(m).x1min,size.d_view(m).x1max),
+        CellCenterX(j-idx.js,idx.nx2,size.d_view(m).x2min,size.d_view(m).x2max),
+        CellCenterX(k-idx.ks,idx.nx3,size.d_view(m).x3min,size.d_view(m).x3max)};
+    Real modulation = cos(twopi*(x[0]-domain.x1min)/(domain.x1max-domain.x1min));
+    if (multi_d) {
+      modulation *= cos(twopi*(x[1]-domain.x2min)/(domain.x2max-domain.x2min));
+    }
+    if (three_d) {
+      modulation *= cos(twopi*(x[2]-domain.x3min)/(domain.x3max-domain.x3min));
+    }
+    const Real density = rho*(1.0+drho*modulation);
+    const Real phase = wave*(x[axis-1]-xmin);
+    for (int n=0; n<nvars; ++n) u(m,n,k,j,i) = 0.0;
+    u(m,IDN,k,j,i) = density;
+    u(m,IM1+axis%3,k,j,i) = density*amp*cos(phase);
+    u(m,IM1+(axis+1)%3,k,j,i) = density*amp*sin(phase);
+    for (int a=0; a<3; ++a) u(m,IM1+a,k,j,i) += density*bulk[a];
+    Real magnetic[3] = {bx, by, bz};
+    magnetic[axis%3] += magnetic_amp*cos(phase);
+    magnetic[(axis+1)%3] += magnetic_amp*sin(phase);
+    const Real kinetic = (bulk[0] == 0.0 && bulk[1] == 0.0 && bulk[2] == 0.0) ?
+        0.5*density*SQR(amp) :
+        0.5*(SQR(u(m,IM1,k,j,i))+SQR(u(m,IM2,k,j,i))+SQR(u(m,IM3,k,j,i)))/density;
+    u(m,IEN,k,j,i) = pres/(eos.gamma-1.0)+kinetic+
+                    0.5*(SQR(magnetic[0])+SQR(magnetic[1])+SQR(magnetic[2]));
+    if (mhd) {
+      b1(m,k,j,i) = magnetic[0];
+      b2(m,k,j,i) = magnetic[1];
+      b3(m,k,j,i) = magnetic[2];
+      if (i == idx.ie) b1(m,k,j,i+1) = magnetic[0];
+      if (j == idx.je) b2(m,k,j+1,i) = magnetic[1];
+      if (k == idx.ke) b3(m,k+1,j,i) = magnetic[2];
+    }
+  });
+}
+
+//----------------------------------------------------------------------------------------
+//! \brief Periodic force-free helix: curl(B) is parallel to B, so the gas stays at
+//! rest while magnetic energy becomes heat. Total energy is spatially constant.
+//! Transverse face values are independent of their own face-normal coordinates.
+
+void ResistiveHelix(ParameterInput *pin, Mesh *pm, const bool restart) {
+  auto *pmbp = pm->pmb_pack;
+  auto *pmhd = pmbp->pmhd;
+  const int axis = pin->GetOrAddInteger("problem", "helix_axis", 1);
+  const int mode = pin->GetOrAddInteger("problem", "helix_mode", 1);
+  const Real amp = pin->GetOrAddReal("problem", "amp", 1.0);
+  const Real rho = pin->GetOrAddReal("problem", "rho", 1.0);
+  const Real pres = pin->GetOrAddReal("problem", "pres", 1.0);
+  const Real density_amp = pin->GetOrAddReal("problem", "helix_density_amp", 0.0);
+  const std::string evolution = pin->GetString("time", "evolution");
+  if (pmhd == nullptr || pmbp->phydro != nullptr || pmhd->presist == nullptr ||
+      !pmhd->peos->eos_data.is_ideal ||
+      (evolution != "dynamic" && evolution != "kinematic") ||
+      axis < 1 || axis > 3 || mode < 1 ||
+      !std::isfinite(amp) || amp <= 0.0 ||
+      !std::isfinite(rho) || rho <= 0.0 ||
+      !std::isfinite(pres) || pres <= 0.0 ||
+      !std::isfinite(density_amp) || fabs(density_amp) >= 1.0) {
+    std::cout << "### FATAL ERROR: resistive helix requires ideal MHD, "
+              << "resistivity, a valid axis/mode and positive finite state" << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+  const bool spitzer = pmhd->presist->eta_spitzer;
+  const Real eta = spitzer ? pmhd->presist->spitzer_eta0_code/pow(pres/rho, 1.5)
+                           : pmhd->presist->eta_ohm;
+  if (!std::isfinite(eta) || eta <= 0.0 || pmhd->presist->eta_ad != 0.0 ||
+      (axis == 2 && !pm->multi_d) || (axis == 3 && !pm->three_d)) {
+    std::cout << "### FATAL ERROR: resistive helix requires positive "
+              << "Ohmic diffusion and a resolved helix axis" << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+  for (const char *face : {"ix1_bc", "ox1_bc", "ix2_bc", "ox2_bc",
+                           "ix3_bc", "ox3_bc"}) {
+    if (pin->GetString("mesh", face) != "periodic") {
+      std::cout << "### FATAL ERROR: resistive helix requires periodic boundaries"
+                << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
+  }
+  if (restart) return;
+
+  auto &indcs = pm->mb_indcs;
+  const int is = indcs.is, ie = indcs.ie;
+  const int js = indcs.js, je = indcs.je;
+  const int ks = indcs.ks, ke = indcs.ke;
+  const auto domain = pm->mesh_size;
+  const Real xmin = (axis == 1) ? domain.x1min :
+                    ((axis == 2) ? domain.x2min : domain.x3min);
+  const Real xmax = (axis == 1) ? domain.x1max :
+                    ((axis == 2) ? domain.x2max : domain.x3max);
+  const Real wave = 2.0*std::acos(-1.0)*mode/(xmax - xmin);
+  const Real twopi = 2.0*std::acos(-1.0);
+  const Real amplitude = spitzer ? amp : amp*std::exp(-eta*SQR(wave)*pm->time);
+  const Real energy = pres/(pmhd->peos->eos_data.gamma - 1.0) + 0.5*SQR(amp);
+  auto &size = pmbp->pmb->mb_size;
+  auto &b = (set_initial_conditions) ? pmhd->b0 : pmhd->b1;
+  auto &u = (set_initial_conditions) ? pmhd->u0 : pmhd->u1;
+  const int nvars = pmhd->nmhd + pmhd->nscalars;
+  par_for("pgen_resist_helix", DevExeSpace(), 0, pmbp->nmb_thispack-1,
+          ks, ke, js, je, is, ie, KOKKOS_LAMBDA(int m, int k, int j, int i) {
+    Real x = CellCenterX(i-is, indcs.nx1, size.d_view(m).x1min,
+                        size.d_view(m).x1max);
+    if (axis == 2) {
+      x = CellCenterX(j-js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
+    } else if (axis == 3) {
+      x = CellCenterX(k-ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
+    }
+    const Real bc = amplitude*cos(wave*(x-xmin));
+    const Real bs = amplitude*sin(wave*(x-xmin));
+    const Real bx = (axis == 1) ? 0.0 : ((axis == 2) ? bs : bc);
+    const Real by = (axis == 2) ? 0.0 : ((axis == 3) ? bs : bc);
+    const Real bz = (axis == 3) ? 0.0 : ((axis == 1) ? bs : bc);
+    b.x1f(m,k,j,i) = bx;
+    b.x2f(m,k,j,i) = by;
+    b.x3f(m,k,j,i) = bz;
+    if (i == ie) b.x1f(m,k,j,i+1) = bx;
+    if (j == je) b.x2f(m,k,j+1,i) = by;
+    if (k == ke) b.x3f(m,k+1,j,i) = bz;
+    for (int n=0; n<nvars; ++n) u(m,n,k,j,i) = 0.0;
+    Real modulation = 1.0;
+    if (density_amp != 0.0) {
+      const Real x1 = CellCenterX(i-is, indcs.nx1, size.d_view(m).x1min,
+                                  size.d_view(m).x1max);
+      modulation = cos(twopi*(x1-domain.x1min)/(domain.x1max-domain.x1min));
+      if (indcs.nx2 > 1) {
+        const Real x2 = CellCenterX(j-js, indcs.nx2, size.d_view(m).x2min,
+                                    size.d_view(m).x2max);
+        modulation *= cos(twopi*(x2-domain.x2min)/(domain.x2max-domain.x2min));
+      }
+      if (indcs.nx3 > 1) {
+        const Real x3 = CellCenterX(k-ks, indcs.nx3, size.d_view(m).x3min,
+                                    size.d_view(m).x3max);
+        modulation *= cos(twopi*(x3-domain.x3min)/(domain.x3max-domain.x3min));
+      }
+    }
+    u(m,IDN,k,j,i) = rho*(1.0+density_amp*modulation);
+    u(m,IEN,k,j,i) = energy;
+  });
+}
 
 //----------------------------------------------------------------------------------------
 //! \fn DiffusionGaussian
@@ -121,6 +328,29 @@ void DiffusionConsState(const DiffusionVariables dv, const Real coef, const Real
 //! \brief Sets initial conditions for diffusion tests
 
 void ProblemGenerator::Diffusion(ParameterInput *pin, const bool restart) {
+  const std::string visc_profile =
+      pin->GetOrAddString("problem", "viscosity_profile", "gaussian");
+  if (visc_profile == "helix") {
+    ViscousHelix(pin, pmy_mesh_, restart);
+    pgen_final_func = nullptr;
+    return;
+  }
+  if (visc_profile != "gaussian") Kokkos::abort("Unknown viscosity_profile");
+  const std::string profile = pin->GetOrAddString("problem", "resistivity_profile",
+                                                "gaussian");
+  if (profile == "helix") {
+    ResistiveHelix(pin, pmy_mesh_, restart);
+    // Nonlinear decay uses the independent energy/induction ODE in the
+    // functional harness; the constant-eta exponential is inapplicable there.
+    pgen_final_func = pmy_mesh_->pmb_pack->pmhd->presist->eta_spitzer ?
+                      nullptr : DiffusionErrors;
+    return;
+  }
+  if (profile != "gaussian") {
+    std::cout << "### FATAL ERROR: unknown resistivity_profile '" << profile
+              << "' (expected gaussian or helix)" << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
   std::string evolution_t = pin->GetString("time","evolution");
   if (evolution_t.compare("kinematic") != 0) {
     std::cout <<"### FATAL ERROR in "<< __FILE__ <<" at line " << __LINE__ << std::endl

@@ -22,6 +22,7 @@
 #include "mesh/mesh_refinement.hpp"
 #include "diffusion/conduction.hpp"
 #include "diffusion/viscosity.hpp"
+#include "diffusion/resistivity.hpp"
 #include "eos/eos.hpp"
 #include "coordinates/coordinates.hpp"
 #include "outputs/outputs.hpp"
@@ -82,19 +83,39 @@ Viscosity *STSViscosity(Mesh *pm) {
   return nullptr;
 }
 
+Resistivity *STSSpitzerResistivity(Mesh *pm) {
+  auto *pmhd = pm->pmb_pack->pmhd;
+  if (pmhd != nullptr && pmhd->has_sts_resistivity && pmhd->presist->eta_spitzer) {
+    return pmhd->presist;
+  }
+  return nullptr;
+}
+
+bool UsesFullStateSTS(Mesh *pm) {
+  if (STSViscosity(pm) != nullptr || STSSpitzerResistivity(pm) != nullptr) return true;
+  if (NonlinearSTSConduction(pm) != nullptr) {
+    int processes = 0;
+    for (const auto &process : pm->pmb_pack->parabolic_processes) {
+      if (process.UsesSTS()) ++processes;
+    }
+    return processes > 1;
+  }
+  return false;
+}
+
 template<typename View>
-void SaveViscosityArray(View &saved, const View &current) {
+void SaveDiffusionArray(View &saved, const View &current) {
   bool resize = false;
   for (int d=0; d<View::rank; ++d) resize |= saved.extent(d) != current.extent(d);
   if (resize) {
-    saved = View(Kokkos::view_alloc(Kokkos::WithoutInitializing, "viscosity_rollback"),
+    saved = View(Kokkos::view_alloc(Kokkos::WithoutInitializing, "diffusion_rollback"),
                  current.layout());
   }
   if (current.size() > 0) Kokkos::deep_copy(DevExeSpace(), saved, current);
 }
 
-[[noreturn]] void ViscositySTSFatal(const char *reason) {
-  std::cerr << "### FATAL ERROR: viscosity STS: " << reason << std::endl;
+[[noreturn]] void GuardedSTSFatal(const char *reason) {
+  std::cerr << "### FATAL ERROR: guarded diffusion STS: " << reason << std::endl;
 #if MPI_PARALLEL_ENABLED
   MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
 #endif
@@ -370,7 +391,7 @@ Driver::Driver(ParameterInput *pin, Mesh *pmesh, Real wtlim, Kokkos::Timer* ptim
 void Driver::ResetSTSController() {
   sts.enabled = false;
   sts.nonlinear = false;
-  sts.viscosity_retry = false;
+  sts.full_state_retry = false;
   sts.attempt_failed = false;
   sts.temperature_min = sts.temperature_max = 0.0;
   sts.rejection_reason = "none";
@@ -450,12 +471,12 @@ void Driver::ValidateSTSConfiguration(Mesh *pm) {
                      "MHD STS is not supported with shearing-box or orbital advection");
   }
   if (NonlinearSTSConduction(pm) != nullptr) {
-    // Rollback currently covers a single conduction-owned U/W state. It does
-    // not undo other parabolic operators or arbitrary user boundary effects.
-    if (nsts_processes != 1 || (phydro != nullptr && pmhd != nullptr)) {
-      NonlinearSTSFatal("nonlinear conduction must be the only STS process and fluid");
+    if (phydro != nullptr && pmhd != nullptr) {
+      NonlinearSTSFatal("nonlinear conduction requires a single fluid owner");
     }
-    if (pm->pgen->user_bcs) {
+    // Conduction alone retains its U/W snapshot and thermal extremum check.
+    // Joint sweeps use the full-state guard and its code-enrolled callbacks.
+    if (pm->pgen->user_bcs && !UsesFullStateSTS(pm)) {
       NonlinearSTSFatal("retryable nonlinear conduction does not support user BCs");
     }
     if (pm->pzoom != nullptr) {
@@ -465,24 +486,25 @@ void Driver::ValidateSTSConfiguration(Mesh *pm) {
       NonlinearSTSFatal("nonlinear STS requires conserved-variable prolongation");
     }
   }
-  if (STSViscosity(pm) != nullptr) {
+  if (UsesFullStateSTS(pm)) {
     if (phydro != nullptr && pmhd != nullptr) {
-      ViscositySTSFatal("retryable viscosity requires a single fluid owner");
+      GuardedSTSFatal("full-state STS requires a single fluid owner");
     }
-    if (pmhd != nullptr && pmhd->has_sts_resistivity) {
-      ViscositySTSFatal("retryable viscosity with STS resistivity is not yet supported");
+    if (STSViscosity(pm) != nullptr && pmhd != nullptr && pmhd->has_sts_resistivity &&
+        !pmhd->peos->eos_data.is_ideal) {
+      GuardedSTSFatal("joint viscosity/resistivity STS requires ideal-gas MHD");
     }
     if (pm->pgen->user_bcs && !pm->pgen->user_bcs_retry_safe) {
-      ViscositySTSFatal("retryable viscosity requires code-enrolled retry-safe user BCs");
+      GuardedSTSFatal("full-state STS requires code-enrolled retry-safe user BCs");
     }
     if (pm->pgen->user_dt && !pm->pgen->user_dt_retry_safe) {
-      ViscositySTSFatal("retryable viscosity requires code-enrolled retry-safe user dt");
+      GuardedSTSFatal("full-state STS requires code-enrolled retry-safe user dt");
     }
     if (pm->pzoom != nullptr) {
-      ViscositySTSFatal("retryable viscosity does not support cyclic zoom");
+      GuardedSTSFatal("full-state STS does not support cyclic zoom");
     }
     if (pm->pmr != nullptr && pm->pmr->prolong_prims) {
-      ViscositySTSFatal("retryable viscosity requires conserved-variable prolongation");
+      GuardedSTSFatal("full-state STS requires conserved-variable prolongation");
     }
   }
 }
@@ -535,35 +557,36 @@ void Driver::SetSTSStage(int stage) {
 void Driver::EndSTSSweep() {
   sts.sweep = STSSweep::none;
   sts.current_stage = 0;
+  sts.dt_sweep = 0.0;
   sts.coeffs = parabolic::RKL2Coefficients{};
   sts.nonlinear = false;
-  sts.viscosity_retry = false;
+  sts.full_state_retry = false;
   sts.attempt_failed = false;
 }
 
-void Driver::ViscositySnapshot::Save(Mesh *pm) {
+void Driver::DiffusionSnapshot::Save(Mesh *pm) {
   auto *ph = pm->pmb_pack->phydro;
   auto *pmhd = pm->pmb_pack->pmhd;
-  SaveViscosityArray(u, ph != nullptr ? ph->u0 : pmhd->u0);
-  SaveViscosityArray(w, ph != nullptr ? ph->w0 : pmhd->w0);
+  SaveDiffusionArray(u, ph != nullptr ? ph->u0 : pmhd->u0);
+  SaveDiffusionArray(w, ph != nullptr ? ph->w0 : pmhd->w0);
   if (pm->multilevel) {
-    SaveViscosityArray(coarse_u, ph != nullptr ? ph->coarse_u0 : pmhd->coarse_u0);
-    SaveViscosityArray(coarse_w, ph != nullptr ? ph->coarse_w0 : pmhd->coarse_w0);
+    SaveDiffusionArray(coarse_u, ph != nullptr ? ph->coarse_u0 : pmhd->coarse_u0);
+    SaveDiffusionArray(coarse_w, ph != nullptr ? ph->coarse_w0 : pmhd->coarse_w0);
   }
   if (pmhd != nullptr) {
-    SaveViscosityArray(bcc, pmhd->bcc0);
-    SaveViscosityArray(b1, pmhd->b0.x1f);
-    SaveViscosityArray(b2, pmhd->b0.x2f);
-    SaveViscosityArray(b3, pmhd->b0.x3f);
+    SaveDiffusionArray(bcc, pmhd->bcc0);
+    SaveDiffusionArray(b1, pmhd->b0.x1f);
+    SaveDiffusionArray(b2, pmhd->b0.x2f);
+    SaveDiffusionArray(b3, pmhd->b0.x3f);
     if (pm->multilevel) {
-      SaveViscosityArray(coarse_b1, pmhd->coarse_b0.x1f);
-      SaveViscosityArray(coarse_b2, pmhd->coarse_b0.x2f);
-      SaveViscosityArray(coarse_b3, pmhd->coarse_b0.x3f);
+      SaveDiffusionArray(coarse_b1, pmhd->coarse_b0.x1f);
+      SaveDiffusionArray(coarse_b2, pmhd->coarse_b0.x2f);
+      SaveDiffusionArray(coarse_b3, pmhd->coarse_b0.x3f);
     }
   }
 }
 
-void Driver::ViscositySnapshot::Restore(Mesh *pm) const {
+void Driver::DiffusionSnapshot::Restore(Mesh *pm) const {
   auto *ph = pm->pmb_pack->phydro;
   auto *pmhd = pm->pmb_pack->pmhd;
   Kokkos::deep_copy(DevExeSpace(), ph != nullptr ? ph->u0 : pmhd->u0, u);
@@ -587,65 +610,154 @@ void Driver::ViscositySnapshot::Restore(Mesh *pm) const {
   }
 }
 
-void Driver::RestoreViscositySTSTrial(Mesh *pm) {
-  viscosity_trial_.Restore(pm);
+void Driver::RestoreFullStateSTSTrial(Mesh *pm) {
+  diffusion_trial_.Restore(pm);
 }
 
 // Called before restriction, and again after regenerated halos but before EOS.
 // The collective failure decision is identical on every rank. Do not require a
-// maximum-temperature envelope: viscosity legitimately heats the fluid.
-void Driver::CheckViscositySTSState(Mesh *pm, bool include_ghosts) {
-  if (!sts.viscosity_retry) return;
+// maximum-temperature envelope: viscosity and resistivity heat the fluid.
+void Driver::CheckFullStateSTSState(Mesh *pm, bool include_ghosts) {
+  if (!sts.full_state_retry) return;
   if (!sts.attempt_failed) {
     auto *ph = pm->pmb_pack->phydro;
     auto *pmhd = pm->pmb_pack->pmhd;
-    const auto state = STSViscosity(pm)->InspectRawState(
-        ph != nullptr ? ph->u0 : pmhd->u0,
-        ph != nullptr ? ph->peos->eos_data : pmhd->peos->eos_data,
-        ph != nullptr ? nullptr : &pmhd->b0, include_ghosts);
-    if (!state.admissible) {
+    bool admissible = true, active_admissible = true;
+    Real viscous_dt = std::numeric_limits<Real>::max();
+    Real resistive_dt = std::numeric_limits<Real>::max();
+    Real conductive_dt = std::numeric_limits<Real>::max();
+    bool check_diffusion_budget = false;
+    auto *pvisc = STSViscosity(pm);
+    auto *presist = STSSpitzerResistivity(pm);
+    auto *pcond = NonlinearSTSConduction(pm);
+    if (presist == nullptr && pvisc == nullptr && pmhd != nullptr &&
+        pmhd->has_sts_resistivity) presist = pmhd->presist;
+    if (pvisc != nullptr) {
+      const auto state = pvisc->InspectRawState(
+          ph != nullptr ? ph->u0 : pmhd->u0,
+          ph != nullptr ? ph->peos->eos_data : pmhd->peos->eos_data,
+          ph != nullptr ? nullptr : &pmhd->b0, include_ghosts);
+      admissible = state.admissible;
+      active_admissible = state.active_admissible;
+      if (pvisc->mu_spitzer) {
+        viscous_dt = state.diffusion_dt;
+        check_diffusion_budget = true;
+      }
+    }
+    if (presist != nullptr) {
+      const auto state = presist->InspectRawState(pmhd->u0, pmhd->peos->eos_data,
+                                                 pmhd->b0, include_ghosts);
+      admissible &= state.admissible;
+      active_admissible &= state.active_admissible;
+      resistive_dt = state.diffusion_dt;
+      check_diffusion_budget = true;
+    }
+    if (pcond != nullptr) {
+      if (admissible) {
+        conductive_dt = pcond->RawStageTimeStep(
+            ph != nullptr ? ph->u0 : pmhd->u0,
+            ph != nullptr ? ph->w0 : pmhd->w0,
+            ph != nullptr ? ph->peos->eos_data : pmhd->peos->eos_data,
+            ph != nullptr ? nullptr : &pmhd->b0, include_ghosts);
+      } else {
+        conductive_dt = 0.0;
+      }
+      check_diffusion_budget = true;
+    }
+    if (check_diffusion_budget) {
+      // Sum inverse bounds of every selected operator, replacing nonlinear
+      // coefficients by their raw-stage bounds. Saturation's nonaccelerated
+      // donor cap is checked separately before each current-stage flux.
+      Real inverse_dt = 0.0;
+      for (const auto &process : pm->pmb_pack->parabolic_processes) {
+        if (!process.UsesSTS()) continue;
+        Real dt = process.ExplicitDt();
+        if (pvisc != nullptr && pvisc->mu_spitzer &&
+            process.explicit_dt_ptr == &pvisc->dtnew) dt = viscous_dt;
+        if (presist != nullptr && process.explicit_dt_ptr == &presist->dtnew) {
+          dt = resistive_dt;
+        }
+        if (pcond != nullptr && process.explicit_dt_ptr == &pcond->dtnew) {
+          dt = conductive_dt;
+        }
+        if (!std::isfinite(dt) || dt <= 0.0) {
+          inverse_dt = std::numeric_limits<Real>::infinity();
+        } else if (dt < std::numeric_limits<float>::max()) {
+          inverse_dt += 1.0/dt;
+        }
+      }
+#if MPI_PARALLEL_ENABLED
+      MPI_Allreduce(MPI_IN_PLACE, &inverse_dt, 1, MPI_ATHENA_REAL,
+                    MPI_MAX, MPI_COMM_WORLD);
+#endif
+      // The RKL2 interval for s stages is at most (s*s+s-2)/4 times
+      // the combined explicit bound. Every rank rejects the same interval.
+      const Real stages = static_cast<Real>(sts.nstages);
+      const Real capacity = 0.25*(stages*stages+stages-2.0)*pm->cfl_no/inverse_dt;
+      if (admissible && sts.dt_sweep > 0.0 &&
+          (!std::isfinite(inverse_dt) || sts.dt_sweep >
+           capacity*(1.0+512.0*std::numeric_limits<Real>::epsilon()))) {
+        sts.attempt_failed = true;
+        sts.rejection_reason = "stage_diffusion_bound";
+      }
+    }
+    if (!admissible) {
       sts.attempt_failed = true;
-      sts.rejection_reason = state.active_admissible ? "raw_halo" : "raw_active";
+      sts.rejection_reason = active_admissible ? "raw_halo" : "raw_active";
     }
   }
-  if (sts.attempt_failed) RestoreViscositySTSTrial(pm);
+  if (sts.attempt_failed) RestoreFullStateSTSTrial(pm);
 }
 
-// RKL2 is not SSP: even a stable momentum recurrence can produce negative raw
-// thermal energy. Reject the entire conservative U/W trial, drain exchanges,
+// RKL2 is not SSP: a stable momentum/field recurrence can produce negative raw
+// thermal energy. Reject the full U/W/B trial, drain exchanges,
 // then halve its interval. This is an admissibility guard, not an error estimator.
-void Driver::ExecuteViscositySTSSweep(Mesh *pm, STSSweep sweep) {
+void Driver::ExecuteGuardedSTSSweep(Mesh *pm, STSSweep sweep) {
   auto *ph = pm->pmb_pack->phydro;
   auto *pmhd = pm->pmb_pack->pmhd;
+  auto *pcond = NonlinearSTSConduction(pm);
+  const char *label = pcond != nullptr ? "transport_sts" :
+      (STSSpitzerResistivity(pm) != nullptr ? "resistivity_sts" : "viscosity_sts");
   EndSTSSweep();
-  viscosity_trial_.Save(pm);
-  sts.viscosity_retry = true;
+  diffusion_trial_.Save(pm);
+  sts.full_state_retry = true;
   sts.sweep = sweep;
   sts.current_stage = 1;
-  CheckViscositySTSState(pm);
-  if (sts.attempt_failed) ViscositySTSFatal("invalid initial active state");
+  CheckFullStateSTSState(pm);
+  if (sts.attempt_failed) GuardedSTSFatal("invalid initial active state");
   // Also guard the initial ghost refresh; shortening a trial cannot repair
   // inadmissible interpolation of an unchanged starting state.
   InitBoundaryValuesAndPrimitives(pm);
-  if (sts.attempt_failed) ViscositySTSFatal("invalid initial boundary stencil");
+  if (sts.attempt_failed) GuardedSTSFatal("invalid initial boundary stencil");
 
   const Real duration = 0.5*pm->dt;
   Real elapsed = 0.0;
   while (elapsed < duration) {
-    if (ph != nullptr) ph->RecomputeTimeStepFromCurrentState(this, false);
-    else pmhd->RecomputeTimeStepFromCurrentState(this, false);
+    if (ph != nullptr) {
+      ph->RecomputeTimeStepFromCurrentState(this, false);
+    } else {
+      pmhd->RecomputeTimeStepFromCurrentState(this, false);
+    }
     pm->RefreshSTSParabolicTimeStep();
     BeginSTSSweep(pm, sweep);
     sts.enabled = true;
-    sts.viscosity_retry = true;
+    sts.full_state_retry = true;
     sts.sweep = sweep;
-    viscosity_trial_.Save(pm);
+    diffusion_trial_.Save(pm);
     Real interval = duration-elapsed;
+    if (pcond != nullptr && pcond->saturated) {
+      Real donor_bound = pcond->dt_transport;
+#if MPI_PARALLEL_ENABLED
+      MPI_Allreduce(MPI_IN_PLACE, &donor_bound, 1, MPI_ATHENA_REAL,
+                    MPI_MIN, MPI_COMM_WORLD);
+#endif
+      interval = std::min(interval, pm->cfl_no*donor_bound);
+    }
     int retries = 0;
     while (true) {
       if (!std::isfinite(interval) || interval <= 0.0 ||
           elapsed+interval <= elapsed || retries > 32) {
-        ViscositySTSFatal("trial cannot make progress within 32 interval halvings");
+        GuardedSTSFatal("trial cannot make progress within 32 interval halvings");
       }
       sts.dt_sweep = interval;
       sts.nstages = parabolic::ComputeRKL2StageCount(interval, pm->dt_parabolic_sts);
@@ -664,7 +776,7 @@ void Driver::ExecuteViscositySTSSweep(Mesh *pm, STSSweep sweep) {
       if (global_variable::my_rank == 0) {
         const auto precision = std::cout.precision();
         std::cout << std::setprecision(std::numeric_limits<Real>::max_digits10)
-                  << "viscosity_sts cycle=" << pm->ncycle
+                  << label << " cycle=" << pm->ncycle
                   << " sweep=" << (sweep == STSSweep::pre ? "pre" : "post")
                   << " interval=" << interval << " stages=" << sts.nstages
                   << " checked_stages=" << checked_stages
@@ -676,41 +788,57 @@ void Driver::ExecuteViscositySTSSweep(Mesh *pm, STSSweep sweep) {
       if (!sts.attempt_failed) break;
       // Restore again after the completed exchange/prolongation, including CT
       // faces and coarse buffers. No rejected ghost data may survive a retry.
-      RestoreViscositySTSTrial(pm);
+      RestoreFullStateSTSTrial(pm);
       interval *= 0.5;
       ++retries;
     }
     elapsed += interval;
+    // Repeated retry subintervals can leave less than one rounding error of
+    // the original duration. Do not launch a new recurrence for that residue.
+    if (duration-elapsed <= 8.0*std::numeric_limits<Real>::epsilon()*duration) {
+      elapsed = duration;
+    }
   }
   EndSTSSweep();
   // Only the completed post-sweep updates source/user timestep constraints.
   if (sweep == STSSweep::post) {
-    if (ph != nullptr) (void) ph->NewTimeStep(this, nexp_stages);
-    else (void) pmhd->NewTimeStep(this, nexp_stages);
+    if (ph != nullptr) {
+      (void) ph->NewTimeStep(this, nexp_stages);
+    } else {
+      (void) pmhd->NewTimeStep(this, nexp_stages);
+    }
   }
 }
 
 void Driver::ExecutePreSTSSweep(Mesh *pm) {
-  if (STSViscosity(pm) == nullptr) {
+  if (!UsesFullStateSTS(pm)) {
     ExecuteSTSSweep(pm, STSSweep::pre);
     return;
   }
-  viscosity_cycle_.Save(pm);
+  diffusion_cycle_.Save(pm);
+  const char *label = STSSpitzerResistivity(pm) != nullptr ?
+                      "resistivity_sts_cfl" : "viscosity_sts_cfl";
   const Real user_dt_start = pm->pgen->dtnew;
   for (int attempt=0; attempt<=32; ++attempt) {
     ExecuteSTSSweep(pm, STSSweep::pre);
     auto *ph = pm->pmb_pack->phydro;
     auto *pmhd = pm->pmb_pack->pmhd;
-    if (ph != nullptr) ph->RecomputeTimeStepFromCurrentState(this, false);
-    else pmhd->RecomputeTimeStepFromCurrentState(this, false);
+    if (ph != nullptr) {
+      ph->RecomputeTimeStepFromCurrentState(this, false);
+    } else {
+      pmhd->RecomputeTimeStepFromCurrentState(this, false);
+    }
     Real bound = pm->cfl_no*(ph != nullptr ? ph->dtnew : pmhd->dtnew);
     // Built-in source timestep evaluation only updates dtnew: it neither
     // applies sources nor calls user code. Heating can tighten this bound.
     // Recompute for every candidate before accepting its first Strang half.
     auto *psrc = ph != nullptr ? ph->psrc : pmhd->psrc;
     if (psrc != nullptr) {
-      if (ph != nullptr) psrc->NewTimeStep(ph->w0, ph->peos->eos_data);
-      else psrc->NewTimeStep(pmhd->w0, pmhd->peos->eos_data);
+      if (ph != nullptr) {
+        psrc->NewTimeStep(ph->w0, ph->peos->eos_data);
+      } else {
+        psrc->NewTimeStep(pmhd->w0, pmhd->peos->eos_data);
+      }
       bound = std::min(bound, pm->cfl_no*psrc->dtnew);
     }
     // Only code-enrolled, repeat-safe setters may observe retryable states.
@@ -722,7 +850,7 @@ void Driver::ExecutePreSTSSweep(Mesh *pm) {
 #if MPI_PARALLEL_ENABLED
       MPI_Allreduce(MPI_IN_PLACE, &invalid, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 #endif
-      if (invalid) ViscositySTSFatal("invalid refreshed user timestep");
+      if (invalid) GuardedSTSFatal("invalid refreshed user timestep");
       bound = std::min(bound, pm->cfl_no*user_bound);
     }
     // Co-selected explicit diffusion also consumes the heated fluid state.
@@ -733,14 +861,14 @@ void Driver::ExecutePreSTSSweep(Mesh *pm) {
     MPI_Allreduce(MPI_IN_PLACE, &bound, 1, MPI_ATHENA_REAL, MPI_MIN, MPI_COMM_WORLD);
 #endif
     if (!std::isfinite(bound) || bound <= 0.0) {
-      ViscositySTSFatal("invalid refreshed fluid timestep");
+      GuardedSTSFatal("invalid refreshed fluid timestep");
     }
     const bool retry = pm->dt > bound*(1.0+64.0*std::numeric_limits<Real>::epsilon());
     const Real next_dt = retry ? std::min(0.5*pm->dt, bound) : pm->dt;
     if (global_variable::my_rank == 0) {
       const auto precision = std::cout.precision();
       std::cout << std::setprecision(std::numeric_limits<Real>::max_digits10)
-                << "viscosity_sts_cfl cycle=" << pm->ncycle << " attempt=" << attempt
+                << label << " cycle=" << pm->ncycle << " attempt=" << attempt
                 << " dt=" << pm->dt << " bound=" << bound
                 << " status=" << (retry ? "retry" : "accepted")
                 << " next_dt=" << next_dt << std::endl;
@@ -749,13 +877,13 @@ void Driver::ExecutePreSTSSweep(Mesh *pm) {
     if (!retry) return;
     // Shortening only the fluid step would leave the first Strang half at the
     // wrong duration. Restore the cycle start before repeating that half.
-    viscosity_cycle_.Restore(pm);
+    diffusion_cycle_.Restore(pm);
     if (pm->pgen->user_dt) pm->pgen->dtnew = user_dt_start;
     pm->dt = next_dt;
-    if (pm->time+pm->dt <= pm->time) ViscositySTSFatal("cycle retry makes no progress");
+    if (pm->time+pm->dt <= pm->time) GuardedSTSFatal("cycle retry makes no progress");
     RefreshSTSCycleState(pm);
   }
-  ViscositySTSFatal("fluid CFL retry exceeded 32 reductions");
+  GuardedSTSFatal("fluid CFL retry exceeded 32 reductions");
 }
 
 // A nonlinear residual is reevaluated at every RKL stage. Freeze only the
@@ -765,8 +893,8 @@ void Driver::ExecutePreSTSSweep(Mesh *pm) {
 // There is no time-error estimator here; accuracy needs time-refinement tests.
 void Driver::ExecuteSTSSweep(Mesh *pm, STSSweep sweep) {
   if (pm->sts_integrator == parabolic::STSIntegrator::none) return;
-  if (STSViscosity(pm) != nullptr) {
-    ExecuteViscositySTSSweep(pm, sweep);
+  if (UsesFullStateSTS(pm)) {
+    ExecuteGuardedSTSSweep(pm, sweep);
     return;
   }
   auto *pcond = NonlinearSTSConduction(pm);

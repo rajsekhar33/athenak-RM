@@ -52,7 +52,7 @@ void MHD::AddSelectedDiffusionFluxes(parabolic::DiffusionSelection selection) {
   }
   if (add_viscosity && pvisc != nullptr) {
     pvisc->AddViscousFluxes(w0, peos->eos_data, uflx);
-    if (pvisc->nu_aniso > 0.0) {
+    if (pvisc->nu_aniso > 0.0 || (pvisc->mu_spitzer && pvisc->spitzer_parallel)) {
       // Current-stage CT faces and centered field. Viscosity-only STS freezes
       // the magnetic field while updating momentum and conservative energy.
       pvisc->AddViscousFluxAniso(w0, peos->eos_data, b0, bcc0, uflx);
@@ -101,11 +101,16 @@ TaskStatus MHD::ClearSTSEField(Driver *pdrive, int stage) {
 
 TaskStatus MHD::STSFluxes(Driver *pdrive, int stage) {
   (void) stage;
-  if ((pdrive->sts.nonlinear || pdrive->sts.viscosity_retry) &&
+  if ((pdrive->sts.nonlinear || pdrive->sts.full_state_retry) &&
       pdrive->sts.attempt_failed) return TaskStatus::complete;
-  if (pdrive->sts.nonlinear && pcond != nullptr && pcond->UsesNonlinearSTS()) {
+  if ((pdrive->sts.nonlinear || pdrive->sts.full_state_retry) &&
+      pcond != nullptr && pcond->UsesNonlinearSTS()) {
     if (!pcond->CheckSTSTransport(w0, peos->eos_data, pdrive->sts.dt_sweep)) {
-      pcond->RestoreSTSTrial(u0, w0, u_sts0);
+      if (pdrive->sts.full_state_retry) {
+        pdrive->RestoreFullStateSTSTrial(pmy_pack->pmesh);
+      } else {
+        pcond->RestoreSTSTrial(u0, w0, u_sts0);
+      }
       pdrive->sts.attempt_failed = true;
       pdrive->sts.rejection_reason = "current saturated transport cap";
       // The cleared fluxes still traverse the normal exchange pipeline.
@@ -121,8 +126,9 @@ TaskStatus MHD::STSFluxes(Driver *pdrive, int stage) {
 //----------------------------------------------------------------------------------------
 
 TaskStatus MHD::STSEField(Driver *pdrive, int stage) {
-  (void) pdrive;
   (void) stage;
+  if ((pdrive->sts.nonlinear || pdrive->sts.full_state_retry) &&
+      pdrive->sts.attempt_failed) return TaskStatus::complete;
   if (has_any_sts_field_update) {
     AddSelectedDiffusionEMF(parabolic::DiffusionSelection::sts_only);
   }
@@ -134,13 +140,13 @@ TaskStatus MHD::STSEField(Driver *pdrive, int stage) {
 
 TaskStatus MHD::STSUpdateU(Driver *pdrive, int stage) {
   if (!has_any_sts_cell_update || !(pdrive->sts.enabled) ||
-      ((pdrive->sts.nonlinear || pdrive->sts.viscosity_retry) &&
+      ((pdrive->sts.nonlinear || pdrive->sts.full_state_retry) &&
        pdrive->sts.attempt_failed)) {
     return TaskStatus::complete;
   }
 
   if (stage == 1) {
-    if (pdrive->sts.nonlinear || pdrive->sts.viscosity_retry) {
+    if (pdrive->sts.nonlinear || pdrive->sts.full_state_retry) {
       // Discard a possibly nonfinite RHS left by the rejected attempt before
       // its zero-weight use.
       Kokkos::deep_copy(DevExeSpace(), u_sts_rhs, 0.0);
@@ -233,12 +239,17 @@ TaskStatus MHD::STSUpdateU(Driver *pdrive, int stage) {
 
 TaskStatus MHD::STSUpdateB(Driver *pdrive, int stage) {
   if (!has_any_sts_field_update || !(pdrive->sts.enabled) ||
-      ((pdrive->sts.nonlinear || pdrive->sts.viscosity_retry) &&
+      ((pdrive->sts.nonlinear || pdrive->sts.full_state_retry) &&
        pdrive->sts.attempt_failed)) {
     return TaskStatus::complete;
   }
 
   if (stage == 1) {
+    if (pdrive->sts.full_state_retry) {
+      Kokkos::deep_copy(DevExeSpace(), b_sts_rhs.x1f, 0.0);
+      Kokkos::deep_copy(DevExeSpace(), b_sts_rhs.x2f, 0.0);
+      Kokkos::deep_copy(DevExeSpace(), b_sts_rhs.x3f, 0.0);
+    }
     Kokkos::deep_copy(DevExeSpace(), b_sts0.x1f, b0.x1f);
     Kokkos::deep_copy(DevExeSpace(), b_sts0.x2f, b0.x2f);
     Kokkos::deep_copy(DevExeSpace(), b_sts0.x3f, b0.x3f);
@@ -338,8 +349,8 @@ TaskStatus MHD::STSUpdateB(Driver *pdrive, int stage) {
 
 TaskStatus MHD::STSCheckState(Driver *pdrive, int stage) {
   (void) stage;
-  if (pdrive->sts.viscosity_retry) {
-    pdrive->CheckViscositySTSState(pmy_pack->pmesh);
+  if (pdrive->sts.full_state_retry) {
+    pdrive->CheckFullStateSTSState(pmy_pack->pmesh);
     return TaskStatus::complete;
   }
   if (!pdrive->sts.nonlinear || pcond == nullptr || !pcond->UsesNonlinearSTS() ||
@@ -366,12 +377,12 @@ TaskStatus MHD::STSCheckState(Driver *pdrive, int stage) {
 //----------------------------------------------------------------------------------------
 
 TaskStatus MHD::STSRefreshTimeStep(Driver *pdrive, int stage) {
-  if ((pdrive->sts.nonlinear || pdrive->sts.viscosity_retry) &&
+  if ((pdrive->sts.nonlinear || pdrive->sts.full_state_retry) &&
       pdrive->sts.attempt_failed) return TaskStatus::complete;
   if (has_any_sts_diffusion && pdrive->sts.enabled &&
       pdrive->sts.sweep == Driver::STSSweep::post && stage == pdrive->sts.nstages) {
     // User/source callbacks run only after the driver accepts a viscosity sweep.
-    RecomputeTimeStepFromCurrentState(pdrive, !pdrive->sts.viscosity_retry);
+    RecomputeTimeStepFromCurrentState(pdrive, !pdrive->sts.full_state_retry);
   }
   return TaskStatus::complete;
 }
