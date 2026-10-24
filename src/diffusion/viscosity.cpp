@@ -29,6 +29,7 @@
 #include "eos/ideal_c2p_hyd.hpp"
 #include "eos/ideal_c2p_mhd.hpp"
 #include "viscosity.hpp"
+#include "units/units.hpp"
 
 namespace {
 
@@ -48,6 +49,22 @@ KOKKOS_INLINE_FUNCTION
 bool ViscosityFinite(const Real value) {
   const Real largest = std::numeric_limits<Real>::max();
   return value >= -largest && value <= largest;
+}
+
+KOKKOS_INLINE_FUNCTION
+Real SpitzerDynamicMu(const Real temp, const Real mu0) {
+  return exp(log(mu0)+2.5*log(temp));
+}
+
+KOKKOS_INLINE_FUNCTION
+Real SpitzerCellMu(const DvceArray5D<Real> &w, const int m, const int k,
+                  const int j, const int i, const Real gm1, const Real mu0) {
+  const Real temp = gm1*w(m,IEN,k,j,i)/w(m,IDN,k,j,i);
+  const Real mu = SpitzerDynamicMu(temp, mu0);
+  if (!ViscosityFinite(temp) || temp <= 0.0 || !ViscosityFinite(mu) || mu <= 0.0) {
+    Kokkos::abort("Spitzer viscosity requires finite positive temperature/coefficient");
+  }
+  return mu;
 }
 
 // Trace-free symmetric velocity gradient. normal=-1 denotes a cell center;
@@ -89,9 +106,11 @@ void Hyper4Strain(const DvceArray5D<Real> &w, const int m, const int k,
 KOKKOS_INLINE_FUNCTION
 bool ViscosityRawCellAdmissible(const DvceArray5D<Real> &u, const EOS_Data &eos,
     const bool mhd, const DvceArray4D<Real> &b1, const DvceArray4D<Real> &b2,
-    const DvceArray4D<Real> &b3, const int m, const int k, const int j, const int i) {
+    const DvceArray4D<Real> &b3, const int m, const int k, const int j, const int i,
+    Real &density, Real &temperature) {
   MHDCons1D cell;
   cell.d = u(m,IDN,k,j,i);
+  density = cell.d;
   cell.mx = u(m,IM1,k,j,i);
   cell.my = u(m,IM2,k,j,i);
   cell.mz = u(m,IM3,k,j,i);
@@ -136,7 +155,7 @@ bool ViscosityRawCellAdmissible(const DvceArray5D<Real> &u, const EOS_Data &eos,
     hydro.mz = cell.mz; hydro.e = cell.e;
     SingleC2P_IdealHyd(hydro, eos, primitive, df, ef, tf);
   }
-  const Real temperature = (eos.gamma-1.0)*primitive.e/primitive.d;
+  temperature = (eos.gamma-1.0)*primitive.e/primitive.d;
   return !df && !ef && !tf && ViscosityFinite(primitive.e) && primitive.e > 0.0 &&
          ViscosityFinite(primitive.vx) && ViscosityFinite(primitive.vy) &&
          ViscosityFinite(primitive.vz) && ViscosityFinite(temperature) &&
@@ -186,6 +205,25 @@ parabolic::DiffusionSelection ParseViscosityIntegrator(const std::string &block,
 
 } // namespace
 
+namespace viscosity {
+Real SpitzerCoefficientCode(Real mu0_cgs, Real length_cgs, Real time_cgs,
+                           Real density_cgs, Real temperature_cgs) {
+  if (!std::isfinite(mu0_cgs) || mu0_cgs <= 0.0 ||
+      !std::isfinite(length_cgs) || length_cgs <= 0.0 ||
+      !std::isfinite(time_cgs) || time_cgs <= 0.0 ||
+      !std::isfinite(density_cgs) || density_cgs <= 0.0 ||
+      !std::isfinite(temperature_cgs) || temperature_cgs <= 0.0) {
+    return std::numeric_limits<Real>::quiet_NaN();
+  }
+  const long double exponent = std::log(static_cast<long double>(mu0_cgs))
+      + 2.5L*std::log(static_cast<long double>(temperature_cgs))
+      + std::log(static_cast<long double>(time_cgs))
+      - std::log(static_cast<long double>(density_cgs))
+      - 2.0L*std::log(static_cast<long double>(length_cgs));
+  return static_cast<Real>(std::exp(exponent));
+}
+} // namespace viscosity
+
 //----------------------------------------------------------------------------------------
 // ctor:
 // Note first argument passes string ("hydro" or "mhd") denoting in which class this
@@ -200,13 +238,54 @@ Viscosity::Viscosity(std::string block, MeshBlockPack *pp, ParameterInput *pin) 
   nu_aniso = ReadViscosityCoefficient(block, "nu_aniso", pin);
   mu_hyper4 = ReadViscosityCoefficient(block, "mu_hyper4", pin);
   mode = ParseViscosityIntegrator(block, pin);
-  if (nu_aniso > 0.0 && (block != "mhd" || pmy_pack->pmesh->multilevel)) {
+  mu_spitzer = pin->GetOrAddBoolean(block, "mu_spitzer", false);
+  const bool has_code = pin->DoesParameterExist(block, "spitzer_mu0_code");
+  const bool has_cgs = pin->DoesParameterExist(block, "spitzer_mu0_cgs");
+  if (!mu_spitzer && (has_code || has_cgs ||
+                     pin->DoesParameterExist(block, "spitzer_viscosity_geometry"))) {
+    Kokkos::abort("Spitzer viscosity parameters require mu_spitzer=true");
+  }
+  if (mu_spitzer) {
+    if (has_code == has_cgs || nu_iso != 0.0 || nu_aniso != 0.0 ||
+        pin->GetString(block, "eos") != "ideal") {
+      Kokkos::abort("Spitzer viscosity requires ideal gas, exactly one "
+                    "spitzer_mu0_code/cgs and zero constant nu_iso/nu_aniso");
+    }
+    const std::string geometry =
+        pin->GetOrAddString(block, "spitzer_viscosity_geometry", "isotropic");
+    if (geometry != "isotropic" && geometry != "parallel") {
+      Kokkos::abort("spitzer_viscosity_geometry must be isotropic or parallel");
+    }
+    spitzer_parallel = geometry == "parallel";
+    if (has_code) {
+      spitzer_mu0_code = ReadViscosityCoefficient(block, "spitzer_mu0_code", pin);
+    } else {
+      auto *pu = pmy_pack->punit;
+      if (pu == nullptr) {
+        Kokkos::abort("spitzer_mu0_cgs requires an explicit units block");
+      }
+      spitzer_mu0_code = viscosity::SpitzerCoefficientCode(
+          pin->GetReal(block, "spitzer_mu0_cgs"), pu->length_cgs(), pu->time_cgs(),
+          pu->density_cgs(), pu->temperature_cgs());
+    }
+    if (!std::isfinite(spitzer_mu0_code) || spitzer_mu0_code <= 0.0) {
+      Kokkos::abort("Spitzer viscosity normalization must be finite and positive");
+    }
+    const Real cfl = pin->GetReal("time", "cfl_number");
+    const std::string rk = pin->GetOrAddString("time", "integrator", "rk2");
+    if (!std::isfinite(cfl) || cfl <= 0.0 || cfl > 1.0 ||
+        (rk != "rk1" && rk != "rk2" && rk != "rk3")) {
+      Kokkos::abort("Spitzer viscosity requires 0 < CFL <= 1 and SSP rk1/rk2/rk3");
+    }
+  }
+  if ((nu_aniso > 0.0 || spitzer_parallel) &&
+      (block != "mhd" || pmy_pack->pmesh->multilevel)) {
     std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
               << "Braginskii validation currently requires uniform-grid MHD; "
               << "hydro and refinement are not supported" << std::endl;
     std::exit(EXIT_FAILURE);
   }
-  if ((nu_iso > 0.0 || nu_aniso > 0.0 || mu_hyper4 > 0.0) &&
+  if ((nu_iso > 0.0 || nu_aniso > 0.0 || mu_hyper4 > 0.0 || mu_spitzer) &&
       (pmy_pack->pcoord->is_special_relativistic ||
        pmy_pack->pcoord->is_general_relativistic ||
        pmy_pack->pcoord->is_dynamical_relativistic)) {
@@ -245,7 +324,7 @@ Viscosity::Viscosity(std::string block, MeshBlockPack *pp, ParameterInput *pin) 
     }
   }
   if (mode == parabolic::DiffusionSelection::sts_only &&
-      nu_iso <= 0.0 && nu_aniso <= 0.0 && mu_hyper4 <= 0.0) {
+      nu_iso <= 0.0 && nu_aniso <= 0.0 && mu_hyper4 <= 0.0 && !mu_spitzer) {
     std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
               << "STS requires a positive constant viscosity coefficient" << std::endl;
     std::exit(EXIT_FAILURE);
@@ -280,23 +359,39 @@ Viscosity::RawState Viscosity::InspectRawState(const DvceArray5D<Real> &u,
   if (mhd) { b1 = b->x1f; b2 = b->x2f; b3 = b->x3f; }
   const auto eos_data = eos;
   int invalid = 0, invalid_active = 0;
+  Real rho_min = std::numeric_limits<Real>::max(), mu_max = 0.0;
+  const bool spitzer = mu_spitzer;
+  const Real mu0 = spitzer_mu0_code;
+  const int gj = pmy_pack->pmesh->multi_d, gk = pmy_pack->pmesh->three_d;
   const bool valid_eos = !eos.is_ideal ||
                         (std::isfinite(eos.gamma) && eos.gamma > 1.0);
   Kokkos::parallel_reduce("viscosity_raw_state", Kokkos::RangePolicy<>(
       DevExeSpace(), 0, pmy_pack->nmb_thispack*nkji),
-  KOKKOS_LAMBDA(const int n, int &bad, int &bad_active) {
+  KOKKOS_LAMBDA(const int n, int &bad, int &bad_active, Real &rmin, Real &mumax) {
     const int m = n/nkji, rem = n-m*nkji;
     const int k = rem/nji+kl;
     const int j = (rem%nji)/ni+jl;
     const int i = rem%ni+il;
-    if (!valid_eos || !ViscosityRawCellAdmissible(
-        u, eos_data, mhd, b1, b2, b3, m, k, j, i)) {
+    Real density = 0.0, temperature = 0.0;
+    bool valid = valid_eos && ViscosityRawCellAdmissible(
+        u, eos_data, mhd, b1, b2, b3, m, k, j, i, density, temperature);
+    if (valid && spitzer && i >= is-1 && i <= ie+1 &&
+        j >= js-gj && j <= je+gj && k >= ks-gk && k <= ke+gk) {
+      const Real mu = SpitzerDynamicMu(temperature, mu0);
+      valid = ViscosityFinite(mu) && mu > 0.0;
+      if (valid) {
+        rmin = fmin(rmin, density);
+        mumax = fmax(mumax, mu);
+      }
+    }
+    if (!valid) {
       ++bad;
       if (i >= is && i <= ie && j >= js && j <= je && k >= ks && k <= ke) {
         ++bad_active;
       }
     }
-  }, Kokkos::Sum<int>(invalid), Kokkos::Sum<int>(invalid_active));
+  }, Kokkos::Sum<int>(invalid), Kokkos::Sum<int>(invalid_active),
+     Kokkos::Min<Real>(rho_min), Kokkos::Max<Real>(mu_max));
   if (!valid_eos) { invalid = 1; invalid_active = 1; }
 #if MPI_PARALLEL_ENABLED
   int invalid_global[2] = {invalid, invalid_active};
@@ -304,7 +399,21 @@ Viscosity::RawState Viscosity::InspectRawState(const DvceArray5D<Real> &u,
   invalid = invalid_global[0];
   invalid_active = invalid_global[1];
 #endif
-  return RawState{invalid == 0, invalid_active == 0};
+  Real dt = std::numeric_limits<Real>::max();
+  if (mu_spitzer) {
+#if MPI_PARALLEL_ENABLED
+    MPI_Allreduce(MPI_IN_PLACE, &rho_min, 1, MPI_ATHENA_REAL, MPI_MIN, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &mu_max, 1, MPI_ATHENA_REAL, MPI_MAX, MPI_COMM_WORLD);
+#endif
+    dt = SpitzerTimeStepBound(mu_max, rho_min);
+    int bad_dt = !std::isfinite(dt) || dt <= 0.0;
+#if MPI_PARALLEL_ENABLED
+    MPI_Allreduce(MPI_IN_PLACE, &bad_dt, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &dt, 1, MPI_ATHENA_REAL, MPI_MIN, MPI_COMM_WORLD);
+#endif
+    if (bad_dt) { invalid = 1; invalid_active = 1; }
+  }
+  return RawState{invalid == 0, invalid_active == 0, dt};
 }
 
 //----------------------------------------------------------------------------------------
@@ -316,7 +425,7 @@ Viscosity::RawState Viscosity::InspectRawState(const DvceArray5D<Real> &u,
 
 void Viscosity::AddViscousFluxes(const DvceArray5D<Real> &w0, const EOS_Data &eos,
     DvceFaceFld5D<Real> &flx) {
-  if (nu_iso != 0.0) {
+  if (nu_iso != 0.0 || (mu_spitzer && !spitzer_parallel)) {
     AddViscousFluxIso(w0, eos, flx);
   }
   if (mu_hyper4 != 0.0) {
@@ -409,6 +518,8 @@ void Viscosity::AddViscousFluxIso(const DvceArray5D<Real> &w0, const EOS_Data &e
   bool &multi_d = pmy_pack->pmesh->multi_d;
   bool &three_d = pmy_pack->pmesh->three_d;
   Real nu_iso_ = nu_iso;
+  const bool spitzer = mu_spitzer;
+  const Real mu0 = spitzer_mu0_code, gm1 = eos.gamma-1.0;
 
   // fluxes in x1-direction
   int scr_level = 0;
@@ -450,7 +561,10 @@ void Viscosity::AddViscousFluxIso(const DvceArray5D<Real> &w0, const EOS_Data &e
 
     // Sum viscous fluxes into fluxes of conserved variables; including energy fluxes
     par_for_inner(member, is, ie+1, [&](const int i) {
-      Real nud = 0.5*nu_iso_*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j,i-1));
+      Real nud = spitzer ?
+          0.5*SpitzerCellMu(w0,m,k,j,i,gm1,mu0)+
+          0.5*SpitzerCellMu(w0,m,k,j,i-1,gm1,mu0) :
+          0.5*nu_iso_*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j,i-1));
       flx1(m,IVX,k,j,i) -= nud*fvx(i);
       flx1(m,IVY,k,j,i) -= nud*fvy(i);
       flx1(m,IVZ,k,j,i) -= nud*fvz(i);
@@ -495,7 +609,10 @@ void Viscosity::AddViscousFluxIso(const DvceArray5D<Real> &w0, const EOS_Data &e
 
     // Sum viscous fluxes into fluxes of conserved variables; including energy fluxes
     par_for_inner(member, is, ie, [&](const int i) {
-      Real nud = 0.5*nu_iso_*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j-1,i));
+      Real nud = spitzer ?
+          0.5*SpitzerCellMu(w0,m,k,j,i,gm1,mu0)+
+          0.5*SpitzerCellMu(w0,m,k,j-1,i,gm1,mu0) :
+          0.5*nu_iso_*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j-1,i));
       flx2(m,IVX,k,j,i) -= nud*fvx(i);
       flx2(m,IVY,k,j,i) -= nud*fvy(i);
       flx2(m,IVZ,k,j,i) -= nud*fvz(i);
@@ -534,7 +651,10 @@ void Viscosity::AddViscousFluxIso(const DvceArray5D<Real> &w0, const EOS_Data &e
 
     // Sum viscous fluxes into fluxes of conserved variables; including energy fluxes
     par_for_inner(member, is, ie, [&](const int i) {
-      Real nud = 0.5*nu_iso_*(w0(m,IDN,k,j,i) + w0(m,IDN,k-1,j,i));
+      Real nud = spitzer ?
+          0.5*SpitzerCellMu(w0,m,k,j,i,gm1,mu0)+
+          0.5*SpitzerCellMu(w0,m,k-1,j,i,gm1,mu0) :
+          0.5*nu_iso_*(w0(m,IDN,k,j,i) + w0(m,IDN,k-1,j,i));
       flx3(m,IVX,k,j,i) -= nud*fvx(i);
       flx3(m,IVY,k,j,i) -= nud*fvy(i);
       flx3(m,IVZ,k,j,i) -= nud*fvz(i);
@@ -562,11 +682,13 @@ void Viscosity::AddViscousFluxIso(const DvceArray5D<Real> &w0, const EOS_Data &e
 void Viscosity::AddViscousFluxAniso(const DvceArray5D<Real> &w0, const EOS_Data &eos,
     const DvceFaceFld4D<Real> &bface, const DvceArray5D<Real> &bcc,
     DvceFaceFld5D<Real> &flx) {
-  if (nu_aniso == 0.0) return;
+  if (nu_aniso == 0.0 && !(mu_spitzer && spitzer_parallel)) return;
   const auto &idx = pmy_pack->pmesh->mb_indcs;
   const int ndim = pmy_pack->pmesh->three_d ? 3 : (pmy_pack->pmesh->multi_d ? 2 : 1);
   const auto size = pmy_pack->pmb->mb_size;
   const Real nu = nu_aniso;
+  const bool spitzer = mu_spitzer;
+  const Real mu0 = spitzer_mu0_code, gm1 = eos.gamma-1.0;
   const bool energy = eos.is_ideal;
   for (int dir=0; dir<ndim; ++dir) {
     const auto normal_b = dir == 0 ? bface.x1f : (dir == 1 ? bface.x2f : bface.x3f);
@@ -610,7 +732,11 @@ void Viscosity::AddViscousFluxAniso(const DvceArray5D<Real> &w0, const EOS_Data 
       for (int c=0; c<3; ++c) {
         for (int d=0; d<ndim; ++d) strain += b[c]*b[d]*grad[c][d];
       }
-      const Real mu = nu*(0.5*w0(m,IDN,k,j,i)+0.5*w0(m,IDN,kl,jl,il));
+      // Dynamic face averaging matches IDEFIX's centered user-defined branch.
+      const Real mu = spitzer ?
+          0.5*SpitzerCellMu(w0,m,k,j,i,gm1,mu0)+
+          0.5*SpitzerCellMu(w0,m,kl,jl,il,gm1,mu0) :
+          nu*(0.5*w0(m,IDN,k,j,i)+0.5*w0(m,IDN,kl,jl,il));
       Real work = 0.0;
       for (int c=0; c<3; ++c) {
         const Real stress = mu*strain*(3.0*b[c]*b[dir]-(c == dir ? 1.0 : 0.0));
@@ -626,10 +752,83 @@ void Viscosity::AddViscousFluxAniso(const DvceArray5D<Real> &w0, const EOS_Data 
 //! \fn void Viscosity::NewTimeStep()
 //! \brief Compute new time step for viscosity
 
+Real Viscosity::SpitzerTimeStepBound(Real mu_max, Real rho_min) const {
+  if (!std::isfinite(mu_max) || mu_max <= 0.0 ||
+      !std::isfinite(rho_min) || rho_min <= 0.0) return 0.0;
+  const Real nu = mu_max/rho_min;
+  const int ndim = pmy_pack->pmesh->three_d ? 3 : (pmy_pack->pmesh->multi_d ? 2 : 1);
+  const auto &size = pmy_pack->pmb->mb_size;
+  Real dt = std::numeric_limits<Real>::max();
+  for (int m=0; m<pmy_pack->nmb_thispack; ++m) {
+    const Real inv_dx[3] = {1.0/size.h_view(m).dx1, 1.0/size.h_view(m).dx2,
+                           1.0/size.h_view(m).dx3};
+    Real sum = 0.0, sum2 = 0.0;
+    for (int d=0; d<ndim; ++d) {
+      sum += inv_dx[d];
+      sum2 += SQR(inv_dx[d]);
+    }
+    Real rate = 0.0;
+    if (spitzer_parallel) {
+      // |3*(b_i*b_n-delta_in/3)*(b_c*b_d-delta_cd/3)| <= 4/3.
+      // Sum the absolute coefficients of all three velocity components.
+      // Normal differences contribute 2/dx^2, transverse averages 1/(dx*dy)
+      // to half the row norm. This also bounds spatially varying field geometry.
+      rate = 4.0*nu*(2.0*sum2 + (SQR(sum)-sum2));
+    } else {
+      // Half the absolute row sum of the centered Navier-Stokes face stencil.
+      // Cross terms have factors 1 and -2/3 on different faces; allow their
+      // separate magnitudes for variable mu. For 1D this is the usual 8*nu/3dx^2.
+      for (int d=0; d<ndim; ++d) {
+        rate = std::max(rate, nu*(2.0*(sum2+SQR(inv_dx[d])/3.0)
+                        + (5.0/3.0)*inv_dx[d]*(sum-inv_dx[d])));
+      }
+    }
+    rate += (32.0/3.0)*(mu_hyper4/rho_min)*SQR(sum2);
+    if (!std::isfinite(rate) || rate <= 0.0 || !(1.0/rate > 0.0)) return 0.0;
+    dt = std::min(dt, 1.0/rate);
+  }
+  return dt;
+}
+
 void Viscosity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_data) {
   // Preserve the previous constant-kinematic arithmetic when mu_hyper4=0.
   // Constant-dynamic hyperviscosity additionally depends on current density.
   dtnew = std::numeric_limits<float>::max();
+  if (mu_spitzer) {
+    const auto &idx = pmy_pack->pmesh->mb_indcs;
+    const int gj = pmy_pack->pmesh->multi_d, gk = pmy_pack->pmesh->three_d;
+    const int ni = idx.nx1+2, nj = idx.nx2+2*gj, nk = idx.nx3+2*gk;
+    const int nji = ni*nj, ncell = nji*nk;
+    const int il = idx.is-1, jl = idx.js-gj, kl = idx.ks-gk;
+    const Real gm1 = eos_data.gamma-1.0, mu0 = spitzer_mu0_code;
+    int invalid = 0;
+    Real rho_min = std::numeric_limits<Real>::max(), mu_max = 0.0;
+    Kokkos::parallel_reduce("spitzer_viscosity_dt", Kokkos::RangePolicy<>(
+        DevExeSpace(), 0, pmy_pack->nmb_thispack*ncell),
+    KOKKOS_LAMBDA(const int n, Real &rmin, Real &mumax, int &bad) {
+      const int m = n/ncell, cell = n-m*ncell;
+      const int k = kl+cell/nji, j = jl+(cell%nji)/ni, i = il+cell%ni;
+      const Real rho = w0(m,IDN,k,j,i), temp = gm1*w0(m,IEN,k,j,i)/rho;
+      const Real mu = SpitzerDynamicMu(temp, mu0);
+      if (!ViscosityFinite(rho) || rho <= 0.0 || !ViscosityFinite(temp) ||
+          temp <= 0.0 || !ViscosityFinite(mu) || mu <= 0.0) {
+        ++bad;
+      } else {
+        rmin = fmin(rmin, rho);
+        mumax = fmax(mumax, mu);
+      }
+    }, Kokkos::Min<Real>(rho_min), Kokkos::Max<Real>(mu_max), Kokkos::Sum<int>(invalid));
+#if MPI_PARALLEL_ENABLED
+    MPI_Allreduce(MPI_IN_PLACE, &invalid, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &rho_min, 1, MPI_ATHENA_REAL, MPI_MIN, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &mu_max, 1, MPI_ATHENA_REAL, MPI_MAX, MPI_COMM_WORLD);
+#endif
+    dtnew = SpitzerTimeStepBound(mu_max, rho_min);
+    if (invalid != 0 || !std::isfinite(dtnew) || dtnew <= 0.0) {
+      Kokkos::abort("Spitzer viscosity has an invalid state or unrepresentable timestep");
+    }
+    return;
+  }
   if (nu_iso <= 0.0 && nu_aniso <= 0.0 && mu_hyper4 <= 0.0) return;
   Real rho_min = std::numeric_limits<Real>::max();
   if (mu_hyper4 > 0.0) {

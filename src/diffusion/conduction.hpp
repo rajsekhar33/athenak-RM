@@ -8,7 +8,7 @@
 //! \file conduction.hpp
 //! \brief Contains data and functions that implement various formulations for conduction.
 //  Constant isotropic and slope-limited anisotropic conduction are implemented.
-//  Nonlinear STS uses checked, retryable conduction-only RKL2 sweeps.
+//  Nonlinear STS uses checked, retryable RKL2 sweeps, alone or with other transport.
 
 #include <string>
 
@@ -69,7 +69,11 @@ class Conduction {
                          Real interval) const;
   // Public because NVCC requires enclosing extended-lambda methods to be public.
   Real SpitzerTimeStep(const DvceArray5D<Real> &w, const EOS_Data &eos_data,
-                       bool include_saturation = true) const;
+                       bool include_saturation = true, bool retryable = false) const;
+  // Current raw-stage coefficient bound, using scratch primitives only.
+  Real RawStageTimeStep(const DvceArray5D<Real> &u, const DvceArray5D<Real> &w,
+                        const EOS_Data &eos_data, const DvceFaceFld4D<Real> *b,
+                        bool include_ghosts);
   Real SaturationTimeStep(const DvceArray5D<Real> &w, const EOS_Data &eos_data,
                           bool donor_only = false) const;
 
@@ -77,6 +81,7 @@ class Conduction {
   MeshBlockPack* pmy_pack;
   bool use_mc_limiter = false;
   DvceArray5D<Real> sts_w0;
+  DvceArray5D<Real> sts_stage_w;
   void FailIfInvalid(int local_count, const char *where) const;
 };
 #endif // DIFFUSION_CONDUCTION_HPP_

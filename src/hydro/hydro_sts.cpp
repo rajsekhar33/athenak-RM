@@ -69,11 +69,16 @@ TaskStatus Hydro::ClearSTSFlux(Driver *pdrive, int stage) {
 
 TaskStatus Hydro::STSFluxes(Driver *pdrive, int stage) {
   (void) stage;
-  if ((pdrive->sts.nonlinear || pdrive->sts.viscosity_retry) &&
+  if ((pdrive->sts.nonlinear || pdrive->sts.full_state_retry) &&
       pdrive->sts.attempt_failed) return TaskStatus::complete;
-  if (pdrive->sts.nonlinear && pcond != nullptr && pcond->UsesNonlinearSTS()) {
+  if ((pdrive->sts.nonlinear || pdrive->sts.full_state_retry) &&
+      pcond != nullptr && pcond->UsesNonlinearSTS()) {
     if (!pcond->CheckSTSTransport(w0, peos->eos_data, pdrive->sts.dt_sweep)) {
-      pcond->RestoreSTSTrial(u0, w0, u_sts0);
+      if (pdrive->sts.full_state_retry) {
+        pdrive->RestoreFullStateSTSTrial(pmy_pack->pmesh);
+      } else {
+        pcond->RestoreSTSTrial(u0, w0, u_sts0);
+      }
       pdrive->sts.attempt_failed = true;
       pdrive->sts.rejection_reason = "current saturated transport cap";
       // ClearSTSFlux has already zeroed the fluxes. Keep the communication
@@ -91,13 +96,13 @@ TaskStatus Hydro::STSFluxes(Driver *pdrive, int stage) {
 
 TaskStatus Hydro::STSUpdate(Driver *pdrive, int stage) {
   if (!pdrive->sts.enabled ||
-      ((pdrive->sts.nonlinear || pdrive->sts.viscosity_retry) &&
+      ((pdrive->sts.nonlinear || pdrive->sts.full_state_retry) &&
        pdrive->sts.attempt_failed)) {
     return TaskStatus::complete;
   }
 
   if (stage == 1) {
-    if (pdrive->sts.nonlinear || pdrive->sts.viscosity_retry) {
+    if (pdrive->sts.nonlinear || pdrive->sts.full_state_retry) {
       // A rejected attempt may leave a nonfinite RHS, and even its zero
       // stage-1 weight would be unsafe.
       Kokkos::deep_copy(DevExeSpace(), u_sts_rhs, 0.0);
@@ -192,8 +197,8 @@ TaskStatus Hydro::STSUpdate(Driver *pdrive, int stage) {
 
 TaskStatus Hydro::STSCheckState(Driver *pdrive, int stage) {
   (void) stage;
-  if (pdrive->sts.viscosity_retry) {
-    pdrive->CheckViscositySTSState(pmy_pack->pmesh);
+  if (pdrive->sts.full_state_retry) {
+    pdrive->CheckFullStateSTSState(pmy_pack->pmesh);
     return TaskStatus::complete;
   }
   if (!pdrive->sts.nonlinear || pcond == nullptr || !pcond->UsesNonlinearSTS() ||
@@ -222,10 +227,10 @@ TaskStatus Hydro::STSCheckState(Driver *pdrive, int stage) {
 //! \brief Refresh Hydro-local timestep estimates after the post-sweep.
 
 TaskStatus Hydro::STSRefreshTimeStep(Driver *pdrive, int stage) {
-  if ((pdrive->sts.nonlinear || pdrive->sts.viscosity_retry) &&
+  if ((pdrive->sts.nonlinear || pdrive->sts.full_state_retry) &&
       pdrive->sts.attempt_failed) return TaskStatus::complete;
   if (pdrive->sts.sweep == Driver::STSSweep::post && stage == pdrive->sts.nstages) {
-    if (pdrive->sts.viscosity_retry) {
+    if (pdrive->sts.full_state_retry) {
       // User/source callbacks run only after the driver accepts the sweep.
       RecomputeTimeStepFromCurrentState(pdrive, false);
     } else {
