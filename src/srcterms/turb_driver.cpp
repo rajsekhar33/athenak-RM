@@ -65,17 +65,8 @@ TurbulenceDriver::TurbulenceDriver(MeshBlockPack *pp, ParameterInput *pin) :
   max_kz = pin->GetOrAddInteger("turb_driving", "max_kz", nhigh);
   // Seed for random number generator
   random_seed = pin->GetOrAddInteger("turb_driving", "random_seed", 1);
-  // If true, store/restore the forcing array and RNG state via restart files
-  // instead of recomputing forcing from t=0 on every restart. Defaults to
-  // true: this avoids a known force_tmp1-overwrite bug that recomputing from
-  // scratch (false) is still subject to, and correctly restores the
-  // Box-Muller phase. It does NOT currently give a bit-exact continuation --
-  // that requires full double precision round-tripping through the restart
-  // file's serialized parameters (see ParameterInput::GetOrAddReal), which
-  // was reverted (see git history) because it broke an unrelated exact
-  // bit-equality assumption in the relativistic-MHD lwave1d test suite.
-  // Users can still set this to false explicitly, e.g. to avoid the extra
-  // restart-file storage.
+  // If true, save and restore the forcing arrays, RNG state, and update counter.
+  // If false, regenerate forcing from random_seed by replaying prior updates.
   restart_forcing = pin->GetOrAddBoolean("turb_driving", "restart_forcing", true);
   // power-law exponent for isotropic driving
   expo = pin->GetOrAddReal("turb_driving", "expo", 5.0/3.0);

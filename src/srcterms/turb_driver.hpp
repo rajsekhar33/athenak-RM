@@ -57,13 +57,9 @@ class TurbulenceDriver {
   // Input random seed
   int random_seed = 1;
 
-  // If true (default), the forcing array and RNG state are stored in (and
-  // restored from) restart files, avoiding a force_tmp1-overwrite bug that
-  // recomputing from scratch is still subject to (see the constructor for
-  // details -- this does NOT currently give a bit-exact continuation). If
-  // false, forcing is instead recomputed deterministically from t=0 using
-  // random_seed on every restart -- cheaper to store, but requires
-  // replaying the full history of forcing updates.
+  // If true, restart files include the forcing arrays, RNG state, and update
+  // counter. If false, regenerate forcing from random_seed by replaying prior
+  // updates when restarting.
   bool restart_forcing = true;
 
   // functions
