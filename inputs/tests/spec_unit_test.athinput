@@ -1,0 +1,94 @@
+# AthenaK input for the on-the-fly spectrum test (file_type = spec), fields from
+# src/pgen/sf_unit_test.cpp (build with -D PROBLEM=sf_unit_test); nlim = 0.
+# Check with: python3 -I tests/spec/spec_reference.py <run dir>
+# One key per line: AthenaK's parser reads a single '=' per line.
+
+<comment>
+problem   = sf output unit test
+
+<job>
+basename  = spt
+
+<mesh>
+nghost    = 2
+nx1       = 24
+x1min     = 0.0
+x1max     = 1.0
+ix1_bc    = periodic
+ox1_bc    = periodic
+nx2       = 16
+x2min     = 0.0
+x2max     = 1.0
+ix2_bc    = periodic
+ox2_bc    = periodic
+nx3       = 12
+x3min     = 0.0
+x3max     = 1.0
+ix3_bc    = periodic
+ox3_bc    = periodic
+
+<meshblock>
+nx1       = 8
+nx2       = 8
+nx3       = 4
+
+<time>
+evolution  = dynamic
+integrator = rk2
+cfl_number = 0.3
+nlim       = 0
+tlim       = 1.0
+
+<hydro>
+eos         = isothermal
+iso_sound_speed = 1.0
+reconstruct = plm
+rsolver     = hlle
+
+<problem>
+noise     = 1.0
+constant  = false
+
+
+<output1>
+file_type      = spec
+id             = scal
+mode           = scalar
+variables      = hydro_w_d, hydro_w_vx
+weights        = ones, hydro_w_d
+nbin           = 40
+logscale       = false
+dt             = 1.0
+
+<output2>
+file_type      = spec
+id             = scallog
+mode           = scalar
+variables      = hydro_w_vy
+weights        = ones, hydro_w_d
+nbin           = 30
+logscale       = true
+strat          = true
+skip           = 0.13
+dt             = 1.0
+
+<output3>
+file_type      = spec
+id             = helm
+mode           = helmholtz
+variables      = hydro_w_vx, hydro_w_vy, hydro_w_vz
+nbin           = 40
+logscale       = false
+dt             = 1.0
+
+<output4>
+file_type      = spec
+id             = helmlog
+mode           = helmholtz
+variables      = hydro_w_vx, hydro_w_vy, hydro_w_vz
+nbin           = 25
+logscale       = true
+strat          = true
+skip           = 0.2
+transport      = host
+dt             = 1.0

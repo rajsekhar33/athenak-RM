@@ -1,0 +1,61 @@
+# AthenaK input for the distributed FFT test (fft/pencil_fft.hpp) in src/pgen/sf_unit_test.cpp
+# Build: cmake -S . -B build -D PROBLEM=sf_unit_test ...; nlim = 0, all work is done in
+# the pgen. Check with: python3 -I tests/fft/compare_pencil.py <run dir>
+# One key per line: AthenaK's parser reads a single '=' per line.
+
+<comment>
+problem   = sf output unit test
+
+<job>
+basename  = fftp
+
+<mesh>
+nghost    = 2
+nx1       = 16
+x1min     = 0.0
+x1max     = 1.0
+ix1_bc    = periodic
+ox1_bc    = periodic
+nx2       = 16
+x2min     = 0.0
+x2max     = 1.0
+ix2_bc    = periodic
+ox2_bc    = periodic
+nx3       = 16
+x3min     = 0.0
+x3max     = 1.0
+ix3_bc    = periodic
+ox3_bc    = periodic
+
+<meshblock>
+nx1       = 8
+nx2       = 8
+nx3       = 8
+
+<time>
+evolution  = dynamic
+integrator = rk2
+cfl_number = 0.3
+nlim       = 0
+tlim       = 1.0
+
+<hydro>
+eos         = isothermal
+iso_sound_speed = 1.0
+reconstruct = plm
+rsolver     = hlle
+
+<problem>
+noise     = 1.0
+constant  = false
+
+fft_test       = true
+fft_host_stage = false
+fft_nrep       = 2
+fft_max_msg    = 0
+fft_lo1        = 0
+fft_hi1        = 16
+fft_lo2        = 0
+fft_hi2        = 16
+fft_lo3        = 0
+fft_hi3        = 16

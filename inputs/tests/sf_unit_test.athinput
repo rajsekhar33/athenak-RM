@@ -1,0 +1,84 @@
+# AthenaK input for the on-the-fly structure-function validation (src/pgen/sf_unit_test.cpp)
+# Build: cmake -S . -B build -D PROBLEM=sf_unit_test ...; run stops after the initial
+# outputs (nlim = 0). Check with: python3 -I tests/sf/sf_reference.py <run dir>
+# One key per line: AthenaK's parser reads a single '=' per line.
+
+<comment>
+problem   = sf output unit test
+
+<job>
+basename  = sfut
+
+<mesh>
+nghost    = 2
+nx1       = 16
+x1min     = 0.0
+x1max     = 1.0
+ix1_bc    = periodic
+ox1_bc    = periodic
+nx2       = 16
+x2min     = 0.0
+x2max     = 1.0
+ix2_bc    = periodic
+ox2_bc    = periodic
+nx3       = 16
+x3min     = 0.0
+x3max     = 1.0
+ix3_bc    = periodic
+ox3_bc    = periodic
+
+<meshblock>
+nx1       = 8
+nx2       = 8
+nx3       = 8
+
+<time>
+evolution  = dynamic
+integrator = rk2
+cfl_number = 0.3
+nlim       = 0
+tlim       = 1.0
+
+<hydro>
+eos         = isothermal
+iso_sound_speed = 1.0
+reconstruct = plm
+rsolver     = hlle
+
+<problem>
+noise     = 1.0
+constant  = false
+
+<output1>
+file_type      = sf
+id             = scalar
+mode           = scalar
+variables      = hydro_w_vx, hydro_w_vy, hydro_w_vz
+weights        = ones, hydro_w_d
+max_order      = 4
+nbin           = 12
+logscale       = true
+ndraw_block    = 400000
+nsample_global = 16000
+nanchor_global = 160000
+nreplicate     = 8
+seed           = 1
+timing         = true
+dt             = 1.0
+
+<output2>
+file_type      = sf
+id             = longtrans
+mode           = long_trans
+variables      = hydro_w_vx, hydro_w_vy, hydro_w_vz
+weights        = ones
+max_order      = 4
+nbin           = 12
+logscale       = false
+ndraw_block    = 400000
+nsample_global = 16000
+nanchor_global = 160000
+nreplicate     = 8
+seed           = 2
+timing         = true
+dt             = 1.0

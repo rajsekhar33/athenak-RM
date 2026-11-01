@@ -1,0 +1,119 @@
+# Production-like partial-selection cross-check of the on-the-fly sf output against
+# athena_research structure functions (tests/sf/python_crosscheck/selection/README.md).
+# Driven ideal-gas turbulence (built-in pgen_name = turbulence, default build), 64^3
+# periodic mesh, 16^3 MeshBlocks (64 blocks). At cycle 600 (nlim) the run writes
+#   bin/sel.hydro_w.00001.bin         float32 snapshot that the Python step loads
+#   sf_scalar/sel.00001.sf            scalar SF of vx, vy, vz on the density band
+#   sf_longtrans/sel.00001.sf         long/trans SF of (vx, vy, vz) on the same band
+# (file 00000 is the uniform initial state, which has no cell in the band; the final
+# output at nlim may write a duplicate 00002 of the same state).
+# Band: 31/32 <= rho <= 1023/1024, both edges exactly representable in float32, so
+# the float32 dump classifies a cell differently from AthenaK's double only if its
+# float32 density equals an edge exactly (counted and reported by compare.py).
+# Bins pinned: 24 log bins on [r_min, r_max] = [dx, sqrt(3)/2], the values Python's
+# get_sf_mb derives for this box (min cell size, half box diagonal).
+# One key per line: AthenaK's parser reads a single '=' per line.
+
+<comment>
+problem   = sf selection python cross-check
+
+<job>
+basename  = sel
+
+<mesh>
+nghost    = 2
+nx1       = 64
+x1min     = -0.5
+x1max     = 0.5
+ix1_bc    = periodic
+ox1_bc    = periodic
+nx2       = 64
+x2min     = -0.5
+x2max     = 0.5
+ix2_bc    = periodic
+ox2_bc    = periodic
+nx3       = 64
+x3min     = -0.5
+x3max     = 0.5
+ix3_bc    = periodic
+ox3_bc    = periodic
+
+<meshblock>
+nx1       = 16
+nx2       = 16
+nx3       = 16
+
+<time>
+evolution  = dynamic
+integrator = rk2
+cfl_number = 0.3
+nlim       = 600
+tlim       = 100.0
+
+<hydro>
+eos         = ideal
+gamma       = 1.6666666666666667
+reconstruct = plm
+rsolver     = hllc
+
+<problem>
+pgen_name = turbulence
+
+<turb_driving>
+type        = hydro
+tcorr       = 0.5
+dedt        = 1.0
+nlow        = 1
+nhigh       = 2
+random_seed = 1
+
+<output1>
+file_type = bin
+variable  = hydro_w
+dcycle    = 600
+
+<output2>
+file_type        = sf
+id               = scalar
+mode             = scalar
+variables        = hydro_w_vx, hydro_w_vy, hydro_w_vz
+weights          = ones
+select1_variable = hydro_w_d
+select1_min      = 0.96875
+select1_max      = 0.9990234375
+sparse           = true
+max_order        = 3
+nbin             = 24
+logscale         = true
+r_min            = 0.015625
+r_max            = 0.8660254037844386
+ndraw_block      = 262144
+nanchor_global   = 262144
+nsample_global   = 65536
+nreplicate       = 32
+seed             = 11
+timing           = true
+dcycle           = 600
+
+<output3>
+file_type        = sf
+id               = longtrans
+mode             = long_trans
+variables        = hydro_w_vx, hydro_w_vy, hydro_w_vz
+weights          = ones
+select1_variable = hydro_w_d
+select1_min      = 0.96875
+select1_max      = 0.9990234375
+sparse           = true
+max_order        = 3
+nbin             = 24
+logscale         = true
+r_min            = 0.015625
+r_max            = 0.8660254037844386
+ndraw_block      = 262144
+nanchor_global   = 262144
+nsample_global   = 65536
+nreplicate       = 32
+seed             = 12
+timing           = true
+dcycle           = 600

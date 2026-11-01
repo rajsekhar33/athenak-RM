@@ -67,8 +67,12 @@ file_type     = prof
 variable      = hydro_w_e
 coord_axis    = r
 radial_type   = spherical
-xc = 0.5   yc = 0.5   zc = 0.5
-bin_min = 1e-3   bin_max = 1.0   nbin = 64
+xc       = 0.5
+yc       = 0.5
+zc       = 0.5
+bin_min  = 1e-3
+bin_max  = 1.0
+nbin     = 64
 logscale      = true
 mass_weighted = true
 dt            = 0.1
@@ -80,8 +84,11 @@ variable      = hydro_w_d
 coord_axis    = r
 radial_type   = cylindrical
 cyl_axis      = x3             # x1 | x2 | x3 -- the symmetry axis
-xc = 0.0   yc = 0.0
-bin_min = 0.01   bin_max = 5.0   nbin = 50
+xc       = 0.0
+yc       = 0.0
+bin_min  = 0.01
+bin_max  = 5.0
+nbin     = 50
 logscale      = true
 dt            = 0.1
 id            = dens_vs_cylr
@@ -105,9 +112,14 @@ see "Cross-checking" below), the C++ side supports an arbitrary center.
 Both output types accept six independent, optional bounds:
 
 ```ini
-x1_min = -0.5   x1_max = 0.5    # each optional; unset axes default to the
-x2_min = ...    x2_max = ...    # full mesh extent on that axis, i.e. no
-x3_min = ...    x3_max = ...    # restriction
+# each optional, one key per line; unset axes default to the full mesh extent on
+# that axis, i.e. no restriction
+x1_min   = -0.5
+x1_max   = 0.5
+x2_min   = ...
+x2_max   = ...
+x3_min   = ...
+x3_max   = ...
 ```
 
 A cell is included only if its cell-center coordinate falls inside all three
@@ -119,10 +131,17 @@ profile restricted to a transverse core region.
 file_type     = pdf
 variable      = hydro_w_d
 variable_2    = hydro_w_e
-bin_min = 1e-2   bin_max = 1e2   nbin = 100   logscale = true
-bin2_min = 1e-2  bin2_max = 1e2  nbin2 = 100  logscale2 = true
+bin_min  = 1e-2
+bin_max  = 1e2
+nbin     = 100
+logscale = true
+bin2_min = 1e-2
+bin2_max = 1e2
+nbin2    = 100
+logscale2 = true
 mass_weighted = true
-x1_min = -0.5   x1_max = 0.5
+x1_min   = -0.5
+x1_max   = 0.5
 dt            = 0.1
 id            = rho_e_pdf_slab
 ```

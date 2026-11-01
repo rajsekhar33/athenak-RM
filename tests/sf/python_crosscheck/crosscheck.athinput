@@ -1,0 +1,88 @@
+# Python cross-check of the on-the-fly sf output (tests/sf/python_crosscheck/README.md).
+# 64^3 periodic mesh, 16^3 MeshBlocks, deterministic fields of src/pgen/sf_unit_test.cpp.
+# One key per line: AthenaK's parser reads a single '=' per line.
+
+<comment>
+problem   = sf output python cross-check
+
+<job>
+basename  = xchk
+
+<mesh>
+nghost    = 2
+nx1       = 64
+x1min     = 0.0
+x1max     = 1.0
+ix1_bc    = periodic
+ox1_bc    = periodic
+nx2       = 64
+x2min     = 0.0
+x2max     = 1.0
+ix2_bc    = periodic
+ox2_bc    = periodic
+nx3       = 64
+x3min     = 0.0
+x3max     = 1.0
+ix3_bc    = periodic
+ox3_bc    = periodic
+
+<meshblock>
+nx1       = 16
+nx2       = 16
+nx3       = 16
+
+<time>
+evolution  = dynamic
+integrator = rk2
+cfl_number = 0.3
+nlim       = 0
+tlim       = 1.0
+
+<hydro>
+eos         = isothermal
+iso_sound_speed = 1.0
+reconstruct = plm
+rsolver     = hlle
+
+<problem>
+noise     = 1.0
+constant  = false
+
+<output1>
+file_type = bin
+variable  = hydro_w
+dt        = 1.0
+
+<output2>
+file_type      = sf
+id             = scalar
+mode           = scalar
+variables      = hydro_w_vx, hydro_w_vy, hydro_w_vz
+weights        = ones, hydro_w_d
+max_order      = 4
+nbin           = 24
+logscale       = true
+ndraw_block    = 2000000
+nsample_global = 65536
+nanchor_global = 1000000
+nreplicate     = 8
+seed           = 11
+timing         = true
+dt             = 1.0
+
+<output3>
+file_type      = sf
+id             = longtrans
+mode           = long_trans
+variables      = hydro_w_vx, hydro_w_vy, hydro_w_vz
+weights        = ones
+max_order      = 4
+nbin           = 24
+logscale       = true
+ndraw_block    = 2000000
+nsample_global = 65536
+nanchor_global = 1000000
+nreplicate     = 8
+seed           = 12
+timing         = true
+dt             = 1.0

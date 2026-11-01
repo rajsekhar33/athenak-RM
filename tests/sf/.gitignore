@@ -1,0 +1,8 @@
+# run/output directories produced by the sf validation scripts
+run_*/
+scan_*/
+suite_*/
+region_scan_*/
+backreaction/
+__pycache__/
+../runs_vis2/
