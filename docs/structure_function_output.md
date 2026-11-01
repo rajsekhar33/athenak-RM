@@ -1,244 +1,294 @@
 # Structure-function output
 
-`file_type=sf` measures spatial increments or two-point correlations at the
-output cadence. It samples cell pairs on a uniform grid and writes the sums,
-pair counts, and independent replicates needed to estimate uncertainty.
+`file_type = sf` measures field increments and two-point correlations during a
+simulation. It writes their separation-dependent moments, sample counts and
+replicate statistics at the chosen output cadence. The calculation supports
+uniform Cartesian meshes with periodic or nonperiodic boundaries.
 
-## Physical quantities
+## Basic configuration
 
-For each weight `w`, variable `q`, order `p=1..max_order`, and separation
-bin `b`, scalar mode estimates sums over unordered pairs of distinct valid cells:
-
-| Array | Population sum |
-|---|---|
-| `T[w,q,p-1,b]` | `sum(abs(w2*q2-w1*q1)**p)` |
-| `W[w,b]` | `sum(w1+w2)` |
-| `C[w,b]` | Number of pairs |
-
-A valid cell lies inside the spatial region, passes the optional selection,
-and has positive weight. The structure function is `S_p=T/C`. With
-`weights=ones`, this is the usual mean absolute increment to order `p`,
-and `W=2*C`. Other weights measure increments of the weighted field `w*q`;
-the sums also permit alternative normalization such as `2*T/W`.
-
-Separations use global integer cell offsets times the cell widths, with the
-minimum image on periodic axes. An offset exactly half a periodic axis keeps
-its sign. Both pair estimators use the same geometry, independent of MeshBlock
-decomposition. Bins are half-open: `rbins[b] <= r < rbins[b+1]`.
-
-| `mode` | Variables and increments |
-|---|---|
-| `scalar` | One increment per variable: `abs(w2*q2-w1*q1)`. |
-| `long_trans` | Three vector components in x1/x2/x3 order. Reports `abs(du dot l)/abs(l)` and `sqrt(abs(du)**2-(du dot l/abs(l))**2)`, with `du=w2*u2-w1*u1`. |
-| `aniso_mhd` | Six components: velocity x1/x2/x3, then magnetic field x1/x2/x3. Reports `abs(dv), abs(dv_perp), abs(dB), abs(dB_perp)`; perpendicular is relative to the unweighted pair-mean field. |
-| `correlation` | One variable for autocorrelation or two for cross-correlation; product moments defined below. |
-
-In `aniso_mhd`, `bhat` is the direction of `(B1+B2)/2`; pairs with
-mean-field magnitude below `1e-30` are omitted. The four weighted-field
-increments are accumulated in three concatenated bin families:
-
-- `l`: full separation `abs(l)`;
-- `l_prll`: `abs(l dot bhat)`, where
-  `abs(l dot bhat)/abs(l) > cos(theta_prll_max)`;
-- `l_perp`: `sqrt(abs(l)**2-(l dot bhat)**2)`, where
-  `abs(l dot bhat)/abs(l) <= cos(theta_perp_min)`.
-
-All families share `r_min/r_max`. Defaults are `nbin_prll=50`,
-`nbin_perp=50`, and `nbin=max(nbin_prll,nbin_perp)` for full separation.
-The angle defaults are `pi/18` and `pi/2-pi/18`, respectively, in radians,
-with allowed range `[0,pi/2]`.
-
-For correlation, set `B=A` when only one variable is supplied. Each
-unordered pair contributes:
-
-```text
-T[w,0,p-1,b] += w1*w2*((A1*B2)**p + (B1*A2)**p)
-W[w,b]       += 2*w1*w2
-C[w,b]       += 1
-```
-
-The observable is `T/W`; its first-order row is the symmetric raw correlation.
-Means are retained in the fields.
-
-## Configuration
-
-Add an output block with one parameter per line:
+This example measures longitudinal and transverse velocity increments:
 
 ```ini
 <output5>
 file_type      = sf
 id             = velocity
-mode           = scalar
+mode           = long_trans
 variables      = hydro_w_vx, hydro_w_vy, hydro_w_vz
 weights        = ones
 max_order      = 3
-nbin           = 100
+nbin           = 64
 logscale       = true
+r_min          = 0.0
+r_max          = 0.0
 ndraw_block    = 4096
-nsample_global = 65536
 nanchor_global = 1048576
+nsample_global = 65536
 nreplicate     = 4
+seed           = 0
 dt             = 0.1
 ```
 
-| Parameter | Default and meaning |
+Use the corresponding `mhd_w_vx`, `mhd_w_vy`, `mhd_w_vz` variables for MHD. Each
+output block needs a unique `id`; files appear in `sf_<id>/`. Without an explicit
+`id`, the directory uses the output block name. `dcycle` can replace `dt` to set
+an output interval in cycles.
+
+## Quantities and normalization
+
+For a scalar field, the order-p structure function is
+
+$$
+S_p(r)=\left\langle |q(\mathbf{x}+\boldsymbol{\ell})-q(\mathbf{x})|^p\right\rangle,
+\qquad r=|\boldsymbol{\ell}|.
+$$
+
+Pairs contain distinct cell centres. Both cells must lie within the selected
+region and have positive weight. With a non-unit weight, the increment is formed
+from the weighted field: `delta = w2*q2 - w1*q1`.
+
+The output estimates these sums over unordered valid pairs in each separation bin:
+
+| Array | Definition |
 |---|---|
-| `mode`, `weights` | `scalar`, `ones`. |
-| `max_order` | `10`; positive integer. |
-| `nbin` | `100` for scalar, long/transverse, and correlation; positive integer. |
-| `logscale` | `true`; logarithmic or linear separation edges. |
-| `r_min`, `r_max` | `0` selects the smallest cell width and half the box diagonal, respectively. |
-| `ndraw_block` | `4096` within-block draws per MeshBlock, total over replicates. |
-| `nsample_global`, `nanchor_global` | `65536`, `1048576`; global cross-block budgets, total over replicates. |
-| `nreplicate`, `seed` | `4`, `0`; independent replicates and seed. |
-| `sparse` | `false`; sample positive-weight support when enabled. |
-| `kernel` | `auto`; use team scratch accumulation when it fits, otherwise global atomics. Explicit `team` and `global` choices are available. |
-| `timing` | `false`; print pair-kernel timing ranges over ranks. |
-| `x1_min` ... `x3_max` | Mesh bounds; restrict cell centres to a region. |
-| `id` | Output block name; each SF block needs a distinct ID. |
+| `T[w,q,p-1,b]` | Sum of `abs(delta)**p`, for `p = 1..max_order`. |
+| `W[w,b]` | Sum of `w1 + w2`. |
+| `C[w,b]` | Number of pairs. |
 
-Each variable or weight must select exactly one output component, such as
-`hydro_w_vx` or `mhd_bcc1`. At most eight variables, eight weights, and
-eight loaded fields are supported; repeated names count toward the variable
-and weight limits. Groups such as `hydro_w` are rejected. A passive-scalar
-name such as `hydro_w_s` is valid only when it resolves to one component.
+The structure function is `T/C`. For unit weights, `W = 2*C`. Non-unit weights
+therefore give moments of `w*q`; their physical units include the units of the
+weight. Empty bins have `C = 0` and should be masked when forming ratios.
 
-Variables and selection fields may also be `pressure=(gamma-1)*e` and
-`temperature=pressure/rho`, in code units, where `e` is internal-energy
-density. These require Newtonian, single-fluid, ideal-gas hydro or MHD.
-Computed fields cannot be weights; their storage scales with local cell count.
+Separations use integer cell offsets multiplied by the grid spacing. Periodic
+axes use the minimum-image separation; nonperiodic axes use the actual offset.
+This gives the same bin assignment across MeshBlock and MPI decompositions.
+Bins satisfy `edges[b] <= r < edges[b+1]`. Logarithmic bins span `r_min` to
+`r_max`; linear bins span zero to `r_max`. Nonpositive `r_min` selects the smallest
+active grid spacing, and nonpositive `r_max` selects half the box diagonal. The
+outer edge is enlarged by a relative `1e-9`; the first logarithmic edge is reduced
+by the same fraction so endpoint pairs are included. The saved edge arrays give
+the precise boundaries.
 
-Uniform grids and ordinary periodic or physical boundaries are supported.
-SMR/AMR, shearing boundaries, generic `slice_x1/2/3`, `gid`, and
-`ghost_zones` are rejected. `sf_halo` defaults to zero; its effective value
-remains zero if a positive value is requested, with a warning.
+## Measurement modes
 
-### Cell selection
+### Scalar moments
 
-Up to two inclusive conditions restrict the statistic:
+`mode = scalar` measures each listed variable separately. `nq` equals the number
+of variables. `max_order` sets the highest integer moment.
+
+### Longitudinal and transverse velocity
+
+`mode = long_trans` takes three vector components in x1, x2, x3 order. With
+`du = w2*u2 - w1*u1` and separation unit vector `lhat`, its two channels are:
+
+- `q = 0`: longitudinal magnitude `abs(du . lhat)`;
+- `q = 1`: transverse magnitude `sqrt(|du|^2 - (du . lhat)^2)`.
+
+The p-th powers of these increments supply `T`. Each transverse measurement is
+the magnitude of the vector perpendicular to the separation.
+
+### Magnetic-field-aligned moments
+
+`mode = aniso_mhd` takes velocity x1, x2, x3 followed by magnetic field x1, x2, x3:
+
+```ini
+mode      = aniso_mhd
+variables = mhd_w_vx, mhd_w_vy, mhd_w_vz, mhd_bcc1, mhd_bcc2, mhd_bcc3
+```
+
+The local magnetic direction `bhat` is the unit vector along the unweighted pair
+mean `(B1 + B2)/2`. Pairs with a mean-field magnitude below `1e-30` in code units
+are skipped. The four increment channels are `|dv|`, `|dv_perp|`, `|dB|` and
+`|dB_perp|`; perpendicular components are projected relative to `bhat`, and
+increments use the requested weights.
+
+Each channel has three separation families, concatenated along its bin axis:
+
+| Family | Separation and selection |
+|---|---|
+| Total | `|l|`, using all valid pairs. |
+| Parallel | `abs(l . bhat)`, with `abs(l . bhat)/|l| > cos(theta_prll_max)`. |
+| Perpendicular | `sqrt(|l|^2 - (l . bhat)^2)`, with `abs(l . bhat)/|l| <= cos(theta_perp_min)`. |
+
+Defaults are `nbin_prll = 50`, `nbin_perp = 50`,
+`nbin = max(nbin_prll, nbin_perp)`, `theta_prll_max = pi/18` and
+`theta_perp_min = pi/2 - pi/18`. Angles are in radians. All three families use the
+same radial bounds and spacing rule. Their individual edge arrays and bin counts
+are stored in the header and payload.
+
+### Two-point correlations
+
+`mode = correlation` takes one variable for an autocorrelation or two variables
+for a cross-correlation. It measures raw correlations of the supplied fields.
+For each unordered pair, both orientations contribute:
+
+```text
+T[w,0,p-1,b] += w1*w2 * ((A1*B2)**p + (B1*A2)**p)
+W[w,b]       += 2*w1*w2
+C[w,b]       += 1
+```
+
+The normalized correlation is `T/W`; `p = 1` gives the two-point function.
+Weights enter through `w1*w2`, and field means are retained. The header's
+`products` entry identifies A and B. This mode has one output channel.
+
+## Fields and cell selection
+
+Variables and weights must each name one output component, such as `hydro_w_d`
+or `mhd_bcc1`. There can be at most eight distinct loaded fields, eight variables
+and eight weights. A passive-scalar selection such as `hydro_w_s` is valid only
+when it expands to one component. Variable groups such as `hydro_w` are rejected.
+
+For Newtonian, single-fluid ideal-gas hydro or MHD, two computed variables are
+also available as variables or selection fields:
+
+- `pressure = (gamma - 1)*eint`;
+- `temperature = (gamma - 1)*eint/rho`.
+
+Both use code units; `temperature` represents pressure divided by density.
+These computed fields cannot be used as weights.
+
+Spatial bounds `x1_min`, `x1_max`, and the corresponding x2/x3 keys restrict the
+region by cell-centre position. Up to two additional field conditions can be
+applied. For example, the following selects a temperature interval:
 
 ```ini
 select1_variable = temperature
-select1_min      = 0.5
-select1_max      = 2.0
-select2_variable = hydro_w_d
-select2_min      = 1.0
+select1_min      = 0.1
+select1_max      = 1.0
 sparse           = true
 ```
 
-Bounds default to negative/positive infinity. `select2_*` requires
-`select1_variable`. Every condition must hold; a NaN selection value fails.
-Selection is recomputed within the spatial region at each output. Each
-effective weight is its original value for selected cells and zero otherwise,
-so `ones` becomes a phase indicator. With selection, variables plus weights
-must total at most eight. For a strict lower cut, use the next representable
-value above it in the run's precision.
+The numeric bounds are in code units and should match the intended physical
+phase. A second condition uses `select2_variable`, `select2_min` and
+`select2_max`, together with the first condition. Every condition must hold.
+Bounds are inclusive; omitted limits are negative or positive infinity. To
+express a strict lower bound, use the next representable value above that bound
+in the simulation's precision.
 
-## Sampling and uncertainty
+Selection is evaluated at every output. Selected cells retain their requested
+weight, while other cells receive zero weight. Thus `weights = ones` measures
+increments within the selected phase. With a selection, the total number of
+variable and weight entries must be at most eight. The header records the
+conditions and the global number of selected cells.
 
-E1 samples pairs within one MeshBlock: draw an integer lag with Chebyshev
-radius `c` distributed proportional to `1/c`, then an admissible anchor.
-E2 samples different-MeshBlock pairs: draw rank-local anchors and globally
-shared sample cells, with quotas proportional to region cell counts. Each
-anchor is paired with samples in the same replicate.
+## Sampling, uncertainty and cost
 
-Inverse-probability factors make `T`, `W`, and `C` estimates of full population sums.
-The reported totals are replicate averages. Ratios such as `T/C` have
-finite-sample uncertainty and can have finite-sample bias. Counter-based
-draws leave the simulation RNG unchanged.
+The estimator separates pairs into those within one MeshBlock (E1) and those
+across MeshBlocks (E2). E1 samples local lags and anchors. E2 pairs local anchors
+with a globally shared sample of cells. Inverse sampling probabilities weight
+the contributions to `T`, `W` and `C`. These raw sums estimate the full pair
+population; their ratios have finite-sample uncertainty.
 
-For rare selections, `sparse=true` draws E2 endpoints from cells where any
-weight is positive. E1 mixes support-based and ordinary anchors with equal
-probability and applies the probability correction. Empty support gives
-zero sums; a geometric region containing no cells is an error.
+| Parameter | Default | Meaning |
+|---|---:|---|
+| `ndraw_block` | 4096 | E1 draws per MeshBlock, shared across replicates. |
+| `nanchor_global` | 1048576 | Global E2 anchor budget, shared across replicates. |
+| `nsample_global` | 65536 | Global E2 sample budget, shared across replicates. |
+| `nreplicate` | 4 | Independent sampling replicates. |
+| `sparse` | false | Concentrate sampling on cells with positive weight. |
 
-Budgets must be whole numbers from 1 to `9e15`.
-`ndraw_block >= nreplicate >= 1`; both global budgets must cover at least one
-endpoint per participating rank per replicate. The all-gather requires
-`nsample_global*(4+number_of_fields) <= 2^31-1`.
-E1 work scales with local MeshBlocks times `ndraw_block`; nominal E2 work
-per rank scales as `nanchor_global*nsample_global/(nranks*nreplicate)`.
-The global sample occupies memory on every rank.
+`ndraw_block` must be at least `nreplicate`. Each global E2 budget must be at
+least `nreplicate` times the number of ranks containing region cells. With
+`sparse = true`, this minimum uses ranks containing positive-weight cells.
+Sample communication must fit one MPI collective:
+`nsample_global*(4 + nfield) <= 2^31 - 1`.
 
-Choose budgets from measured replicate errors, especially for high moments
-and sparsely populated bins. Retain several replicates and increase sampling
-until the quantities of interest converge.
+Use `sparse = true` when a weight or selection occupies a small fraction of the
+region. It changes the sampling proposals while retaining their probability
+corrections. An empty weight support writes zero sums; a spatial region
+containing no cells is rejected. Rare selections sampled without this option can
+have poorly determined moments and unreliable replicate error estimates.
+
+E1 work scales approximately as `local_MeshBlocks*ndraw_block`. E2 work per rank
+scales approximately as
+`nanchor_global*nsample_global/(nranks*nreplicate)`. Every rank receives the E2
+sample. Its records occupy `8*nsample_global*(5 + nfield)` bytes per copy,
+including coordinates, sampling factors, fields and MeshBlock identifiers. Allow
+additional memory for host/device copies, local anchors and accumulators. Start
+with a short timing run, inspect replicate uncertainty and increase budgets
+where needed. Higher-order moments generally require more samples.
+
+Draws are determined by the seed, output number, layout and replicate indices.
+The diagnostic has its own counter-based sampling and leaves the simulation's
+random-number state unchanged. Restarted outputs continue their file numbering.
+`timing = true` reports sampling times. `kernel = auto` chooses a shared-memory
+pair accumulator where it fits; `global` uses global atomics, and `team` requires
+the shared-memory accumulator to fit. Reduction ordering can change last-bit sums.
 
 ## Increment histograms
 
-`histogram=true` adds distributions for scalar and long/transverse modes.
-Defaults are `hist_nbin=96`, `hist_min=1e-4`, `hist_max=1e2`, and
-`hist_scale=sigma`. The bin count must be even and at least two, with
-`0 < hist_min < hist_max`. `hist_scale=absolute` uses the template directly.
+`histogram = true` adds increment distributions for `scalar` and `long_trans`.
+Scalar histograms use the absolute increment; longitudinal histograms retain its
+sign, and transverse histograms use its magnitude.
 
-Scalar histograms use absolute weighted-field increments. Long/transverse
-histograms use the signed longitudinal increment and transverse magnitude.
-Unsigned edges are logarithmic; signed edges mirror half as many positive
-intervals about zero, including a central bin.
+The default magnitude-edge template has 96 logarithmic intervals from `1e-4`
+to `1e2`. The signed longitudinal template mirrors positive logarithmic edges
+about zero and includes a central interval. Configure it with `hist_nbin`
+(an even integer of at least two), `hist_min` and `hist_max`.
 
-For sigma scaling, edges multiply the weighted standard deviation of the
-raw field over valid cells. Long/transverse modes use
-`sqrt((sigma_x**2+sigma_y**2+sigma_z**2)/3)` for both rows. A centred
-two-pass variance is recomputed at each output, with the final scale rounded
-to 12 significant digits; a zero or nonfinite scale falls back to one.
+With `hist_scale = sigma`, edges are multiplied by the weighted standard
+deviation of the underlying field, recomputed over valid cells at each output.
+For a vector, the scale is `sqrt((sigma_x^2 + sigma_y^2 + sigma_z^2)/3)`. The
+variance uses a centered two-pass reduction. A constant field, empty support or
+nonfinite scale uses a scale of one. `hist_scale = absolute` uses the template
+in the field's units. Exact edges and scales are saved in the file.
 
-`H` stores importance-weighted pair counts. With `nedge=hist_nedge[q]`,
-column zero is underflow, column `nedge` is overflow, and interior column
-`j` covers `edges[j-1] <= increment < edges[j]`. Extra columns are padding.
-Summing a row's columns recovers `C`.
+Histograms contain importance-weighted counts, including underflow and overflow.
+Their sum over increment bins equals `C` for each separation bin. Divide by `C`
+and the finite increment-bin width to obtain a probability density; underflow
+and overflow remain probability masses. The payload can include padding columns,
+as identified by `hist_nedge` and `hist_ncol`.
 
-## Files and reader
+## Reading the output
 
-Files are `sf_<id>/<basename>.NNNNN.sf`. The ASCII header ends with
-`header offset=N`, the binary payload start. It records configuration,
-time/cycle, mesh, region/selection, budgets, seed, estimator version, and
-timings. Arrays use C ordering and the header's `byte_order`, with float64
-values except uint64 `n_acc_er`:
+Files are named `sf_<id>/<basename>.NNNNN.sf`. An ASCII header ends with
+`header offset=N`; binary arrays begin at byte N. The header specifies byte
+order, array shapes, configuration, geometry, sampling budgets and timings.
+Floating-point payloads are float64; accepted-draw counts are uint64.
 
-```text
-rbins[nbin+1]
-T[nweight,nq,max_order,nbin]       W[nweight,nbin]    C[nweight,nbin]
-T_er[2,nreplicate,nweight,nq,max_order,nbin]
-W_er[2,nreplicate,nweight,nbin]    C_er[2,nreplicate,nweight,nbin]
-n_acc_er[2,nreplicate,nweight,nbin]
-# histogram=true adds:
-hist_edges[nweight,nq,hist_ncol-1]    hist_sigma[nweight,nq]
-H[nweight,nq,nbin,hist_ncol]         H_er[2,nreplicate,nweight,nq,nbin,hist_ncol]
-```
+| Arrays | Contents |
+|---|---|
+| `rbins` | Separation edges; field-aligned mode also has `rbins_prll` and `rbins_perp`. |
+| `T`, `W`, `C` | Replicate-averaged moment sums, weight sums and population pair counts. |
+| `T_er`, `W_er`, `C_er` | Separate E1/E2 sums for every replicate. |
+| `n_acc_er` | Raw accepted draws for each estimator and replicate. |
+| `H`, `H_er` | Optional increment histograms, averaged and per replicate. |
+| `hist_edges`, `hist_sigma` | Optional histogram edges and scales. |
 
-For `aniso_mhd`, replace the first array with `rbins[nbin_l+1]`,
-`rbins_prll[nbin_prll+1]`, and `rbins_perp[nbin_perp+1]`. Other arrays
-concatenate those families; header `nbin` is their total.
-The leading `*_er` index is 0 for E1 and 1 for E2.
-`n_acc_er` counts accepted draws; `C_er` includes population weights.
+The leading dimensions of `T_er` are `[estimator, replicate, weight, channel,
+order, separation]`; estimator 0 is E1 and estimator 1 is E2. `C_er` omits channel
+and order. Population counts include probability corrections and may be
+nonintegral; accepted-draw counts are integers.
 
-Use the NumPy reader [sf_spectra_read.py](../vis/python/sf_spectra_read.py):
+The bundled [reader](../vis/python/sf_spectra_read.py) loads the header and arrays.
+From the repository root:
 
 ```python
 import sys
 import numpy as np
-
-sys.path.insert(0, "/path/to/athenak/vis/python")
+sys.path.insert(0, "vis/python")
 from sf_spectra_read import read_sf
 
 meta, a = read_sf("sf_velocity/run.00010.sf")
-den = a["C"][:, None, None, :]
-S = np.divide(a["T"], den, out=np.full_like(a["T"], np.nan), where=den > 0)
-
-# Delete-one-replicate jackknife of the ratio.
-Tr = a["T_er"].sum(axis=0)
-Cr = a["C_er"].sum(axis=0)[:, :, None, None, :]
-R = Tr.shape[0]
-if R < 2:
-    raise ValueError("jackknife requires nreplicate >= 2")
-den = Cr.sum(axis=0) - Cr
-Sj = np.divide(Tr.sum(axis=0) - Tr, den,
-               out=np.full_like(Tr, np.nan), where=den > 0)
-err = np.sqrt((R - 1) / R * ((Sj - Sj.mean(axis=0))**2).sum(axis=0))
+counts = a["C"][:, None, None, :]
+S = np.divide(a["T"], counts, out=np.full_like(a["T"], np.nan), where=counts > 0)
+# S[weight, channel, p-1, separation_bin]
 ```
 
-For correlation, replace `C/C_er` with `W/W_er`. Empty denominators remain
-NaN in this example.
+Estimate uncertainty by a delete-one-replicate jackknife of the ratio of sums,
+keeping each replicate's numerator and denominator together. First add the E1
+and E2 contributions within each replicate. For `R >= 2`, omit replicate r to
+form `S_(r)`; the variance estimate is
+`(R-1)/R * sum_r((S_(r) - mean_r(S_(r)))**2)`. Mask bins with zero denominators.
+For correlations, use `W` and `W_er` as the denominators.
 
-Extensive validation and sampling studies are retained with the
-[feature-branch tests](https://github.com/rajsekhar33/athenak-RM/tree/feature/onthefly-sf-spectra/tests).
+## Supported configurations
+
+Uniform meshes are supported in one, two and three dimensions. SMR/AMR and
+shearing-periodic boundaries are rejected. Sampling uses active cells;
+`sf_halo` has an effective value of zero. Generic output options `gid`,
+`ghost_zones` and `slice_x1/2/3` are rejected. Histograms are available for scalar
+and longitudinal/transverse moments. Input fields should be finite: nonfinite
+values propagate into the measured sums. Fused floating-point operations can
+leave roundoff-sized increments between equal weighted values.
