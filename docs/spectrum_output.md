@@ -1,149 +1,147 @@
-# On-the-fly Power Spectrum Output (`file_type = spec`)
+# Power spectra
 
-Computes shell-binned power spectra **during the run** with an in-house distributed FFT
-(`src/fft/`, plain Kokkos and MPI, no external library and no build flags). The
-conventions follow `athena_research/operations/spectra.py` exactly. The distributed
-FFT is described under "Distributed FFT" below.
+`file_type = spec` computes Fourier power spectra during a simulation. It supports
+uniform Cartesian meshes, scalar fields and Helmholtz decomposition of a vector
+field. Kokkos executes the local transforms; MPI distributes the transform across
+ranks. The feature uses the normal AthenaK build options.
 
-Status: first release. Uniform grids only, no derived variables.
+## Definition and normalization
 
-## What is computed
+For a real field sampled at cell indices **j** on a grid with `N = nx*ny*nz` cells,
+the forward transform and power are
 
-For each variable `q` (and weight `w`), with `N` the number of transformed cells:
+$$
+F(\mathbf m)=\sum_{\mathbf j}q_{\mathbf j}
+ \exp\!\left[-2\pi i\sum_d m_d j_d/n_d\right],
+\qquad P(\mathbf m)=\frac{|F(\mathbf m)|^2}{N}.
+$$
 
-- `F(k)` is numpy's unnormalised forward FFT of `q` over the selected cells, with index
-  0 at the first selected cell.
-- `P(k) = |F(k)|^2 / N`.
-- `k = fftfreq(n) * n / L` per axis, in cycles per unit length. The even-length Nyquist
-  is labelled negative.
-- `L = n * dx` is the length actually transformed.
-- Shell histograms in `|k|` with Python's `_spectral_grid` edges:
-  - **linear:** `linspace(0, kmax, nbin)`, so `nbin - 1` bins that include `k = 0`;
-  - **log:** `nbin` bins from `0.25 / L_max`, which exclude `k = 0`.
+The wavevector components are `k_d = m_d/L_d`, in cycles per unit length, where
+`L_d = n_d*dx_d` is the transformed length. Fourier indices above the positive
+half of the axis represent negative frequencies; the even-length Nyquist mode
+has a negative index. The coordinate origin for the transform is the first
+selected cell.
 
-**Modes** (`mode`):
+Each shell contains modes with the same range of `|k|`. The output records their
+summed power `E`, count `nk`, representative wavenumber `k` and edges `kbins`.
+For occupied shells, `E/nk` is the mean power per mode. A shell-integrated power
+per unit wavenumber is `E/diff(kbins)`. Dividing either quantity by `N` converts
+the squared-field sum normalization to a mean-square normalization.
 
-- `scalar`: one spectrum per (weight, variable).
-  - `weights = ones` gives the plain spectrum.
-  - A weight field gives the legacy per-mode product `P_q(k) * P_w(k)`, exactly as
-    `get_spectrum_mb(weight_name=...)`. The weight is not windowed.
-- `helmholtz`: three velocity-like components. The compressive part is
-  `(k.F) k / |k|^2`; the solenoidal part is the remainder. The `k = 0` mode is
-  solenoidal.
+With unit weights, Parseval's relation gives
 
-**`strat = true`:**
-- crops `skip` from both z ends with Python's `get_refined_data` index rule
-  (`int()` truncation);
-- applies a z Hamming window scaled to unit mean square, to `q` only.
+$$
+\sum_b E_b=\sum_{\mathbf j}q_{\mathbf j}^2.
+$$
 
-**Parseval:** `sumsq` is the sum of the (windowed) squared field. For unweighted spectra,
-`sum(E) = sumsq` with linear bins and `sumsq - P_DC` with log bins, exactly: every
-non-DC mode is binned.
+Linear bins include the zero-frequency mode. Logarithmic bins exclude it, so
+`sum(E) = sumsq - P_DC`; `P_DC` stores the zero-mode power separately.
+Floating-point accumulation introduces roundoff in these identities.
 
-**One deliberate difference from spectra.py:** its last log edge `10**log10(kmax)` can
-round 1 ulp below the corner `|k|`, which then drops out of the histogram (up to an
-order-unity fraction of the power for a field concentrated there). Here the final edge
-is `max(10**log10(kmax), kmax)`.
-- Every other edge, and all linear bins, are identical to spectra.py.
-- Changing `kbins[-1]` to that value in `_spectral_grid` makes the two codes agree
-  exactly.
+### Modes and weights
 
-Only `kx >= 0` is stored internally (real input). Every other mode also stands for its
-conjugate partner:
-- counts and powers are weighted accordingly;
-- in `helmholtz` mode the partner is evaluated with its own wavevector, which differs
-  from `-k` on Nyquist planes.
+- `mode = scalar` produces a spectrum for every variable and weight combination.
+  `weights = ones` gives the field power defined above. A field-valued weight
+  produces the per-mode product `P_q(k)*P_w(k)` before shell summation.
+- `mode = helmholtz` takes three vector components and `weights = ones`.
+  For nonzero **k**, the compressive component is
+  `F_comp = k*(k·F)/|k|²`; the solenoidal component is `F - F_comp`.
+  The zero mode is assigned to the solenoidal spectrum.
 
-The totals therefore equal the full complex transform's.
+Real-field conjugate partners contribute their full multiplicities to `nk` and
+power. Helmholtz projection evaluates each partner with its own wavevector,
+including on Nyquist planes.
 
-## Input block
+### Bins and stratified output
 
-One key per line. The whole mesh is transformed; the only crop is `strat`/`skip` in x3.
-`x1_min` ... `x3_max` (other than the mesh bounds), `slice_x1/2/3`, `gid`,
-`ghost_zones` and shearing-periodic boundaries are fatal errors. Every variable or
-weight name must give exactly one field component in the run. Real-valued keys must
-be single finite numbers.
+For `logscale = false`, input `nbin` specifies the number of linearly spaced
+edges, giving `nbin - 1` histogram bins. For `logscale = true`, it specifies the
+number of logarithmic bins. The lower logarithmic edge is `0.25/L_max`, using
+the longest transformed active axis. The upper edge includes the largest
+represented Fourier magnitude. The output header always reports the actual
+number of histogram bins.
+
+`strat = true` crops a physical distance `skip` from each end of x3, converts the
+crop limits to grid indices by truncation, and applies a Hamming window along the
+remaining x3 interval. The window is scaled to unit mean square. It multiplies
+each variable before transformation; field-valued weights retain their original
+values. `sumsq` then refers to the windowed field.
+
+For nonperiodic simulation boundaries, the transform describes the periodic
+extension of the sampled box. Cropping and windowing can reduce the effect of
+an end-to-end discontinuity in a stratified domain.
+
+## Configuration
 
 ```ini
 <output6>
-file_type  = spec
-id         = vel                    # directory spec_<id>/ (default: block name)
-mode       = scalar                 # scalar | helmholtz
-variables  = hydro_w_vx, hydro_w_vy
-weights    = ones, hydro_w_d        # scalar only; "ones" = unweighted
-nbin       = 256                    # default 256 (scalar), 200 (helmholtz), as spectra.py
-logscale   = false
-strat      = false                  # z crop by 'skip' plus Hamming window
-skip       = 0.0
-transport  = device                 # device (CUDA/HIP-aware MPI) | host (staged)
-persistent_buffers = false          # true: keep the FFT plan and buffers between outputs
-dt         = 0.1
+file_type = spec
+id = velocity
+mode = scalar
+variables = hydro_w_vx, hydro_w_vy
+weights = ones
+nbin = 256
+logscale = false
+strat = false
+skip = 0.0
+transport = device
+persistent_buffers = false
+dt = 0.1
 ```
 
-## Output files
+`variables` and any field-valued `weights` must each name individual supported
+field components. MHD examples include `mhd_w_vx` and `mhd_w_d`. A Helmholtz block
+uses the three velocity components in x1, x2, x3 order. Defaults for `nbin` are
+256 in scalar mode and 200 in Helmholtz mode.
 
-`spec_<id>/<basename>.NNNNN.spec`: an ASCII `key=value` header ending in
-`header offset=N`. The header records:
-- the selection (`index_lo`, `shape`, `length`);
-- the FFT convention;
-- the pencil grid;
-- timings, all maximum over ranks:
-  - `time_setup` (plan construction, when it happened in this output);
-  - `time_fft` (every transform, weights included);
-  - `time_bin`;
-  - per-stage times of the last transform;
-- `memory_device_bytes_max_rank` and `memory_host_bytes_max_rank`: the bytes held in
-  the buffers listed below at the peak of the output, on the rank holding the most.
-  They count these buffers only; they are not a measurement of total device memory use.
-  - Device memory covers the transform input, the pencils, the exchange buffers, the
-    FFT plans with their work buffers, the coefficient copies and the weight powers.
-  - Host memory covers the staging buffers.
+The transform covers the complete uniform mesh, with the optional x3 crop above.
+Refinement, derived variables, slices, individual MeshBlock selection, ghost-zone
+output, restricted spatial bounds and shearing-periodic boundaries are unsupported.
+Real-valued input parameters must be finite numbers.
 
-**Memory lifetime:** by default (`persistent_buffers = false`) the FFT plan and the
-large transform buffers are built at the start of each output and freed at its end.
-Small arrays stay allocated (bin edges, the z window, host result arrays). With `true`
-the transform buffers persist, which saves the setup time at the cost of holding the
-memory. Several spec blocks each own their
-buffers.
+`transport = device` requires GPU-aware MPI for device-buffer communication.
+`transport = host` stages the communication through host memory. Both compute
+the same transform.
 
-Then float64 arrays in the order of the header's `payload=` key:
+## Files and memory
+
+Files are written as `spec_<id>/<basename>.NNNNN.spec`. Each has an ASCII
+`key=value` header ending in `header offset=N`, followed by float64 arrays in
+the order specified by `payload`:
 
 ```text
-scalar:    kbins[nbin+1] k[nbin] nk[nbin] E[nweight,nvar,nbin] P_DC[nweight,nvar] sumsq[nvar]
-helmholtz: kbins[nbin+1] k[nbin] nk[nbin] E_comp[nbin] E_sol[nbin] P_DC[1] sumsq[1]
+scalar:
+  kbins[nbin+1], k[nbin], nk[nbin], E[nweight,nvar,nbin],
+  P_DC[nweight,nvar], sumsq[nvar]
+helmholtz:
+  kbins[nbin+1], k[nbin], nk[nbin], E_comp[nbin], E_sol[nbin],
+  P_DC[1], sumsq[1]
 ```
 
-- `nbin` in the header is the number of histogram bins.
-- Python's `E/nk` and `4*pi*k^2*E/nk` follow directly.
-- Use `read_spec()` from [sf_spectra_read.py](../vis/python/sf_spectra_read.py).
+The header records the variables, transformed grid, lengths, MPI pencil grid,
+and setup, transform and binning timings. Timings are maxima over ranks.
+`memory_device_bytes_max_rank` and `memory_host_bytes_max_rank` count the
+spectrum's allocated buffers on the largest rank; total simulation memory also
+includes the fluid state and other modules.
 
-## Distributed FFT
+By default, large transform buffers and plans are released after each output.
+`persistent_buffers = true` retains them between outputs, reducing repeated
+setup at the cost of persistent memory use. Each spectrum output block owns its
+buffers.
 
-`fft::PencilFFT` (`src/fft/pencil_fft.hpp`) arranges `Py x Pz` active ranks (chosen
-automatically) and runs:
+Use `read_spec()` in [sf_spectra_read.py](../vis/python/sf_spectra_read.py) to read
+the header and named arrays.
 
-1. **R0, blocks to x-pencils:** point-to-point; every rank sends.
-2. **x transform** (half spectrum kept).
-3. **R1** within rows.
-4. **y transform.**
-5. **R2** within columns (3D only).
-6. **z transform.**
+## Implementation and verification
 
-The local transforms use `fft::LocalFFT` (Stockham radices 2-8, Bluestein for other
-primes).
+The [pencil transform](../src/fft/pencil_fft.hpp) redistributes MeshBlocks into
+x-pencils, transforms x, exchanges into y-pencils, and transforms y. Three-dimensional
+meshes add a second exchange and the z transform. Active ranks form an
+automatically selected two-dimensional pencil grid. Local transforms use
+Stockham stages with radices 2–8 and Bluestein transforms for other factors.
 
-## Validation
-
-The [test guide](../tests/README.md) lists the self-contained checks and the
-optional comparisons that require a separate `athena_research` checkout.
-
-- `tests/fft/run_pencil_suite.sh`: every coefficient vs `numpy.fft.rfftn`. Covers:
-  - 1-8 ranks, crops, host and device transport;
-  - non-cubic, 2D and 1D meshes;
-  - more ranks than pencils.
-- `tests/spec/spec_reference.py`: every array vs spectra.py's own helpers and formulas
-  (full complex FFTs), plus Parseval. Input: `inputs/tests/spec_unit_test.athinput`
-  (anisotropic cells, odd crop lengths, linear/log bins, weighted, Helmholtz).
-
-Both pass on CPU (1 and 3 ranks) and on GPU (2 ranks, CUDA-aware MPI), to about 1e-14
-relative.
+The [validation tests](https://github.com/rajsekhar33/athenak-RM/tree/feature/onthefly-sf-spectra/tests) cover Fourier coefficients, analytic
+single modes, scalar power, Helmholtz projection, Parseval normalization, odd and
+even dimensions, Nyquist modes, final-bin inclusion, MPI redistribution and restart
+output. These tests establish both the physical normalization and the complete
+Fourier-mode inventory.

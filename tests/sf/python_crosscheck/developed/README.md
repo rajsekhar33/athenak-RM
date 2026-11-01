@@ -1,76 +1,61 @@
-# Developed-turbulence comparison with `athena_research`
+# Statistics of developed turbulence
 
-Integration check of the production `sf` and `spec` outputs against the Python tools
-(`athena_research/operations/structure_functions.py` and `spectra.py`) on one developed
-state, before the Python post-processing is retired.
+This benchmark measures structure functions and spectra from a common evolved
+turbulent state. It tests the diagnostics on intermittent, multiscale fields
+beyond the deterministic small-grid cases.
 
-## State and outputs
+## State and measured quantities
 
-- Validation state: 256^3 driven isothermal hydro turbulence with 64^3
-  MeshBlocks and periodic boundaries, at t = 3 (cycle 16526). The checkpoint
-  was generated from `tests/sf/precision/turb.athinput`.
-- `make_run.py SOURCE.rst RUNDIR 5` copies that restart with new outputs and prepares 5 more
-  cycles. At the final cycle every output is written from the same state:
-  - `rst`: the double-precision state used by both references;
-  - `bin` of `hydro_w`: float32, used only for the metadata `athena_research` reads
-    (`python_sf.py --rst` replaces its fields by the restart's doubles, after checking
-    that the float32 values are the rounded restart values);
-  - `sf_scalar` (vx, vy, vz, rho; weights ones and rho) and `sf_longtrans`, the
-    production settings of `tests/frontier/make_input.sh`: max_order 3, 100 log bins,
-    histograms, sparse, ndraw_block 262144, 262144 anchors x 262144 samples, 8
-    replicates;
-  - `spec_scal` (rho, vx; weights ones and rho; 256 bins) and `spec_helm` (velocity,
-    200 bins).
+The reference configuration is driven isothermal hydrodynamic turbulence on a
+periodic `256³` mesh with `64³` MeshBlocks. Its input is
+[precision/turb.athinput](../../precision/turb.athinput). The benchmark state was
+sampled at `t = 3`, followed by five additional evolution cycles with diagnostic
+outputs enabled.
 
-## Acceptance (fixed before the comparison was run)
+All compared quantities are taken from the same final double-precision state:
 
-**Spectra** (`tests/spec/spec_reference.py RUNDIR --rst RUNDIR/rst/dev.NNNNN.rst`): both
-sides transform the same double-precision fields, so every array (bin edges, k, shell
-counts, spectra, DC power, sum of squares) must agree to 1e-10 relative to the array's
-largest value, and Parseval must hold. The final log edge follows the documented
-AthenaK convention (inclusive corner |k|).
+- scalar increments of `vx`, `vy`, `vz` and density, with unit and density weights;
+- longitudinal and transverse velocity increments with unit weights;
+- moments through order three in 100 logarithmic separation bins;
+- scalar density and velocity power, including field-weighted power;
+- compressive and solenoidal velocity spectra.
 
-**Structure functions** (`compare_developed.py`, rules in its header):
-- compared quantity `Q = T / W` (both sides estimate the same population ratio for any
-  weight; unit weight `Q = S_p / 2`), all modes, weights, increments, orders and bins;
-- pair counts of AthenaK and Python each against the exact count of the mesh;
-- errors: AthenaK delete-one-replicate jackknife, Python standard error over 16
-  independent seeds; combined variance, Welch degrees of freedom, two-sided t-test;
-- family-wise: no p-value below 1e-3 / (number of compared values) (Bonferroni);
-- inventory: exactly the bins holding an exact pair are populated on both sides;
-  nothing nonfinite; unit-weight `W = 2C`; all 16 seeds, orders 1–3, four scalar
-  variables with two weights, and longitudinal/transverse components with unit weight;
-- precision: median relative combined error at most 1% per mode and order, otherwise
-  INCONCLUSIVE.
+The SF configuration uses eight replicates, 262144 same-block pair draws,
+262144 global anchors and 262144 partner samples. The raw output and weighting
+conventions are defined in the [SF guide](../../../../docs/structure_function_output.md)
+and [spectrum guide](../../../../docs/spectrum_output.md).
 
-Selection masks and histograms are not part of this comparison: this isothermal state
-has no thermal phases, and both were checked against exact references in
-`tests/sf/python_crosscheck/selection/` and `tests/sf/run_suite.sh`.
+## Expected behavior and acceptance
 
-## Rerun
+The spectrum comparison transforms the same discrete field and checks every
+array: bin edges, representative wavenumbers, mode counts, scalar or vector power,
+zero-mode power and squared-field sum. The comparison tolerance is `1e-10`
+relative to each array's largest magnitude. Parseval's relation and inclusion of
+all represented modes provide independent normalization checks.
 
-Provide a developed-state checkpoint with the mesh and equation of state above;
-the historical checkpoint is a generated artifact. Set `ATHENA_RESEARCH` to a
-separately available reference-code checkout and choose fresh `RUN` and `PYOUT`
-directories. The commands below use two GPUs through the configured MPI launcher.
-Generation records hashes of the input state, producer scripts and reference
-Python sources before and after computing the 32 sampled references. A completed cache
-can be reused while these hashes and every output hash match. Earlier caches without a
-manifest require regeneration in a new directory.
+The SF comparison uses `Q = T/W`, including both weights. For unit weights,
+`Q = S_p/2`. The statistical comparison combines the output's delete-one-replicate
+jackknife uncertainty with the standard error from 16 independent reference
+realizations. A two-sided Welch test accounts for the estimated variances.
+The family-wise significance level is `1e-3`, distributed over the complete
+inventory of compared bins and statistics with a Bonferroni correction.
 
-```bash
-set -e
-D=tests/sf/python_crosscheck/developed
-export ATHENA_RESEARCH=/absolute/path/to/athena-research
-ATHENA=/absolute/path/to/sf-unit-build/src/athena
-SOURCE_RST=/absolute/path/to/developed-state.rst
-RUN=/absolute/path/to/new-developed-run
-PYOUT=/absolute/path/to/new-python-reference
-test ! -e "$RUN" && test ! -e "$PYOUT"
-python3 "$D/make_run.py" "$SOURCE_RST" "$RUN" 5
-(cd "$RUN" && mpirun -np 2 "$ATHENA" --kokkos-map-device-id-by=mpi_rank \
-  -r start.rst > log 2>&1)
-"$D/run_python.sh" "$RUN" "$PYOUT"              # 16 seeds x 2 modes
-python3 tests/spec/spec_reference.py "$RUN" --rst "$RUN"/rst/dev.*.rst
-python3 "$D/compare_developed.py" "$RUN" "$PYOUT"
-```
+Every populated exact-pair bin must be represented. All 16 realizations, four
+scalar variables, both scalar weights, both vector components and orders 1–3
+must be present and finite. Unit weights must satisfy `W = 2C`. The median
+relative combined uncertainty must be at most 1% for each mode and order;
+otherwise the comparison is inconclusive.
+
+A developed turbulent state has no prescribed analytic structure-function slope
+at every separation. This benchmark therefore tests discrete diagnostic accuracy
+and sampling uncertainty. Analytic Fourier modes and exact small-grid pair sums
+are covered by the [standalone test matrix](../../../README.md).
+
+## Reusing a state
+
+`make_run.py` prepares diagnostic output from a supplied checkpoint. A comparison
+must preserve the checkpoint, mesh geometry, precision, variable and weight
+inventory, bin edges, sampling budgets and seed list. Keep hashes of the input
+state and generated reference arrays so results remain tied to the same data.
+Thermal-phase selections are covered by the
+[partial-selection benchmark](../selection/README.md).
