@@ -144,6 +144,9 @@ struct OutputParameters {
   // number of derived variables, index of current derived variable
   int n_derived=0, i_derived=0;
   std::string variable_2; // DBF: for 2d PDFs
+  // multi-variable outputs (sf): every name loaded into outvars, in order. When empty,
+  // the single 'variable' (and 'variable_2' for 2D pdfs) is used instead.
+  std::vector<std::string> variable_list;
   Real bin_min, bin_max;
   Real bin2_min, bin2_max;
   int nbin=0, nbin2=0;
@@ -153,8 +156,8 @@ struct OutputParameters {
 
   // parameters for on-the-fly Profile output (file_type = prof)
   std::string coord_axis;   // "x1" | "x2" | "x3" | "r"
-  std::string radial_type;  // "spherical" | "cylindrical" (only used if coord_axis == "r")
-  std::string cyl_axis;     // "x1" | "x2" | "x3": symmetry axis (only if radial_type=="cylindrical")
+  std::string radial_type;  // "spherical" | "cylindrical" when coord_axis == "r"
+  std::string cyl_axis;     // "x1" | "x2" | "x3" for cylindrical radial profiles
   Real xc=0.0, yc=0.0, zc=0.0;  // center point for radial coordinate (naming matches
                                 // SphericalSurfaceOutput's xc/yc/zc)
 
@@ -276,6 +279,8 @@ class BaseTypeOutput {
 
   // Following vector will be of length (# output variables)
   std::vector<OutputVariableInfo> outvars;
+  // number of outvars entries each requested variable name expanded to, in order
+  std::vector<int> outvars_per_name;
 };
 
 
@@ -379,7 +384,7 @@ struct ProfileData {
   // string comparisons inside the per-cell kernel
   int coord_mode;      // 0=x1, 1=x2, 2=x3, 3=r (radial)
   bool cylindrical;    // only meaningful if coord_mode == 3
-  int cyl_axis_mode;   // 0/1/2 = symmetry axis is x1/x2/x3; only meaningful if cylindrical
+  int cyl_axis_mode;   // 0/1/2 = x1/x2/x3 symmetry axis for cylindrical profiles
   Real xc, yc, zc;      // center point for radial coordinate
 
   // result_ has 2 rows: row 0 = sum of weight per bin, row 1 = sum of (weight*variable)
@@ -587,5 +592,10 @@ class Outputs {
   // use vector of pointers to BaseTypeOutputs since it is an abstract base class
   std::vector<BaseTypeOutput*> pout_list;
 };
+
+// helpers shared by the sf and spec outputs (outputs.cpp)
+std::vector<std::string> SplitOutputList(const std::string &value);
+Real GetOutputReal(ParameterInput *pin, const std::string &blk, const std::string &key,
+                   double def, bool allow_inf = false);
 
 #endif // OUTPUTS_OUTPUTS_HPP_

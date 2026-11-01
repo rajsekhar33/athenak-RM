@@ -1,0 +1,88 @@
+# An advected entropy wave: rho = 1 + 0.2 sin(2 pi x), p = 0.6, vx = 0.1.
+# The cycle-zero spectrum and all discrete pair moments have independent references.
+
+<job>
+basename = Diagnostics
+
+<mesh>
+nghost = 2
+nx1 = 8
+nx2 = 8
+nx3 = 8
+x1min = 0.0
+x1max = 1.0
+x2min = 0.0
+x2max = 1.0
+x3min = 0.0
+x3max = 1.0
+ix1_bc = periodic
+ox1_bc = periodic
+ix2_bc = periodic
+ox2_bc = periodic
+ix3_bc = periodic
+ox3_bc = periodic
+
+<meshblock>
+nx1 = 4
+nx2 = 4
+nx3 = 4
+
+<time>
+evolution = dynamic
+integrator = rk2
+cfl_number = 0.3
+nlim = 4
+tlim = 1.0
+ndiag = 1
+
+<hydro>
+eos = ideal
+gamma = 1.6666666666666667
+reconstruct = plm
+rsolver = hllc
+
+<problem>
+pgen_name = linear_wave
+wave_flag = 1
+amp = 0.2
+dens = 1.0
+pgas = 0.6
+vx0 = 0.1
+along_x1 = true
+
+<output1>
+file_type = sf
+id = density
+variables = hydro_w_d, hydro_w_vy
+weights = ones
+max_order = 3
+nbin = 6
+logscale = false
+r_max = 0.87
+ndraw_block = 16384
+nsample_global = 4096
+nanchor_global = 8192
+nreplicate = 8
+seed = 123
+dcycle = 1
+
+<output2>
+file_type = spec
+id = density
+variables = hydro_w_d
+weights = ones
+nbin = 9
+logscale = false
+transport = device
+persistent_buffers = false
+x1_max = 1.0
+dcycle = 1
+
+<output3>
+file_type = bin
+variable = hydro_w
+dcycle = 1
+
+<output4>
+file_type = rst
+dcycle = 2
