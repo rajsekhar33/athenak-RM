@@ -1,9 +1,5 @@
 # Lagrangian Tracer Particles in AthenaK
 
-Implementation reference checked against public `main` commit `366a172a`
-(2026-09-15). This describes the code and the scope of recorded tests, not a
-proof of accuracy for every flow, boundary condition, or integrator combination.
-
 The module requires a 2-D or 3-D mesh. Its three tracer pushers share storage,
 migration and restart machinery:
 
@@ -16,8 +12,6 @@ migration and restart machinery:
 The MC approach follows [Genel et al. (2013)](https://arxiv.org/abs/1305.2195);
 the Ito method is motivated by
 [Moseley, Teyssier & Abel (2026)](https://arxiv.org/abs/2604.23041).
-The implementation details and limitations below do not constitute validation
-of every method or result in those papers.
 
 ## Configuration and Fresh Initialization
 
@@ -41,8 +35,7 @@ not imply that classical tracers reproduce the fluid mass distribution.
 
 Pusher aliases are `classical_lagrangian`/`lagrangian_tracer` for
 `classical`, and `ito2`/`ito` for `ito_2`. `drift` belongs to the
-separate `cosmic_ray` type and is rejected for tracers. This guide's
-validation statements concern tracers, not cosmic-ray/drift particles.
+separate `cosmic_ray` type and is rejected for tracers.
 
 The constructor uses `ppc` for preliminary allocation. A problem generator
 must initialize the actual fresh-run population, for example by calling
@@ -61,8 +54,8 @@ an equal-weight sample of gas mass.
 For classical/Ito tracers, `random_positions = true` places particles within
 their assigned cells; false places them at centers. **MC particles always
 start at cell centers**, regardless of this flag. Initialization draws use
-`pos_init_seed` and cell/particle indexing; identical fresh populations under
-arbitrary MPI-decomposition changes are not promised. Default
+`pos_init_seed` and cell/particle indexing. Changing the MPI decomposition can
+change the fresh population. Default
 `assign_tag = index_order` assigns persistent tags after initialization.
 Restart loading restores particles instead of rerunning this initializer.
 
@@ -123,11 +116,11 @@ For each active particle:
 4. Take the first accepted jump by one donor-cell width, or remain in place.
    Save donor level and face/parity encoding.
 
-This is **sequential conditional sampling**, not a single cumulative draw.
-When total outward transfer fits the donor budget, it realizes the face
-probabilities up to the small-flux cutoff. Saturation when the budget is
-exceeded is a safeguard, not a guarantee of exact fluid mass tracking in
-that regime. A finite population also has sampling noise.
+This sequence implements conditional sampling. When total outward transfer
+fits the donor budget, it realizes the face probabilities up to the small-flux
+cutoff. When outgoing mass exceeds the donor budget, the probabilities saturate
+and the transitions can depart from the fluid flux ratios. Finite particle
+populations also have sampling noise.
 
 `PLASTMOVE` encodes face 0 (stay) or 1--6 (the ordered faces), plus
 `32*(i%2) + 16*(j%2) + 8*(k%2)` using donor array indices.
@@ -151,16 +144,16 @@ inside the block's active cells: the lower x1 index is clamped to
 `[is, ie-1]`, with analogous bounds in other active coordinates and endpoint
 weights at edges. Nonpositive-density corners are skipped without
 renormalizing remaining weights; no valid corner means no update. This
-guard does not make invalid-density states physically acceptable or impossible.
+guard skips the affected corners; the fluid state still requires positive density.
 
 If the largest interpolated `cplus` exceeds 1, the code uses
 `nsub = min(ceil(max_cplus), 1000)` draws per direction, dividing original
 mean and variance by `nsub` for each draw. **It sums the displacements and
 updates position only once.** It does not re-sample moments or migrate between
-sub-draws. Moment splitting therefore does not enforce a maximum total
-displacement or guarantee neighbor-local transport. The per-direction
-formula is not a claim of matching the full multidimensional MC transition
-distribution, especially when MC's budget saturation applies.
+sub-draws. Moment splitting preserves the prescribed directional mean and variance, while
+the summed displacement can still cross beyond neighboring blocks. Directional
+Ito moments and the coupled MC face-selection probabilities can differ when
+the MC donor budget saturates.
 
 Source for all three: [particle pushers](../src/particles/particles_pushers.cpp).
 
@@ -175,8 +168,7 @@ contributions, not a general representation of arbitrary density source
 terms or every operator-split process.
 
 MHD's `CopyCons()` also maintains RK4 conserved and face-field accumulators
-after stage 1. This is fluid-integrator machinery independent of tracers;
-it does not establish stability of every MHD+RK4 problem.
+after stage 1 as part of the fluid integrator.
 
 With `ito2_enforce_locality_dt = true`, the post-integrator particle task
 computes `dtnew = dt_current / (4 * max_abs_cminus)` over active cells and
@@ -184,8 +176,9 @@ coordinates when the denominator is positive. `Mesh::NewTimeStep()`
 includes it in global timestep selection. Other pushers, or the default
 false setting, leave the particle constraint inactive.
 
-This is a **lagged next-step accuracy estimate**, not rejection/retry of the
-completed step or a bound on every stochastic displacement. Dynamic refinement
+This lagged accuracy estimate constrains the next step. The completed step
+remains accepted, and individual stochastic displacements can exceed the mean
+drift estimate. Dynamic refinement
 retains the global old-mesh estimate and tightens it by
 `2^(-largest_level_increase)`, without interpreting old flux arrays with new
 block indices. Changed future fluxes can invalidate the prediction.
@@ -215,10 +208,9 @@ create particles. Frozen particles skip subsequent physical pushes and
 migration. Existing user-face/excision checks can also freeze particles.
 Filter inactive records when measuring an in-domain population.
 
-Migration is a neighboring-block route, not an arbitrary-distance locator.
-Wrapping/reflection does not iterate over multiple domain crossings.
-Shear-periodic handling retains coordinate wrapping but does not provide
-a general particle shear-offset/velocity remap.
+Migration follows neighboring-block interfaces. Wrapping and reflection handle
+one domain crossing per update. Shear-periodic handling applies coordinate
+wrapping only; the particle shear-offset and velocity remap are unsupported.
 
 For MC only, `AdjustMeshRefinement()` runs after physical migration across
 an existing coarse/fine interface. It uses donor face/parity/level information
@@ -259,8 +251,7 @@ and negative status. A clamped temporary position selects a new storage owner
 without moving an escaped record back into the domain.
 
 The transfer handles one-level changes per event on the supported 2-D/3-D
-Cartesian hierarchy. It is not a general remapper between unrelated meshes
-or a GPU-direct/scalable-at-any-rank-count guarantee.
+Cartesian hierarchy, using the host-staged exchanges described above.
 
 Sources: [particle AMR transfer](../src/particles/particles_amr.cpp),
 [mesh lifecycle hooks](../src/mesh/mesh_refinement.cpp).
@@ -276,10 +267,10 @@ by default. For a fixed tag, cycle and seed:
 - Dynamic-AMR child selection uses a dedicated hash of seed, tag, cycle,
   donor level and global parent-cell coordinates.
 
-These do not consume a thread-scheduled random pool. Draws do not depend on
-rank or array order, but this does **not** guarantee identical whole simulations
-across hardware, reductions, mesh histories or fresh-run decompositions.
-Preserve seeds and pusher settings on restart.
+These stateless draws are independent of rank and array order. Floating-point
+reductions, mesh histories and fresh initialization can still change the evolved
+solution across decompositions or hardware. Preserve seeds and pusher settings
+on restart.
 
 ## Outputs and Paired Checkpoints
 
@@ -323,13 +314,13 @@ time, selected_next_dt
 The payload is six arrays of doubles: `PGID`, `PTAG`, `PLASTMOVE`, `x`,
 `y`, `z` (integer fields are encoded as doubles). Count is global for shared
 files and local for per-rank files. The reader uses `Real`-sized payload reads,
-so the current writer/reader contract requires a double-precision build;
-do not assume single-precision or cross-endian portability.
+so this format requires a double-precision build with the same byte order.
 
 The reader rejects mismatched version, cycle, time, next timestep, block count
-or topology hash. The hash covers geometry, block dimensions and ordered
-logical locations, not rank assignment. It is a pairing check, not a payload
-checksum or a check of every physics option.
+or topology hash. The hash covers geometry, block dimensions and ordered logical locations.
+Rank assignment is excluded, permitting redistribution on restart. Checkpoint
+pairing uses this topology hash; payload integrity and physics settings require
+separate checks.
 
 `PLASTLEVEL` is not serialized in `prst`: it is reconstructed from the current
 owner. MC reload restores cell-center placement for in-block particles;
@@ -339,14 +330,14 @@ integer matches immediately after reload. Preserve type, pusher, seeds,
 physical setup and mesh/AMR policy when comparing continuation.
 
 Shared files allow reassignment by GID to a different MPI decomposition of
-the same checkpoint mesh; this is not permission to change topology in the
-input. Per-rank files require compatible rank ownership and the complete
-rank-file set. Bitwise evolution across rank-count changes is not promised.
+the same checkpoint mesh. Preserve the checkpoint topology in the input.
+Per-rank files require compatible rank ownership and the complete rank-file set.
+Changing rank count can change floating-point reduction order during evolution.
 
 Legacy magic-42 particle files remain readable **with legacy fluid files**.
-Mixed new/legacy pairs are rejected. Legacy fluid files lack lifecycle state
-and warn that exact continuation across topology changes is not guaranteed.
-Old executables are not promised to read the new format.
+Mixed new/legacy pairs are rejected. Legacy fluid files lack lifecycle state,
+so continuation across topology changes can differ from an uninterrupted run.
+Version-1 files require an executable that supports that format.
 
 Sources: [diagnostic output](../src/outputs/bin_prtcl.cpp),
 [particle writer](../src/outputs/res_prtcl.cpp),
@@ -356,27 +347,20 @@ Sources: [diagnostic output](../src/outputs/bin_prtcl.cpp),
 [fluid reader](../src/mesh/build_tree.cpp),
 [driver ordering](../src/driver/driver.cpp).
 
-## Validation Scope at Integration
+## Verification
 
-This is an integration evidence summary, not exhaustive coverage or a fresh
-full four-mode rerun on `366a172a`:
+The [particle advection input](../tst/inputs/public_main_particles.athinput)
+tests classical, Monte Carlo and Ito-2 tracers in a periodic two-dimensional
+flow with uniform velocity `vx = 0.1`. The expected x displacement is `0.1*t`.
+The [particle checks](../tst/test_suite/imported_features/scenarios.py) verify:
 
-- Earlier-base standard suites recorded CPU 232 passed/15 expected skips,
-  MPI-CPU 52 passed in single-host and two-node runs, and single-GPU 54 passed.
-  Functional matrices and isolated GPU OOM reruns supplied additional evidence.
-- The exact candidate later committed as `366a172a` passed targeted two-GPU
-  job 13750687: 57 boundary cases plus one geometry case. Job 13741451 passed
-  targeted diode/AMR, STS/turbulence restart, checkpoint-format and MC allocation
-  checks. MC analysis accepted post-prolongation child masses and rejected
-  uniform allocation across 16 parent groups.
-- Twelve positive-oblique SMR cases had reload-only, one-level `PLASTLEVEL`
-  differences. The checks validate reconstruction from the current owner;
-  they do not require all four integer rows to match bitwise.
-- The broader job 13733251 timed out; it is not a full-suite pass.
+- particle count and tags are preserved, coordinates remain finite and inside
+  the periodic x1/x2 domain;
+- classical particles follow the expected displacement, while the mean Monte
+  Carlo and Ito-2 displacements agree within the test's sampling allowance;
+- Monte Carlo particles remain at cell centres along the advected direction;
+- paired fluid/particle restarts for Monte Carlo and Ito-2 reproduce the
+  uninterrupted integer, position and sampled-grid arrays in this setup.
 
-Integration-specific launchers and artifacts remain in the maintainer's
-scratch handoff, not this repository. The existing
-[imported-feature tests](../tst/test_suite/imported_features) are not a portable
-replacement for that entire boundary/AMR/checkpoint matrix. Packaging the new
-checks remains follow-up work. Historical paper comparisons are not presented
-here as certification of this integration.
+These cases are included in the
+[imported-feature CPU, GPU and MPI test modules](../tst/test_suite/imported_features).

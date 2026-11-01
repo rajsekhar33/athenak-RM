@@ -40,6 +40,7 @@
 //! comment text: 'NEW_OUTPUT_TYPES'.
 //========================================================================================
 
+#include <algorithm>  // std::find
 #include <cmath>      // std::isfinite
 #include <cstdio>
 #include <cstdlib>
@@ -48,11 +49,14 @@
 #include <iostream>
 #include <sstream>
 #include <string>   // std::string, to_string()
+#include <vector>
 
 #include "athena.hpp"
 #include "parameter_input.hpp"
 #include "mesh/mesh.hpp"
 #include "outputs.hpp"
+#include "structure_function.hpp"
+#include "spectrum.hpp"
 
 namespace {
 
@@ -114,6 +118,48 @@ void ValidateBinConfig(const std::string &block_name, const std::string &axis_la
 }  // namespace
 
 //----------------------------------------------------------------------------------------
+//! \fn std::vector<std::string> SplitOutputList()
+//  \brief splits a comma-separated input value ("a, b, c") into trimmed, non-empty names
+
+std::vector<std::string> SplitOutputList(const std::string &value) {
+  std::vector<std::string> names;
+  std::stringstream ss(value);
+  std::string item;
+  while (std::getline(ss, item, ',')) {
+    std::size_t first = item.find_first_not_of(" \t");
+    if (first == std::string::npos) continue;
+    std::size_t last = item.find_last_not_of(" \t");
+    names.push_back(item.substr(first, last - first + 1));
+  }
+  return names;
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn Real GetOutputReal()
+//  \brief real parameter with a default stored at full precision: GetOrAddReal writes
+//  defaults with 6 significant digits, so a restart (which re-reads the parameter text)
+//  would continue with e.g. pi/18 -> 0.174533 or 1048576 -> 1048580. The whole value
+//  must be one number, finite unless allow_inf (never NaN); anything else is fatal.
+
+Real GetOutputReal(ParameterInput *pin, const std::string &blk, const std::string &key,
+                   double def, bool allow_inf) {
+  char b[32];
+  std::snprintf(b, sizeof(b), "%.17g", def);
+  const std::string s = pin->GetOrAddString(blk, key, b);
+  char *end = nullptr;
+  const double v = std::strtod(s.c_str(), &end);
+  while (*end == ' ' || *end == '\t') ++end;
+  if (end == s.c_str() || *end != '\0' || std::isnan(v) ||
+      (!allow_inf && !std::isfinite(v))) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+        << std::endl << "Output block '" << blk << "': " << key << " = '" << s
+        << "' is not a " << (allow_inf ? "number" : "finite number") << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  return v;
+}
+
+//----------------------------------------------------------------------------------------
 // Outputs constructor
 
 Outputs::Outputs(ParameterInput *pin, Mesh *pm) {
@@ -121,6 +167,7 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {
   // and add to linked list of BaseTypeOutputs.
 
   int num_hst=0, num_rst=0, num_log=0; // count # of hst,rst,log outputs
+  std::vector<std::string> sf_spec_dirs;  // "<type>_<id>" of sf/spec outputs (unique)
   for (auto it = pin->block.begin(); it != pin->block.end(); ++it) {
     if (it->block_name.compare(0, 6, "output") == 0) {
       OutputParameters opar;  // define temporary OutputParameters struct
@@ -150,7 +197,8 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {
       } else {
         opar.dt_wall=0.0;
       }
-      if (opar.dcycle == 0 && opar.dt <= 0.0 && opar.dt_wall <= 0.0) continue;  // only add output if dt>0, dcycle>0, or dt_wall>0
+      // Only add output if at least one cadence is positive.
+      if (opar.dcycle == 0 && opar.dt <= 0.0 && opar.dt_wall <= 0.0) continue;
 
       // set file number, basename, and format
       opar.file_number = pin->GetOrAddInteger(opar.block_name,"file_number",0);
@@ -164,7 +212,9 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {
           opar.file_type.compare("prst") != 0 &&
           opar.file_type.compare("pbin") != 0 &&
           opar.file_type.compare("log") != 0 &&
-          opar.file_type.compare("trk") != 0) {
+          opar.file_type.compare("trk") != 0 &&
+          opar.file_type.compare("sf") != 0 &&
+          opar.file_type.compare("spec") != 0) {
         opar.variable = pin->GetString(opar.block_name, "variable");
         opar.file_id = pin->GetOrAddString(opar.block_name,"id",opar.variable);
       }
@@ -263,7 +313,9 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {
           opar.file_type.compare("rst") != 0 &&
           opar.file_type.compare("prst") != 0 &&
           opar.file_type.compare("pbin") != 0 &&
-          opar.file_type.compare("log") != 0) {
+          opar.file_type.compare("log") != 0 &&
+          opar.file_type.compare("sf") != 0 &&
+          opar.file_type.compare("spec") != 0) {
         opar.variable = pin->GetString(opar.block_name, "variable");
         opar.file_id = pin->GetOrAddString(opar.block_name,"id",opar.variable);
       }
@@ -386,7 +438,8 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {
         }
 
         if (opar.coord_axis.compare("r") == 0) {
-          opar.radial_type = pin->GetOrAddString(opar.block_name,"radial_type","spherical");
+          opar.radial_type =
+              pin->GetOrAddString(opar.block_name,"radial_type","spherical");
           if (opar.radial_type.compare("spherical") != 0 &&
               opar.radial_type.compare("cylindrical") != 0) {
             std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
@@ -413,6 +466,126 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {
 
         ParseRegionRestriction(pin, pm, &opar);
         pnode = new ProfileOutput(pin,pm,opar);
+        pout_list.insert(pout_list.begin(),pnode);
+      } else if (opar.file_type.compare("sf") == 0 ||
+                 opar.file_type.compare("spec") == 0) {
+        // variables, then any non-unit weights, each loaded once into outvars
+        std::vector<std::string> vars =
+            SplitOutputList(pin->GetString(opar.block_name, "variables"));
+        std::vector<std::string> wts =
+            SplitOutputList(pin->GetOrAddString(opar.block_name, "weights", "ones"));
+        opar.variable_list = vars;
+        // sf variables "temperature" and "pressure" are computed by the sf output from
+        // the primitives, so they are not loaded (nor are such select<n>_variable)
+        auto sf_computed = [](const std::string &v) {
+          return v.compare("temperature") == 0 || v.compare("pressure") == 0;
+        };
+        if (opar.file_type.compare("sf") == 0) {
+          opar.variable_list.clear();
+          for (const auto &v : vars) {
+            if (!sf_computed(v)) opar.variable_list.push_back(v);
+          }
+        }
+        for (const auto &w : wts) {
+          if (w.compare("ones") != 0 &&
+              std::find(opar.variable_list.begin(), opar.variable_list.end(), w) ==
+              opar.variable_list.end()) {
+            opar.variable_list.push_back(w);
+          }
+        }
+        // sf cell selection: select<n>_variable fields are loaded too
+        if (opar.file_type.compare("sf") == 0) {
+          for (const char *key : {"select1_variable", "select2_variable"}) {
+            if (!pin->DoesParameterExist(opar.block_name, key)) continue;
+            std::string s = pin->GetString(opar.block_name, key);
+            if (!sf_computed(s) &&
+                std::find(opar.variable_list.begin(), opar.variable_list.end(), s) ==
+                opar.variable_list.end()) {
+              opar.variable_list.push_back(s);
+            }
+          }
+        }
+        // only computed fields: load the density so the output has a variable list
+        if (opar.variable_list.empty() && !vars.empty()) {
+          opar.variable_list.push_back(pin->DoesBlockExist("mhd") ? "mhd_w_d" :
+                                                                    "hydro_w_d");
+        }
+        if (vars.empty()) {
+          std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+              << std::endl << "Output block '" << opar.block_name
+              << "' (" << opar.file_type << ") needs a non-empty 'variables' list"
+              << std::endl;
+          exit(EXIT_FAILURE);
+        }
+        for (const auto &v : opar.variable_list) {
+          if (v.compare("mhd_w") == 0 || v.compare("mhd_u") == 0 ||
+              v.compare("hydro_w") == 0 || v.compare("hydro_u") == 0 ||
+              v.compare("mhd_bcc") == 0) {
+            std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+                << std::endl << "Output block '" << opar.block_name << "' ("
+                << opar.file_type << "): '"
+                << v << "' is a variable group; list single variables" << std::endl;
+            exit(EXIT_FAILURE);
+          }
+        }
+        opar.variable = opar.variable_list[0];
+        // default id = block name, so several blocks of one type never share a
+        // directory; two blocks with the same explicit type and id are rejected
+        opar.file_id = pin->GetOrAddString(opar.block_name, "id", opar.block_name);
+        std::string dir = opar.file_type + "_" + opar.file_id;
+        if (std::find(sf_spec_dirs.begin(), sf_spec_dirs.end(), dir) !=
+            sf_spec_dirs.end()) {
+          std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+              << std::endl << "Output block '" << opar.block_name << "' writes to '"
+              << dir << "/', which another " << opar.file_type
+              << " output already uses; give it a distinct 'id'" << std::endl;
+          exit(EXIT_FAILURE);
+        }
+        sf_spec_dirs.push_back(dir);
+        // both types read the whole mesh themselves: the generic slice, MeshBlock-ID and
+        // ghost-zone options would be silently ignored, so reject them
+        if (opar.slice1 || opar.slice2 || opar.slice3 || opar.gid >= 0 ||
+            opar.include_gzs) {
+          std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+              << std::endl << "Output block '" << opar.block_name << "' ("
+              << opar.file_type << ") does not support slice_x1/2/3, gid or ghost_zones"
+              << std::endl;
+          exit(EXIT_FAILURE);
+        }
+        if (opar.file_type.compare("spec") == 0) {
+          // spec transforms the whole mesh (z crop only, via strat/skip). A bound equal
+          // to the mesh extent is accepted: restart files of earlier versions hold them.
+          const char *bkey[6] = {"x1_min", "x1_max", "x2_min", "x2_max", "x3_min",
+                                 "x3_max"};
+          const Real bmesh[6] = {pm->mesh_size.x1min, pm->mesh_size.x1max,
+                                 pm->mesh_size.x2min, pm->mesh_size.x2max,
+                                 pm->mesh_size.x3min, pm->mesh_size.x3max};
+          for (int b = 0; b < 6; ++b) {
+            if (pin->DoesParameterExist(opar.block_name, bkey[b]) &&
+                pin->GetReal(opar.block_name, bkey[b]) != bmesh[b]) {
+              std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+                  << std::endl << "Output block '" << opar.block_name << "' (spec): "
+                  << bkey[b] << " is not supported; spec transforms the whole mesh "
+                  << "(use strat = true and skip to crop x3)" << std::endl;
+              exit(EXIT_FAILURE);
+            }
+          }
+          for (int f = 0; f < 6; ++f) {
+            if (pm->mesh_bcs[f] == BoundaryFlag::shear_periodic) {
+              std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+                  << std::endl << "Output block '" << opar.block_name << "' (spec): "
+                  << "shearing-periodic boundaries are not supported" << std::endl;
+              exit(EXIT_FAILURE);
+            }
+          }
+        } else {
+          ParseRegionRestriction(pin, pm, &opar);
+        }
+        if (opar.file_type.compare("sf") == 0) {
+          pnode = new SFOutput(pin,pm,opar);
+        } else {
+          pnode = new SpectrumOutput(pin,pm,opar);
+        }
         pout_list.insert(pout_list.begin(),pnode);
       } else if (opar.file_type.compare("bin") == 0) {
         opar.single_file_per_rank = pin->GetOrAddBoolean(opar.block_name,
