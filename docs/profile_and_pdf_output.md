@@ -1,199 +1,163 @@
-# On-the-fly Spatial Profiles and (Region-Restricted) PDFs in AthenaK
+# Spatial profiles and probability distributions
 
-This note documents two on-the-fly output features added on top of the existing
-PDF output (`file_type = pdf`): a new spatial **Profile** output
-(`file_type = prof`) and an optional **spatial region restriction** usable by
-both `prof` and `pdf`. Both reuse the same Kokkos `ScatterView`-based
-binning/reduction machinery, and both write a compact **binary** file format
-(not ASCII) so large 2D PDFs stay cheap to write and read.
+Spatial profiles (`file_type = prof`) and histograms (`file_type = pdf`) accumulate
+statistics directly from the simulation state at the requested output cadence.
+Each output can be restricted to a rectangular region of the mesh.
 
-## Motivation
+## Quantities stored
 
-Computing a spatial profile (e.g. mean density vs. `x1`) or a joint PDF of two
-variables has historically meant dumping full 3D snapshots and post-processing
-them in Python. That is expensive and limited to whatever snapshot cadence was
-saved. These two output types compute the same quantities **during the run**,
-at their own output cadence, with no snapshot required.
+Let `V_i` be a cell's volume, `rho_i` its density and `q_i` the selected variable.
+The cell weight is `w_i = V_i` for volume weighting and `w_i = rho_i V_i` when
+`mass_weighted = true`.
 
-## Where the Code Lives
+A profile bins cells by a spatial coordinate and writes, for each bin,
 
-- `src/outputs/outputs.hpp`
-  - `OutputParameters`: new fields `coord_axis`, `radial_type`, `cyl_axis`,
-    `xc`/`yc`/`zc` (profile-only), and `x1_min`/`x1_max`/`x2_min`/`x2_max`/
-    `x3_min`/`x3_max` (shared region restriction, used by both `pdf` and `prof`).
-  - `ProfileData` / `ProfileOutput`: new struct/class for the profile output,
-    modeled directly on the existing `PDFData`/`PDFOutput`.
-- `src/outputs/outputs.cpp`
-  - `ParseRegionRestriction()`: reads the six optional region bounds, each
-    defaulting to the full mesh extent on that axis (so "not set" is a true
-    no-op, not a special case in the per-cell kernel).
-  - New `prof` branch in the `Outputs` constructor: parses `coord_axis`,
-    `radial_type`/`cyl_axis` (only relevant when `coord_axis = r`), and
-    `xc`/`yc`/`zc`, then constructs a `ProfileOutput`.
-- `src/outputs/profile.cpp` (new file): `ProfileOutput`'s
-  `LoadOutputData()`/`WriteOutputFile()`.
-- `src/outputs/pdf.cpp`: unchanged except for the region-restriction mask added
-  to the existing binning kernel.
-- `src/CMakeLists.txt`: registers `outputs/profile.cpp`.
+$$
+W_b=\sum_{i\in b}w_i,\qquad
+Q_b=\sum_{i\in b}w_iq_i,\qquad
+\langle q\rangle_b=Q_b/W_b.
+$$
 
-## `prof`: Spatial Profile Output
+The stored mean is zero when `W_b = 0`; use the weight array to identify empty
+bins. A histogram bins by the value of one or two variables and stores the
+accumulated weight `H_b = sum(w_i)`.
 
-Bins cells by a coordinate — `x1`, `x2`, `x3`, or radius `r` — and records the
-volume- or mass-weighted mean of **one** variable per bin (one variable per
-output block, matching the existing `pdf` convention of `variable`/`variable_2`
-rather than a variable list).
+To obtain a probability per histogram bin, divide `H_b` by the total selected
+weight. To obtain a probability density, also divide by the bin width, or by
+the product of the two widths for a joint distribution. For a density per unit
+logarithmic variable, use the corresponding logarithmic bin widths. Underflow
+and overflow weights remain available for accounting for material outside the
+chosen bin limits.
+
+## Spatial profiles
+
+Each profile block selects one field component and one coordinate:
 
 ```ini
 <output2>
-file_type     = prof
-variable      = hydro_w_d      # any single var_choice entry (outputs.hpp)
-coord_axis    = x1             # x1 | x2 | x3 | r
-bin_min       = 0.0
-bin_max       = 3.0
-nbin          = 100
-logscale      = false          # log-spaced bins if true (bin_min must be > 0)
-mass_weighted = false          # false = volume-weighted (default), true = mass-weighted
-dt            = 0.05
-id            = dens_vs_x1
+file_type = prof
+variable = hydro_w_d
+coord_axis = x1
+bin_min = 0.0
+bin_max = 3.0
+nbin = 100
+logscale = false
+mass_weighted = false
+dt = 0.05
+id = density_vs_x1
 ```
 
-### Radial profiles
-
-`coord_axis = r` additionally requires `radial_type`:
+`coord_axis` accepts `x1`, `x2`, `x3` or `r`. For radial profiles,
+`radial_type = spherical` measures distance from `(xc,yc,zc)`;
+`radial_type = cylindrical` measures distance from the axis through that centre
+specified by `cyl_axis = x1`, `x2` or `x3`. The centre defaults to `(0,0,0)`.
 
 ```ini
-<output3>                      # spherical: r = distance from (xc,yc,zc)
-file_type     = prof
-variable      = hydro_w_e
-coord_axis    = r
-radial_type   = spherical
-xc = 0.5   yc = 0.5   zc = 0.5
-bin_min = 1e-3   bin_max = 1.0   nbin = 64
-logscale      = true
+<output3>
+file_type = prof
+variable = hydro_w_d
+coord_axis = r
+radial_type = spherical
+xc = 0.5
+yc = 0.5
+zc = 0.5
+bin_min = 1e-3
+bin_max = 1.0
+nbin = 64
+logscale = true
 mass_weighted = true
-dt            = 0.1
-id            = press_vs_r
-
-<output4>                      # cylindrical: R = distance from an axis through (xc,yc,zc)
-file_type     = prof
-variable      = hydro_w_d
-coord_axis    = r
-radial_type   = cylindrical
-cyl_axis      = x3             # x1 | x2 | x3 -- the symmetry axis
-xc = 0.0   yc = 0.0
-bin_min = 0.01   bin_max = 5.0   nbin = 50
-logscale      = true
-dt            = 0.1
-id            = dens_vs_cylr
+dt = 0.1
+id = density_vs_radius
 ```
 
-`xc`/`yc`/`zc` default to `0.0` (the coordinate origin) if omitted. Unlike
-`athena_research`'s Python-side `r`/`R` data functions (fixed at the origin,
-see "Cross-checking" below), the C++ side supports an arbitrary center.
+For a cylindrical profile around x3, set `radial_type = cylindrical` and
+`cyl_axis = x3`; its radius is `sqrt((x1-xc)^2 + (x2-yc)^2)`.
 
-### Output files
+## Histograms and joint distributions
 
-- `prof_<id>/<basename>.bins.prof` — written once: bin edges.
-- `prof_<id>/<basename>.NNNNN.prof` — one per output dump: three arrays of
-  `nbin+2` values each (index `0` and `nbin+1` are the underflow/overflow
-  bins): `sum_weight`, `sum_weight_times_var`, and `mean` (the last one
-  computed host-side after the MPI reduce, with a `0.0` fallback for empty
-  bins, so the file is immediately plot-ready).
-
-## Region Restriction (`pdf` and `prof`)
-
-Both output types accept six independent, optional bounds:
+A one-dimensional histogram needs `variable` and its bin specification. Add
+`variable_2`, `bin2_min`, `bin2_max`, `nbin2` and `logscale2` for a joint
+distribution. This example measures the mass distribution in density and
+internal-energy density within an x1 slab:
 
 ```ini
-x1_min = -0.5   x1_max = 0.5    # each optional; unset axes default to the
-x2_min = ...    x2_max = ...    # full mesh extent on that axis, i.e. no
-x3_min = ...    x3_max = ...    # restriction
-```
-
-A cell is included only if its cell-center coordinate falls inside all three
-ranges. This is useful for, e.g., a PDF restricted to a post-shock slab, or a
-profile restricted to a transverse core region.
-
-```ini
-<output5>                      # 2D joint PDF, mass-weighted, x1 in [-0.5, 0.5] only
-file_type     = pdf
-variable      = hydro_w_d
-variable_2    = hydro_w_e
-bin_min = 1e-2   bin_max = 1e2   nbin = 100   logscale = true
-bin2_min = 1e-2  bin2_max = 1e2  nbin2 = 100  logscale2 = true
+<output4>
+file_type = pdf
+variable = hydro_w_d
+variable_2 = hydro_w_e
+bin_min = 1e-2
+bin_max = 1e2
+nbin = 100
+logscale = true
+bin2_min = 1e-2
+bin2_max = 1e2
+nbin2 = 100
+logscale2 = true
 mass_weighted = true
-x1_min = -0.5   x1_max = 0.5
-dt            = 0.1
-id            = rho_e_pdf_slab
+x1_min = -0.5
+x1_max = 0.5
+dt = 0.1
+id = density_energy_slab
 ```
 
-## Binary File Format (both `pdf` and `prof`)
+Both output types accept `x1_min`, `x1_max`, `x2_min`, `x2_max`, `x3_min` and
+`x3_max`. Each omitted bound defaults to the corresponding mesh boundary.
+A cell contributes when its centre lies inside all three specified intervals.
 
-Every file (`.bins.pdf`/`.bins.prof` and each numbered dump) starts with a
-short ASCII `key=value` header, one line per key, ending in a fixed-width
-`header offset=%012ld` line giving the exact byte at which the binary payload
-begins — the same "ASCII header, then raw payload" convention already used by
-AthenaK's `file_type = bin` mesh output (`src/outputs/binary.cpp`). The
-payload is raw, native-byte-order `Real` values (row-major for the 2D PDF
-case) — `size of Real` in the header tells you whether that's 4 or 8 bytes
-(depends on whether `SINGLE_PRECISION_ENABLED` was set at build time).
+Each variable must select a single supported field component. Multiple profile
+variables require separate output blocks. Logarithmic bins require positive
+lower limits. Bin intervals include their lower edge; values at or above the
+last edge enter the overflow bin.
 
-**Why binary, not ASCII:** the previous ASCII writer called `fprintf` once per
-scalar value. That cost is negligible for a profile/1D-PDF (`O(nbin)` values)
-but grows quadratically with resolution for a 2D PDF (`O(nbin*nbin2)` — e.g.
-40,000 individual `fprintf` calls at 200x200 bins). A single `fwrite` of the
-whole contiguous array replaces all of that, and is also more compact on disk
-(~8 raw bytes/value vs. ~13 ASCII bytes/value).
+## Files and reading
 
-Minimal Python reader:
+Profiles use `prof_<id>/`. One-dimensional histograms use `pdf_<id>/`;
+joint histograms use `pdf_<id>_<variable_2>/`. Each directory contains
+`<basename>.bins.prof` or `<basename>.bins.pdf` for the bin edges, followed by
+numbered output files.
+
+Every file begins with an ASCII `key=value` header ending in `header offset=N`,
+the byte offset of its binary payload. `size of Real` gives the element size:
+4 bytes for a single-precision build and 8 bytes for a double-precision build.
+The payload uses native byte order.
+
+| File | Payload |
+|---|---|
+| Profile bin file | `nbin+1` edges |
+| Profile snapshot | Three rows of `nbin+2` values: weight, weighted-variable sum, mean |
+| 1D histogram bin file | `nbin+1` edges |
+| 2D histogram bin file | First-axis edges, then `nbin2+1` second-axis edges |
+| 1D histogram snapshot | `nbin+2` accumulated weights |
+| 2D histogram snapshot | Row-major array with shape `(nbin2+2, nbin+2)` |
+
+Index zero is underflow; the last index is overflow. The following reader
+returns the header and a flat payload array:
 
 ```python
-import struct
+import numpy as np
 
-def read_prof_or_pdf(fname):
-    with open(fname, "rb") as f:
-        meta = {}
+def read_profile_or_pdf(path):
+    with open(path, "rb") as stream:
+        metadata = {}
         while True:
-            key, _, val = f.readline().decode("ascii").strip().partition("=")
-            meta[key] = val
-            if key == "header offset":
+            line = stream.readline()
+            if not line:
+                raise ValueError("Missing header offset")
+            key, separator, value = line.decode("ascii").strip().partition("=")
+            if separator:
+                metadata[key.strip()] = value.strip()
+            if key.strip() == "header offset":
                 break
-        f.seek(int(meta["header offset"]))
-        payload = f.read()
-    n = len(payload) // 8   # assumes size of Real == 8; check meta if not
-    return meta, struct.unpack(f"={n}d", payload)
+        width = int(metadata["size of Real"])
+        if width not in (4, 8):
+            raise ValueError("Unsupported element size")
+        stream.seek(int(metadata["header offset"]))
+        payload = stream.read()
+    if len(payload) % width:
+        raise ValueError("Truncated binary payload")
+    return metadata, np.frombuffer(payload, dtype=f"=f{width}")
 ```
 
-`pdf`'s per-dump payload is the `(nbin2+2, nbin+2)` result array (`(1, nbin+2)`
-if 1D) in row-major order; `prof`'s per-dump payload is the three
-`sum_weight`/`sum_weight_times_var`/`mean` arrays back-to-back, each
-`nbin+2` values.
-
-## Cross-checking
-
-Validated end-to-end against an independent computation from a raw `.bin` mesh
-snapshot of the same run, using the `athena_research` package's own histogram
-and profile operations (`set_profile`, `set_radial`, `set_radial_cyl`,
-`set_dist2d`) rather than a hand-rolled comparison — all four matched to
-within the ~1e-7 float32 precision floor of AthenaK's `.bin` mesh format (which
-downcasts field data to `float` on disk, unlike this on-the-fly output, which
-computes from double-precision in-memory data directly).
-
-`athena_research`'s `r`/`R` radial coordinates are fixed at the origin (not
-configurable), so a center other than `(0,0,0)` cannot be cross-checked
-directly against that package as-is — the C++ side's `xc`/`yc`/`zc` still work
-correctly for such cases, this is purely a limitation of what the comparison
-tooling supports.
-
-## Common Gotchas
-
-- `logscale = true` (or `logscale2`) requires the corresponding `bin_min` to be
-  `> 0.0` — this is checked at startup and is a fatal error otherwise. For a
-  radial profile with `logscale = true`, keep `bin_min` small and positive
-  (a bin including the exact center point cannot be log-binned).
-- `prof` accepts exactly one `variable` (like `pdf`'s single-variable mode); a
-  variable **group** (e.g. `hydro_w`) is rejected the same way `pdf` already
-  rejects it — profile multiple variables by adding multiple `<outputN>` blocks.
-- Region-restriction bounds are independent per axis; leaving all six unset is
-  equivalent to no restriction at all (each defaults to that axis's full mesh
-  extent), not to skipping the check.
+For a profile snapshot, reshape the payload to `(3, nbin+2)`. Retain the bin
+weights when plotting means or combining outputs, so empty bins and unequal
+sample weights are handled correctly.

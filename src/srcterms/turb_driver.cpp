@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -218,6 +219,11 @@ void TurbulenceDriver::Initialize() {
     force_tmp1_(m,n,k,j,i) = 0.0;
   });
 
+  // zero the whole RNG state, padding included: it is written to restart files byte for
+  // byte and only idum is set here, so leftover memory would make the cycle-0 checkpoint
+  // nondeterministic (for random_seed > 0, RanSt and RanGaussianSt reinitialize the other
+  // fields from idum < 0 before reading them)
+  std::memset(&rstate, 0, sizeof(RNG_State));
   rstate.idum = -random_seed;
 
   auto kx_mode_ = kx_mode;
@@ -511,7 +517,6 @@ TaskStatus TurbulenceDriver::InitializeModes(Driver *pdrive, int stage) {
         force_tmp1_(m,n,k,j,i) = fcorr*force_tmp1_(m,n,k,j,i) +
                                  gcorr*force_tmp2_(m,n,k,j,i);
       });
-
     } // end of for loop over i_turb_update
   }
   n_turb_updates_yet = n_turb_updates_reqd;

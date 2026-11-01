@@ -136,6 +136,9 @@ add_executable(
         particles/particles_tasks.cpp
         outputs/pdf.cpp
         outputs/profile.cpp
+        outputs/structure_function.cpp
+        outputs/spectrum.cpp
+        fft/pencil_fft.cpp
 
         pgen/pgen.cpp
         pgen/tests/advection.cpp

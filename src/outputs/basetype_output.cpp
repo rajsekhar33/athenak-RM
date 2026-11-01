@@ -36,6 +36,140 @@
 #endif
 
 //----------------------------------------------------------------------------------------
+//! \fn void CheckOutputVariable()
+//  \brief checks that 'variable' is a valid output choice and that the physics it
+//  needs has been constructed; exits with a fatal error otherwise.
+
+namespace {
+void CheckOutputVariable(const std::string &variable, const std::string &block_name,
+                         Mesh *pm) {
+  // check for valid choice of variables
+  int ivar = -1;
+  for (int i=0; i<(NOUTPUT_CHOICES); ++i) {
+    if (variable.compare(var_choice[i]) == 0) {ivar = i;}
+  }
+  if (ivar < 0) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
+       << "Variable '" << variable << "' in block '" << block_name
+       << "' in input file is not a valid choice" << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+
+  // check that appropriate physics is defined for requested output variable
+  // TODO(@user): Index limits of variable choices below may change if more choices added
+  if ((ivar<16) && (pm->pmb_pack->phydro == nullptr)) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
+       << "Output of Hydro variable requested in <output> block '"
+       << block_name << "' but no Hydro object has been constructed."
+       << std::endl << "Input file is likely missing a <hydro> block" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  if ((ivar>=16) && (ivar<50) && (pm->pmb_pack->pmhd == nullptr)) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
+       << "Output of MHD variable requested in <output> block '"
+       << block_name << "' but no MHD object has been constructed."
+       << std::endl << "Input file is likely missing a <mhd> block" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  if ((ivar==38) && (pm->pmb_pack->pdyngr == nullptr)) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
+       << "Output of DynMHD variable requested in <output> block '"
+       << block_name << "' but no DynMHD object has been constructed."
+       << std::endl << "Input file is likely missing a <adm> or <z4c>, and/or <mhd> block"
+       << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  if ((ivar==50) && (pm->pmb_pack->pturb == nullptr)) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
+       << "Output of Force variable requested in <output> block '"
+       << block_name << "' but no Force object has been constructed."
+       << std::endl << "Input file is likely missing a <forcing> block" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  if (ivar==51 && (pm->pmb_pack->prad == nullptr)) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
+       << "Output of Radiation moments requested in <output> block '"
+       << block_name << "' but no Radiation object has been constructed."
+       << std::endl << "Input file is likely missing a <radiation> block" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  if ((ivar==52 || ivar==53) &&
+      ((pm->pmb_pack->prad == nullptr) ||
+       (pm->pmb_pack->phydro == nullptr && pm->pmb_pack->pmhd == nullptr))) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
+       << "Output of Fluid Frame Radiation moments requested in <output> block '"
+       << block_name << "' but either Radiation object has not been "
+       << " constructed, or corresponding Hydro or MHD object missing" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  if ((ivar>=53) && (ivar<68) &&
+      (pm->pmb_pack->prad == nullptr || pm->pmb_pack->phydro == nullptr)) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
+       << "Output of Radiation Hydro variables requested in <output> block '"
+       << block_name << "' but Radiation and/or Hydro object not constructed."
+       << std::endl << "Input file is likely missing corresponding block" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  if ((ivar>=68) && (ivar<88) &&
+      (pm->pmb_pack->prad == nullptr || pm->pmb_pack->pmhd == nullptr)) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
+       << "Output of Radiation MHD variables requested in <output> block '"
+       << block_name << "' but Radiation and/or MHD object not constructed."
+       << std::endl << "Input file is likely missing corresponding block" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  if ((ivar>=88) && (ivar<106) && (pm->pmb_pack->padm == nullptr)) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
+       << "Output of ADM variable requested in <output> block '"
+       << block_name << "' but ADM object not constructed."
+       << std::endl << "Input file is likely missing corresponding block" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  if ((ivar>=106) && (ivar<129) && (pm->pmb_pack->pz4c == nullptr)) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
+       << "Output of Z4c variable requested in <output> block '"
+       << block_name << "' but Z4c object not constructed."
+       << std::endl << "Input file is likely missing corresponding block" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  if ((ivar>=129) && (ivar<132) && (pm->pmb_pack->pz4c == nullptr)) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
+       << "Output of weyl variable requested in <output> block '"
+       << block_name << "' but weyl object not constructed."
+       << std::endl << "Input file is likely missing corresponding block" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  if ((ivar>=132) && (ivar<140) && (pm->pmb_pack->pz4c == nullptr)) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
+       << "Output of constraint variables request in <output> block '"
+       << block_name << "' but Z4c object not constructed."
+       << std::endl << "Input file is likely missing corresponding block" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  if ((ivar>=140) && (ivar<151) && (pm->pmb_pack->ptmunu == nullptr)) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
+       << "Output of Tmunu variable requested in <output> block '"
+       << block_name << "' but no Tmunu object has been constructed."
+       << std::endl << "Input file is likely missing a <adm> block" << std::endl;
+  }
+  if ((ivar>=151) && (ivar<153) && (pm->pmb_pack->ppart == nullptr)) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
+       << "Output of particles requested in <output> block '"
+       << block_name << "' but particle object not constructed."
+       << std::endl << "Input file is likely missing corresponding block" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  if (ivar==153 && (pm->pmb_pack->pgrav == nullptr)) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
+       << "Output of gravity potential requested in <output> block '"
+       << block_name << "' but gravity object not constructed."
+       << std::endl << "Input file is likely missing a <gravity> block" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+}
+}  // namespace
+
+//----------------------------------------------------------------------------------------
 // BaseTypeOutput base class constructor
 // Creates vector of output variable data
 
@@ -55,128 +189,13 @@ BaseTypeOutput::BaseTypeOutput(ParameterInput *pin, Mesh *pm, OutputParameters o
   // initialize vector containing number of output MBs per rank
   noutmbs.assign(global_variable::nranks, 0);
 
-  // check for valid choice of variables
-  int ivar = -1;
-  for (int i=0; i<(NOUTPUT_CHOICES); ++i) {
-    if (out_params.variable.compare(var_choice[i]) == 0) {ivar = i;}
-  }
-  if (ivar < 0) {
-    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
-       << "Variable '" << out_params.variable << "' in block '" << out_params.block_name
-       << "' in input file is not a valid choice" << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-
-  // check that appropriate physics is defined for requested output variable
-  // TODO(@user): Index limits of variable choices below may change if more choices added
-  if ((ivar<16) && (pm->pmb_pack->phydro == nullptr)) {
-    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
-       << "Output of Hydro variable requested in <output> block '"
-       << out_params.block_name << "' but no Hydro object has been constructed."
-       << std::endl << "Input file is likely missing a <hydro> block" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  if ((ivar>=16) && (ivar<50) && (pm->pmb_pack->pmhd == nullptr)) {
-    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
-       << "Output of MHD variable requested in <output> block '"
-       << out_params.block_name << "' but no MHD object has been constructed."
-       << std::endl << "Input file is likely missing a <mhd> block" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  if ((ivar==38) && (pm->pmb_pack->pdyngr == nullptr)) {
-    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
-       << "Output of DynMHD variable requested in <output> block '"
-       << out_params.block_name << "' but no DynMHD object has been constructed."
-       << std::endl << "Input file is likely missing a <adm> or <z4c>, and/or <mhd> block"
-       << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  if ((ivar==50) && (pm->pmb_pack->pturb == nullptr)) {
-    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
-       << "Output of Force variable requested in <output> block '"
-       << out_params.block_name << "' but no Force object has been constructed."
-       << std::endl << "Input file is likely missing a <forcing> block" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  if (ivar==51 && (pm->pmb_pack->prad == nullptr)) {
-    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
-       << "Output of Radiation moments requested in <output> block '"
-       << out_params.block_name << "' but no Radiation object has been constructed."
-       << std::endl << "Input file is likely missing a <radiation> block" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  if ((ivar==52 || ivar==53) &&
-      ((pm->pmb_pack->prad == nullptr) ||
-       (pm->pmb_pack->phydro == nullptr && pm->pmb_pack->pmhd == nullptr))) {
-    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
-       << "Output of Fluid Frame Radiation moments requested in <output> block '"
-       << out_params.block_name << "' but either Radiation object has not been "
-       << " constructed, or corresponding Hydro or MHD object missing" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  if ((ivar>=53) && (ivar<68) &&
-      (pm->pmb_pack->prad == nullptr || pm->pmb_pack->phydro == nullptr)) {
-    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
-       << "Output of Radiation Hydro variables requested in <output> block '"
-       << out_params.block_name << "' but Radiation and/or Hydro object not constructed."
-       << std::endl << "Input file is likely missing corresponding block" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  if ((ivar>=68) && (ivar<88) &&
-      (pm->pmb_pack->prad == nullptr || pm->pmb_pack->pmhd == nullptr)) {
-    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
-       << "Output of Radiation MHD variables requested in <output> block '"
-       << out_params.block_name << "' but Radiation and/or MHD object not constructed."
-       << std::endl << "Input file is likely missing corresponding block" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  if ((ivar>=88) && (ivar<106) && (pm->pmb_pack->padm == nullptr)) {
-    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
-       << "Output of ADM variable requested in <output> block '"
-       << out_params.block_name << "' but ADM object not constructed."
-       << std::endl << "Input file is likely missing corresponding block" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  if ((ivar>=106) && (ivar<129) && (pm->pmb_pack->pz4c == nullptr)) {
-    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
-       << "Output of Z4c variable requested in <output> block '"
-       << out_params.block_name << "' but Z4c object not constructed."
-       << std::endl << "Input file is likely missing corresponding block" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  if ((ivar>=129) && (ivar<132) && (pm->pmb_pack->pz4c == nullptr)) {
-    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
-       << "Output of weyl variable requested in <output> block '"
-       << out_params.block_name << "' but weyl object not constructed."
-       << std::endl << "Input file is likely missing corresponding block" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  if ((ivar>=132) && (ivar<140) && (pm->pmb_pack->pz4c == nullptr)) {
-    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
-       << "Output of constraint variables request in <output> block '"
-       << out_params.block_name << "' but Z4c object not constructed."
-       << std::endl << "Input file is likely missing corresponding block" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  if ((ivar>=140) && (ivar<151) && (pm->pmb_pack->ptmunu == nullptr)) {
-    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
-       << "Output of Tmunu variable requested in <output> block '"
-       << out_params.block_name << "' but no Tmunu object has been constructed."
-       << std::endl << "Input file is likely missing a <adm> block" << std::endl;
-  }
-  if ((ivar>=151) && (ivar<153) && (pm->pmb_pack->ppart == nullptr)) {
-    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
-       << "Output of particles requested in <output> block '"
-       << out_params.block_name << "' but particle object not constructed."
-       << std::endl << "Input file is likely missing corresponding block" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  if (ivar==153 && (pm->pmb_pack->pgrav == nullptr)) {
-    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
-       << "Output of gravity potential requested in <output> block '"
-       << out_params.block_name << "' but gravity object not constructed."
-       << std::endl << "Input file is likely missing a <gravity> block" << std::endl;
-    exit(EXIT_FAILURE);
+  // check every requested variable (multi-variable outputs list several)
+  if (out_params.variable_list.empty()) {
+    CheckOutputVariable(out_params.variable, out_params.block_name, pm);
+  } else {
+    for (const auto &vname : out_params.variable_list) {
+      CheckOutputVariable(vname, out_params.block_name, pm);
+    }
   }
 
   // Now load STL vector of output variables
@@ -185,7 +204,11 @@ BaseTypeOutput::BaseTypeOutput(ParameterInput *pin, Mesh *pm, OutputParameters o
   // make a vector of out_params.variables
   std::vector<std::string> variables;
 
-  variables.push_back(out_params.variable);
+  if (!out_params.variable_list.empty()) {
+    variables = out_params.variable_list;
+  } else {
+    variables.push_back(out_params.variable);
+  }
   if (out_params.file_type == "pdf") {
     if (out_params.nbin2 > 1) {
       variables.push_back(out_params.variable_2);
@@ -193,7 +216,9 @@ BaseTypeOutput::BaseTypeOutput(ParameterInput *pin, Mesh *pm, OutputParameters o
   }
 
 
+  outvars_per_name.clear();
   for (const auto& variable : variables) {
+    const std::size_t nout_before = outvars.size();
     // hydro (lab-frame) density
     if (variable.compare("hydro_u_d") == 0 ||
         variable.compare("hydro_u") == 0 ||
@@ -719,6 +744,7 @@ BaseTypeOutput::BaseTypeOutput(ParameterInput *pin, Mesh *pm, OutputParameters o
       outvars.emplace_back("r23_ff",moments_offset+8,&(derived_var));
       outvars.emplace_back("r33_ff",moments_offset+9,&(derived_var));
     }
+    outvars_per_name.push_back(static_cast<int>(outvars.size() - nout_before));
   }
 
   // particle density binned to mesh
