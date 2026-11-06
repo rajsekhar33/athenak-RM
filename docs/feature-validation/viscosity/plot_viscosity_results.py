@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Reproduce the physical-viscosity and Braginskii figures from bundled JSON.
 
-Requires only NumPy and Matplotlib. No simulation or private-data access occurs.
+Requires NumPy and Matplotlib.
 """
 
 import argparse

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "feature_commit": "31556aa884b1d9ebaac13285a009c21f95c6ee3b",
   "parent_commit": "40b40183336ef09c26070084ce6b235cf10b8cb1",
-  "scope": "Constant isotropic kinematic viscosity; standard arithmetic-density centered stress. Historical standard-operator and final selected-source integration checks are distinguished. No alternative spatial-operator results are included.",
+  "scope": "Constant isotropic kinematic viscosity with an arithmetic-density centered stress. Operator measurements and full-integration checks identify their respective source versions.",
   "explicit_modes": {
     "cpu": {
       "provenance": {

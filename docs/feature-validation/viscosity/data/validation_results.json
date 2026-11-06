@@ -150133,8 +150133,8 @@
      "prediction_policy": "Initial density and coefficient estimates only; actual variable-bound native telemetry is required"
     },
     "spatial_policy": "Continuum errors and longitudinal/magnetic leakage are explicitly nongating diagnostics; fixed-grid temporal and native integrity gates apply",
-    "translation_policy": "Phase .137 preserves historical CT-stagnation failure, not a repair of the upstream selector",
-    "nonzero_J_policy": "Historical ratio128 temporal failure retained; ratio8 chosen before this oblique matrix based on separate diagnostic evidence",
+    "translation_policy": "Phase 0.137 tests the dependence on exact stagnation-plane alignment; the unshifted CT discrepancies remain recorded.",
+    "nonzero_J_policy": "The ratio-128 temporal-order failure and the ratio-8 oblique measurements are reported separately.",
     "backend": "cpu",
     "warm_prerequisite": {
      "passed": true,
@@ -151992,8 +151992,8 @@
      "prediction_policy": "Initial density and coefficient estimates only; actual variable-bound native telemetry is required"
     },
     "spatial_policy": "Continuum errors and longitudinal/magnetic leakage are explicitly nongating diagnostics; fixed-grid temporal and native integrity gates apply",
-    "translation_policy": "Phase .137 preserves historical CT-stagnation failure, not a repair of the upstream selector",
-    "nonzero_J_policy": "Historical ratio128 temporal failure retained; ratio8 chosen before this oblique matrix based on separate diagnostic evidence",
+    "translation_policy": "Phase 0.137 tests the dependence on exact stagnation-plane alignment; the unshifted CT discrepancies remain recorded.",
+    "nonzero_J_policy": "The ratio-128 temporal-order failure and the ratio-8 oblique measurements are reported separately.",
     "backend": "gpu",
     "warm_prerequisite": {
      "passed": true,
@@ -195759,8 +195759,8 @@
      "prediction_policy": "Initial density and coefficient estimates only; actual variable-bound native telemetry is required"
     },
     "spatial_policy": "Continuum errors and longitudinal/magnetic leakage are explicitly nongating diagnostics; fixed-grid temporal and native integrity gates apply",
-    "translation_policy": "Phase .137 preserves historical CT-stagnation failure, not a repair of the upstream selector",
-    "nonzero_J_policy": "Historical ratio128 temporal failure retained; ratio8 chosen before this oblique matrix based on separate diagnostic evidence"
+    "translation_policy": "Phase 0.137 tests the dependence on exact stagnation-plane alignment; the unshifted CT discrepancies remain recorded.",
+    "nonzero_J_policy": "The ratio-128 temporal-order failure and the ratio-8 oblique measurements are reported separately."
    },
    "recorded_provenance": {}
   },
@@ -206560,7 +206560,7 @@
       "rejection": "unconverged reference thermal increment"
      }
     ],
-    "component_error_qualification": "The3% native gates apply to heat-field and aggregate conserved-state increments, not each weak component. Componentwise rho/mx errors are retained as nongating diagnostics; do not claim every component is below3%.",
+    "component_error_qualification": "The 3% criteria apply to the heat field and aggregate conserved-state increments. Componentwise density and longitudinal-momentum errors are reported as separate accuracy diagnostics.",
     "reference": {
      "path": "evidence:nonzero-j-reference-04/report.json",
      "sha256": "cf2661e3d7845799ebca0a88b3be3f30fae4a6575e036b9543427615d379e339",
@@ -236770,7 +236770,7 @@
     "artifact_audit_passed": true,
     "native_executed": false,
     "reference_uncertainty": 4.117060980090204e-09,
-    "note": "Historical aggregate gates remain unchanged. No 3-percent continuum claim for weak vx/rho at these resolutions; same-grid temporal comparison is a separate test.",
+    "note": "The aggregate-state criterion is 3%. Weak longitudinal-velocity and density errors are reported separately, alongside the fixed-grid temporal comparison.",
     "cases": [
      {
       "backend": "cpu",

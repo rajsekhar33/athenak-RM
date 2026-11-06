@@ -38,14 +38,11 @@ $v_z=Ae^{-\nu k^2t}\cos(kx)$ and the volume-averaged kinetic energy is
 $\langle K\rangle=\rho A^2e^{-2\nu k^2t}/4$.
 Conservative stress work requires
 $\langle u(t)-u(0)\rangle=\langle K(0)-K(t)\rangle$.
-This is our analytic Fourier-mode test of the published Newtonian operator,
-also implemented in
-[Athena-C's viscosity module](https://princetonuniversity.github.io/Athena-Cversion/AthenaDocsUGViscosity.html).
+This Fourier-mode experiment isolates the Newtonian stress defined above.
 [Meyer, Balsara & Aslam (2014)](https://doi.org/10.1016/j.jcp.2013.08.021)
 provides the diffusion/viscous verification context for RKL integration;
-the particular sinusoid and parameters here are our test choices.
-It is not an assumption that a compressible gas with nonuniform heating would
-retain this profile if its pressure forces were also evolved.
+the experiment here holds the ideal-fluid update fixed to isolate viscous
+diffusion and heating.
 
 The plotted isolated-RK2 run uses $N=32$, $\rho=1$, $A=0.3$,
 $\nu=0.1$, initial $u=10^{-8}$ and final $t=0.0762355$.
@@ -63,8 +60,8 @@ The measured amplitude-decay rate is $3.9351527$, versus the continuum
 $\nu k^2=3.9478418$ (0.3214% difference). The centered spatial stencil instead
 predicts $\Gamma_h=4\nu\sin^2(k\Delta x/2)/\Delta x^2=3.9351746$.
 Using the actual RK2 step sequence gives a modal-amplitude error of
-$1.76\times10^{-15}$. Thus the continuum discrepancy is primarily spatial,
-not an incorrect diffusion coefficient. The global kinetic-loss/heat-gain
+$1.76\times10^{-15}$. Thus the continuum discrepancy is primarily spatial.
+The global kinetic-loss/heat-gain
 mismatch is $1.73\times10^{-18}$, with zero measured total-energy drift.
 
 A separate, fully coupled acoustic test checks longitudinal viscosity:
@@ -141,8 +138,6 @@ Cartesian derivatives used here follow
 [Kempf, Rincon & Clerc, Appendix B](https://arxiv.org/html/2306.12460v2#A2).
 The shear-layer and wave comparisons below use analytical solutions from
 [Berlok, Pakmor & Pfrommer (2020), §§2.2, 4.1–4.3 and Appendix C](https://arxiv.org/html/1911.05694).
-Their moving-mesh discretization is not substituted for AthenaK's Cartesian
-finite-volume/CT geometry.
 
 ### Oblique-field shear layer: velocity and heating profiles
 
@@ -227,7 +222,112 @@ The isolated layer tests establish local RK2 heating accuracy; they do not
 establish general coupled-MHD STS thermal positivity or reproduce the
 nonlinear firehose/Kelvin–Helmholtz examples in Berlok et al.
 
-## 3. Hyperviscosity: short-wave damping and ideal-gas heating
+## 3. Three-dimensional viscous decay: comparison with Albery & Pittard
+
+[Albery & Pittard (2026), §6.2 and Table 2](https://arxiv.org/abs/2611.05086)
+test diffusion-dominated velocity perturbations in fully evolving MHD.
+This separates the longitudinal and transverse damping rates of isotropic
+viscosity and tests the directional contraction of the parallel Braginskii stress.
+
+The periodic domain is $[-10,10]^3$, with $\rho_0=P_0=|B_0|=1$,
+$\gamma=5/3$, $k=2\pi/20$, and $\theta=\pi/3$. Define the orthonormal basis
+$e_1=(1,0,0)$, $e_2=b=(0,\cos\theta,\sin\theta)$ and
+$e_3=(0,-\sin\theta,\cos\theta)$. The initial velocity is
+
+$$
+v(x,0)=A\sin[k(x+10)]\sum_{j=1}^{3}a_j e_j,\qquad A=10^{-6}.
+$$
+
+The frozen-flow reference evolves each amplitude as
+$a_j(t)=a_j(0)e^{-\Gamma_jt}$. For isotropic viscosity,
+$\nu_{\rm iso}=3900$, $a=(1,1,1)$, and
+
+$$
+\Gamma_1=\frac43\nu_{\rm iso}k^2,\qquad
+\Gamma_2=\Gamma_3=\nu_{\rm iso}k^2.
+$$
+
+For parallel viscosity, $\nu_\parallel=15600$, $a=(1,0,0)$ and
+$\Gamma_1=\nu_\parallel k^2/3$. The two transverse components have zero
+viscous damping in this geometry, as given by the paper's equations 118b–118c.
+Both coefficients have dimensions length²/time. Initial conserved fields
+and the references use finite-volume cell averages. PLM/HLLE evolves the
+full MHD system; the large viscosity makes the diffusion time much shorter
+than the sound and Alfvén crossing times.
+
+The measurements below use the production solver at
+[source revision 943eb71a](https://github.com/rajsekhar33/athenak-RM/tree/943eb71a9b9b8cec7868aa2426c951830242d8d5)
+with a dedicated Fourier-mode initializer and completed-cycle diagnostics.
+The [numerical bundle](data/paper_viscosity.json)
+includes the measured source hashes, modal histories and error measurements.
+
+### Physical decay and spatial convergence
+
+The runs cover eight longitudinal decay times on $16^3$, $32^3$ and $64^3$
+grids, each containing eight MeshBlocks, with CFL 0.9 and an STS ratio cap
+of 50. The complete resolution sequences
+use a GPU; CPU comparisons cover the four $16^3$ explicit/RKL2 configurations,
+with two-rank CPU checks of isotropic RK1 and parallel RKL2.
+
+![Isotropic longitudinal and transverse velocity decay and convergence](figures/paper_v1_decay.png)
+
+*Top: measured $64^3$ modal amplitudes and their distinct analytic decay rates.
+The two transverse components agree. Middle: velocity-field error through
+the decay. Bottom: maximum error under grid refinement.*
+
+![Parallel Braginskii velocity decay and convergence](figures/paper_v2_decay.png)
+
+*The longitudinal mode damps even though its wavevector is perpendicular to
+the magnetic field: the parallel stress responds to the traceless strain.
+The panels compare the physical mode, its field error and spatial convergence.*
+
+At each saved time the velocity-vector error is
+
+$$
+E(t)=\left[\frac{1}{V}\sum_i V_i
+ \sum_{j=1}^{3}(v_{j,i}-v_{{\rm ref},j,i})^2\right]^{1/2},\qquad
+E_N=\max_t E(t),\qquad p=\log_2(E_N/E_{2N}).
+$$
+
+Percentages divide $E_N$ by the initial velocity-vector RMS. This includes
+all active components and the cell-average factor $\operatorname{sinc}(\pi/N)$,
+where $\operatorname{sinc}(z)=\sin(z)/z$.
+The paper uses the same maximum-over-time volume norm. Explicit orders agree
+closely with its Table 2:
+
+| Viscosity | Method | $64^3$ error (% initial RMS) | Order $16^3\to32^3$ | Order $32^3\to64^3$ | Paper RK1 orders |
+| --- | --- | ---: | ---: | ---: | --- |
+| Isotropic | RK1 | 0.004771 | 2.0100 | 2.0000 | 1.99, 2.00 |
+| Isotropic | RKL2 | 0.032162 | 3.1237 | 2.3626 | — |
+| Parallel | RK1 | 0.022871 | 1.9973 | 2.0002 | 2.00, 2.00 |
+| Parallel | RKL2 | 0.029692 | 2.0830 | 2.0250 | — |
+
+The paper's accelerated experiments use first-order RKL1. These measurements
+use RKL2, whose temporal accuracy is tested independently below. In the
+resolution sequences, both the mesh spacing and timestep decrease; orders
+above two contain a decreasing temporal-error contribution. The spatial
+operator remains second order.
+
+### Independent RKL2 time refinement
+
+At fixed $32^3$ resolution, CPU runs use maximum steps $H$, $H/2$, $H/4$,
+$H/16$ and $H/32$, with $H=3.8969686\times10^{-4}$ in code time.
+They end at four longitudinal decay times, $t=0.0077939372$.
+The error is the final velocity-vector volume norm relative to the $H/32$
+solution on the same grid. Actual maximum completed steps halve as requested.
+
+![RKL2 viscous temporal error against a finer-step solution](figures/paper_viscosity_temporal.png)
+
+| Viscosity | Order $H\to H/2$ | Order $H/2\to H/4$ | $H/16$–$H/32$ difference as fraction of $H/4$ error |
+| --- | ---: | ---: | ---: |
+| Isotropic | 1.9631 | 1.8746 | 6.659% |
+| Parallel | 2.0192 | 1.9832 | 4.871% |
+
+Both families meet the specified temporal-order requirement of 1.7 and the
+10% fine-reference uncertainty criterion. The comparisons establish the
+expected second-order RKL2 trend at fixed spatial resolution.
+
+## 4. Hyperviscosity: short-wave damping and ideal-gas heating
 
 ### What fourth-order stress is being tested?
 
@@ -257,8 +357,7 @@ Those finite-difference/isothermal implementations are not ideal-gas
 finite-volume heating benchmarks. Higher-stress mechanical work has a
 continuum thermodynamic precedent in
 [Nečas, Novotný & Šilhavý (1989), equation 2.12 and Example 2.21](https://dml.cz/bitstream/handle/10338.dmlcz/106776/CommentatMathUnivCarol_030-1989-3_14.pdf).
-The following are derived tests of the stated fourth-order model, not
-reproductions of published turbulent spectra.
+The following tests derive analytic expectations for this fourth-order model.
 
 ### Coupled-wave dispersion and the $k^4$ damping law
 
@@ -355,7 +454,7 @@ $7.58\times10^{-9}$ in the same normalization.
 Omitting $J$ changes the reference heating by 122.5%, despite conserving
 periodic total energy. At N128, the much weaker density and longitudinal
 momentum signals have relative errors of 6.12% and 3.50%; these are reported
-measurements, not quantities with an assigned acceptance threshold.
+accuracy diagnostics.
 
 ### Operator and conservation checks
 
@@ -371,8 +470,7 @@ the summed coefficient dependence.
 Face errors use $5\times10^{-12}+5\times10^{-10}\max|F_{\rm reference}|$,
 finite-volume initialization $2\times10^{-13}$, normalized conservation
 $10^{-11}$ and relative timestep error $2\times10^{-12}$.
-These algebraic comparisons supplement, rather than replace, the evolving
-physical tests above.
+These algebraic comparisons complement the evolving physical tests above.
 
 ## Hyperviscosity RKL2, multidimensional and variable-density validation
 
@@ -510,18 +608,21 @@ python tst/functional/hyperviscosity.py --binary /path/to/athena --output /path/
 python tst/functional/hyperviscosity.py --binary /path/to/gpu/athena --output /path/to/new-gpu-results --gpu
 python docs/feature-validation/viscosity/make_figures.py
 python docs/feature-validation/viscosity/plot_viscosity_results.py
+python docs/feature-validation/viscosity/plot_paper_viscosity.py
 ```
 
 The regression needs NumPy, a new output directory and an available CPU or GPU.
 For GPU runs, provide a GPU-built executable and use `--gpu` to label the results.
 This runner covers the 11 hyperviscosity regression cases listed above.
-The two figure scripts use NumPy, Matplotlib and the bundled result data.
+The figure scripts use NumPy, Matplotlib and the bundled result data.
 The [physical-profile bundle](data/physical_profiles.json) contains measured
 native profiles and time histories, separately labeled analytic/continuum
 references, and SHA-256 identifiers for the 26 archived input artifacts.
-No simulation, external dataset or private filesystem is needed to regenerate
-the seven figures. The profiles are exported measurements, not inferred from
-reported error norms.
+The seven earlier figures are regenerated from those measured profiles and
+time histories.
+
+`plot_paper_viscosity.py` uses the bundled modal histories and refinement
+measurements to reproduce the three Albery–Pittard comparison figures.
 
 ## Source versions
 
@@ -537,11 +638,12 @@ The combined implementation is recorded at
 The [combined source manifest](data/combined_source_manifest.json) lists
 26 changed paths relative to `40b40183336ef09c26070084ce6b235cf10b8cb1`;
 the [hyperviscosity manifest](data/source_manifest.json) lists its seven changed
-files. Both contain hashes from the combined implementation, including the
-guide before its subsequent documentation edits.
+files. The hashes identify the source and documentation associated with
+the measured implementation.
 
 ## References
 
+- [Albery & Pittard (2026), §6.2 and Table 2](https://arxiv.org/abs/2611.05086): diffusion-dominated isotropic and parallel-viscous Fourier modes and spatial convergence.
 - [Parrish et al. (2012), Appendix A](https://arxiv.org/html/1201.0754#A1): Athena-C anisotropic-viscosity method and verification.
 - [Kempf, Rincon & Clerc, Appendix B](https://arxiv.org/html/2306.12460v2#A2): centered Cartesian Braginskii discretization and IDEFIX operator validation.
 - [Berlok, Pakmor & Pfrommer (2020)](https://arxiv.org/abs/1911.05694): Braginskii damping/heating and RKL2 benchmarks on a moving mesh.
