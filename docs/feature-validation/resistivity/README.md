@@ -11,6 +11,87 @@ by [Stone et al. (2020)](https://doi.org/10.3847/1538-4365/ab929b) and
 Gaussian diffusion and resistive Alfvén waves are also tested by
 [Zier, Springel & Mayer (2024)](https://doi.org/10.1093/mnras/stad3200).
 
+## Weak magnetic diffusion modes
+
+The three-dimensional experiments in
+[Albery & Pittard (2026), §6.3 and Table 2](https://arxiv.org/abs/2611.05086)
+separate Ohmic diffusion from the direction-dependent ambipolar term. In a
+periodic box of side 20, set $\rho_0=p_0=B_0=1$, $\gamma=5/3$, zero initial
+velocity, $k=2\pi/20$ and
+
+$$
+\boldsymbol B(x,0)=
+\left(B_0\cos\theta,B_0\sin\theta,A_0\cos kx\right),
+\qquad \theta=\pi/6,\quad A_0=10^{-6}.
+$$
+
+The expected transverse amplitude is $A(t)=A_0e^{-\Gamma t}$, with
+
+$$
+\Gamma=k^2\left(\eta_{\rm Ohm}
+ +\eta_{\rm ad}B_0^2\cos^2\theta\right).
+$$
+
+Here `eta_ad` multiplies
+$B^2\boldsymbol J-(\boldsymbol J\cdot\boldsymbol B)\boldsymbol B$ in the
+electric field, so its dimensions are $L^2/(tB^2)$; the paper's effective
+ambipolar diffusivity is $\eta_{\rm ad}B_0^2$. Ohmic diffusivity has dimensions
+$L^2/t$. The three cases use $(\eta_{\rm Ohm},\eta_{\rm ad})=(5200,0)$,
+$(0,5900)$ and $(2600,3000)$ in code units. The Hall coefficient is zero.
+The full MHD equations evolve with PLM/HLLE, starting from finite-volume
+averages of the perturbation. The large diffusion rates make magnetic decay
+much faster than the ideal-MHD response.
+
+![Ohmic, ambipolar and combined magnetic amplitudes compared with exponential decay](figures/paper_magnetic_decay.png)
+
+All three amplitudes follow the expected exponential decay. Each calculation
+uses eight MeshBlocks and advances through eight decay times on $16^3$,
+$32^3$ and $64^3$ cells. The spatial diagnostic measures the two transverse
+components, $\boldsymbol B_\perp=(B_y,B_z)$; $B_x$ stays constant in this
+one-dimensional mode. The error is
+
+$$
+E_N=\max_t\left[\frac{\sum_i V_i
+ |\boldsymbol B_{\perp,i}-\boldsymbol B_{\perp,{\rm ref},i}|^2}{\sum_i V_i}\right]^{1/2},
+\qquad p=\log_2(E_N/E_{2N}).
+$$
+
+The percentage error divides $E_N$ by the initial perturbation RMS,
+$A_{\rm cell}/\sqrt2$, where
+$A_{\rm cell}=A_0\sin(\pi/N)/(\pi/N)$. These are errors in the perturbation,
+whose amplitude is much smaller than the background magnetic field.
+
+| Process | Integration | N64 error (% initial RMS) | Order 16→32 | Order 32→64 | Paper RK1 orders |
+| --- | --- | ---: | ---: | ---: | --- |
+| Ohmic | RK1 | 0.002947 | 2.0314 | 2.0086 | 2.04, 2.01 |
+| Ohmic | RKL2 | 0.032415 | 3.0886 | 2.3460 | — |
+| Ambipolar | RK1 | 0.009593 | 2.0076 | 2.0023 | 2.01, 2.00 |
+| Ohmic + ambipolar | RK1 | 0.006508 | 2.0134 | 2.0038 | 2.02, 2.01 |
+
+The explicit results reproduce the paper's second-order spatial convergence.
+The paper accelerates diffusion with RKL1; these Ohmic STS measurements use
+RKL2. The RKL2 resolution sequence changes both spacing and timestep, so its
+orders above two include a decreasing temporal-error contribution.
+Ambipolar diffusion uses explicit integration.
+
+![Magnetic spatial convergence and fixed-grid Ohmic RKL2 time convergence](figures/paper_magnetic_convergence.png)
+
+An independent Ohmic time-refinement test holds the grid at $32^3$ and uses
+maximum timesteps $H$, $H/2$, $H/4$, $H/16$ and $H/32$, with $\Gamma H=0.2$.
+Final magnetic fields are compared with the $H/32$ solution on the same grid.
+The first two refinement orders are 1.9701 and 1.8779. The difference between
+the two finest references is 6.65% of the $H/4$ error. These measurements
+support second-order temporal accuracy. GPU runs supply the full spatial
+sequences, and CPU runs supply the time-refinement sequence; matching N16
+CPU/GPU cases and representative two-rank CPU cases check execution consistency.
+
+These measurements use AthenaK solver source at
+[943eb71a](https://github.com/rajsekhar33/athenak-RM/commit/943eb71a9b9b8cec7868aa2426c951830242d8d5),
+with a Fourier-mode initializer and completed-cycle diagnostics. The bundled
+[measurements](data/paper_diffusion_results.json) contain the amplitudes,
+convergence values and source identifiers. Regenerate these two figures with
+`python docs/feature-validation/resistivity/plot_paper_diffusion.py`.
+
 ## Magnetic decay and Joule heating
 
 In a periodic unit-length domain, initialize
@@ -69,7 +150,7 @@ The refinement and temperature-dependent checks below extend this baseline.
 
 ## Gaussian diffusion
 
-The existing Gaussian test evolves a weak transverse magnetic pulse in
+The Gaussian test evolves a weak transverse magnetic pulse in
 kinematic MHD. For one varying coordinate,
 
 $$
@@ -78,8 +159,8 @@ B_\perp(x,t)=\frac{A_0}{\sqrt{1+4\eta t}}
 $$
 
 Its peak decreases while its width grows. Holding the gas fixed isolates the
-induction operator. On CPU, both transverse polarizations pass the existing
-N=64/128 regression gates with explicit and STS integration. The high-resolution
+induction operator. On CPU, both transverse polarizations pass the
+N=64/128 accuracy checks with explicit and STS integration. The high-resolution
 RMS L1 errors are 7.61e-11 and 8.11e-11 respectively, for initial amplitude
 1e-6; the corresponding refinement error ratios are 0.2471 and 0.2067.
 
@@ -93,9 +174,8 @@ direction. All three rotations give the same errors:
 | Explicit RK2 | 1.0 | 1.591e-11 | 0.2496 |
 | RKL2 STS | 0.05 | 2.918e-12 | 0.2523 |
 
-Both integrations satisfy the existing plane-test error thresholds. Their
-different final times are retained from the existing GPU argument lists;
-the helical tests above compare both integrations at the same final time.
+Both integrations satisfy the plane-test error thresholds at the final times
+listed above. The helical tests compare both integrations at the same final time.
 
 ## Temperature-dependent Spitzer resistivity
 
@@ -103,8 +183,9 @@ The collisional Spitzer law gives $\eta_m=\eta_0 T^{-3/2}$, so Ohmic heating
 reduces the magnetic diffusivity as the plasma warms. See
 [Spitzer & Härm (1953)](https://doi.org/10.1103/PhysRev.89.977).
 The code evaluates $T=p/\rho$ from the current stage and averages the cell
-diffusivities to CT edges using the arithmetic placement in
-[Athena++'s Ohmic EMF implementation](https://github.com/PrincetonUniversity/athena/blob/main/src/field/field_diffusion/diffusivity.cpp).
+diffusivities arithmetically to CT edges within the constrained-transport
+framework described by
+[Stone et al. (2020)](https://doi.org/10.3847/1538-4365/ab929b).
 The induction and Poynting fluxes use the same edge coefficient.
 
 For the force-free helix, energy conservation closes an independent nonlinear
@@ -148,8 +229,7 @@ the supplied normalization. The verification uses a normalization that makes
 diffusion measurable on the numerical grid.
 
 Cycle-boundary restarts reproduce the uninterrupted conserved variables and CT
-fields exactly in the single-GPU and two-processor CPU checks. Targeted constant-
-Ohmic explicit and STS controls also reproduce their pre-Spitzer endpoints exactly.
+fields exactly in the single-GPU and two-processor CPU checks.
 
 The measurements above use explicit RK2. The RKL2 comparisons below use the
 same temperature law and conservative energy flux.
@@ -208,8 +288,8 @@ decreases from 0.4 to 0.2 to 0.1. The fine-explicit reference uncertainty is
 3.16e-8. Both backends conserve total energy to 1.71e-16 relative, maintain
 positive thermal energy with zero floors, and reproduce restart endpoints exactly.
 
-Joint resistivity, viscosity and nonlinear conduction STS remains a separate
-validation step.
+Joint resistivity, viscosity and nonlinear conduction tests are described
+in [Heat transport coupled to viscous and Ohmic heating](#heat-transport-coupled-to-viscous-and-ohmic-heating).
 
 ## Spatial coefficient gradients and refinement interfaces
 
@@ -369,10 +449,9 @@ and EOS floors remain zero. The parallel-viscosity 2D CPU variant gives a
 finest error of 8.27e-8 and timestep ratios 0.251/0.256.
 
 The stationary variant retains reference variability near 1e-6. Identical
-cycle-zero restarts reproduce its explicit fields exactly on the executable
-preserved before joint-STS changes; HLLE and LLF also retain the reference
-floor. The advected tests have resolved temporal references. The stationary
-case remains an open MHD reference-sensitivity check.
+cycle-zero restarts reproduce its explicit fields exactly; HLLE and LLF also
+retain the reference floor. The advected tests have resolved temporal references.
+The stationary case remains an open MHD reference-sensitivity check.
 
 Joint isotropic/parallel Spitzer viscosity and Spitzer resistivity also pass
 the finite-amplitude magnetosonic boundary matrix described above, with
@@ -542,12 +621,12 @@ preceding fine-reference calculation measures temporal accuracy.
 
 ## Radiatively cooling magnetized mixing layer
 
-The application check uses the TRML production setup with density contrast
+The radiatively cooling mixing-layer test has density contrast
 100, pressure 1, shear velocity 0.645497, cooling time 0.1 and plasma beta
 1000. The initial field lies along x; x/y boundaries are periodic and z
-boundaries are outflow. Cooling, forcing, fluid floors, FOFC and the one
-million MC tracers retain their production settings. The grid is reduced to
-64 by 128 by 128 cells, with four ghost cells, and advances for 40 cycles.
+boundaries are outflow. Cooling, forcing, fluid floors, first-order flux
+correction (FOFC) and one million Monte Carlo tracers are enabled. The grid has
+64 by 128 by 128 cells and four ghost cells; the run advances for 40 cycles.
 
 The transport cases use $\mu_0=0.001$, $\eta_0=10^{-6}$ and field-aligned
 Spitzer conduction. The isotropic-viscosity case uses $\kappa_0=0.001$;
@@ -581,20 +660,20 @@ fluid, internal energy, CT fields and forcing arrays agree exactly at cycle
 This application check establishes short-run integration and restart integrity;
 the analytic and fine-reference tests above establish transport accuracy.
 
-## Source changes
+## Implementation
 
 | Files | Functions and purpose |
 | --- | --- |
 | [resistivity.cpp](../../../src/diffusion/resistivity.cpp), [resistivity.hpp](../../../src/diffusion/resistivity.hpp) | `SpitzerCoefficientCode` converts the normalization with Units scales. `SpitzerCellEta` and `SpitzerEdgeEta` evaluate current-stage coefficients and arithmetic edge means. `AddEMFOhmic` and `AddFluxOhmic` apply matching CT and energy fluxes. `NewTimeStep` and `InspectRawState` supply current coefficient bounds and EOS admissibility. |
-| [viscosity.cpp](../../../src/diffusion/viscosity.cpp), [viscosity.hpp](../../../src/diffusion/viscosity.hpp) | `SpitzerCoefficientCode` and `SpitzerCellMu` implement dynamic viscosity and CGS conversion. `AddViscousFluxes` and `AddViscousFluxAniso` retain the existing stress/work discretization with arithmetic dynamic face coefficients. `NewTimeStep`, `SpitzerTimeStepBound` and `InspectRawState` cover density-dependent kinematic diffusion and current-stage budgets. |
-| [conduction.cpp](../../../src/diffusion/conduction.cpp), [conduction.hpp](../../../src/diffusion/conduction.hpp) | `RawStageTimeStep` reconstructs scratch primitives from raw U/current CT fields, iterating active MeshBlocks. It reuses `SpitzerTimeStep` through a retryable bound check. Existing conductive flux, harmonic coefficient and saturation formulas are retained. |
-| [driver.cpp](../../../src/driver/driver.cpp), [driver.hpp](../../../src/driver/driver.hpp) | `DiffusionSnapshot::Save/Restore` generalizes the existing full-state snapshot. `CheckFullStateSTSState` checks raw state and summed inverse diffusion bounds. `ExecuteGuardedSTSSweep` and `ExecutePreSTSSweep` implement collective interval/cycle recovery and refresh the coupled timestep. |
+| [viscosity.cpp](../../../src/diffusion/viscosity.cpp), [viscosity.hpp](../../../src/diffusion/viscosity.hpp) | `SpitzerCoefficientCode` and `SpitzerCellMu` implement dynamic viscosity and CGS conversion. `AddViscousFluxes` and `AddViscousFluxAniso` calculate stress and work with arithmetic dynamic face coefficients. `NewTimeStep`, `SpitzerTimeStepBound` and `InspectRawState` cover density-dependent kinematic diffusion and current-stage budgets. |
+| [conduction.cpp](../../../src/diffusion/conduction.cpp), [conduction.hpp](../../../src/diffusion/conduction.hpp) | `RawStageTimeStep` reconstructs temporary primitives from raw U/current CT fields, iterating active MeshBlocks. It calls `SpitzerTimeStep` through a retryable bound check. Conductive fluxes use harmonic coefficients and the selected saturation law. |
+| [driver.cpp](../../../src/driver/driver.cpp), [driver.hpp](../../../src/driver/driver.hpp) | `DiffusionSnapshot::Save/Restore` saves and restores the full state. `CheckFullStateSTSState` checks raw state and summed inverse diffusion bounds. `ExecuteGuardedSTSSweep` and `ExecutePreSTSSweep` implement collective interval/cycle recovery and refresh the coupled timestep. |
 | [hydro.cpp](../../../src/hydro/hydro.cpp), [mhd.cpp](../../../src/mhd/mhd.cpp) | Register temperature-dependent viscosity/resistivity as active diffusion processes and call their state-dependent timestep methods. |
 | [hydro_sts.cpp](../../../src/hydro/hydro_sts.cpp), [mhd_sts.cpp](../../../src/mhd/mhd_sts.cpp) | Route current-stage saturation failures through full-state restoration for joint sweeps. Dispatch parallel Spitzer stress in MHD and apply the shared raw-state checks through the STS task pipeline. |
 | [hydro_tasks.cpp](../../../src/hydro/hydro_tasks.cpp), [mhd_tasks.cpp](../../../src/mhd/mhd_tasks.cpp) | Coordinate joint raw-state checks with EOS conversion and completed ghost/CT exchanges. |
-| [diffusion.cpp](../../../src/pgen/tests/diffusion.cpp) | Add the velocity/magnetic helix, density modulation, bulk flow and event diagnostics used by the nonlinear heating, tensor, refinement and coupled-flow tests. |
+| [diffusion.cpp](../../../src/pgen/tests/diffusion.cpp) | Initialize the velocity/magnetic helix, density modulation and bulk flow; collect diagnostics for nonlinear heating, tensor, refinement and coupled-flow tests. |
 
-The RKL2 recurrence is reused unchanged. The [compact resistivity guide](../../resistivity.md)
+The [compact resistivity guide](../../resistivity.md)
 lists production inputs, units and supported configurations.
 
 ## Reproduction
@@ -612,8 +691,8 @@ input, launch command, native checkpoint, analytic measurement and acceptance
 gate. Optional source and executable checksum manifests can be supplied with
 `--source-manifest` and `--binary-manifest`.
 
-The new initializer is in `src/pgen/tests/diffusion.cpp`, selected with
-`problem/resistivity_profile=helix`; the existing Gaussian profile remains
+The initializer is in `src/pgen/tests/diffusion.cpp`, selected with
+`problem/resistivity_profile=helix`; the Gaussian profile is
 the default. Optional `problem/helix_density_amp` supplies the periodic density
 modulation for the initial-residual test.
 
@@ -657,7 +736,6 @@ python tst/functional/joint_saturation.py --binary /absolute/path/to/athena \
 
 The Spitzer closure is contained in
 `src/diffusion/resistivity.cpp` and `.hpp`; `src/mhd/mhd.cpp` registers it with
-the existing diffusion timestep budget. Set `mhd/eta_spitzer=true` and exactly
+the diffusion timestep budget. Set `mhd/eta_spitzer=true` and exactly
 one of `mhd/spitzer_eta0_code` or `mhd/spitzer_eta0_cgs`. CGS input requires an
-explicit units block. The constant-Ohmic arithmetic and RKL2 recurrence are
-preserved.
+explicit units block.
