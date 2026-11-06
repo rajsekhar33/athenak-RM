@@ -141,7 +141,7 @@ def main():
         ax.minorticks_off()
     axs[0].legend(fontsize=8)
     fig.suptitle("Ring diffusion at t = 200: Sharma–Hammett comparison\n"
-                 "N50: historical CPU; N100–400: GPU; explicit constant coefficient", fontsize=12)
+                 "N50: CPU; N100–400: GPU; explicit constant coefficient", fontsize=12)
     save(fig, "ring_errors")
 
     fig, axs = plt.subplots(1, 2, figsize=(11, 4.6), constrained_layout=True)

@@ -83,8 +83,8 @@ tabulated *numerical errors* is below 0.23% for van Leer and 0.12% for MC at
 N400; these percentages are not the solution's continuum error.
 Van-Leer $L_\infty$ increases from N200 to N400.
 The ambiguous published N100 perpendicular-diffusivity entry is excluded from
-the comparison criteria. N50 was measured on CPU and N100–400 on GPU with
-historical constant-coefficient builds, whose hashes are included in the data.
+the comparison criteria. N50 was measured on CPU and N100–400 on GPU.
+The data identify the constant-coefficient executable used for each run.
 
 ## 2. Gaussian spreading in two and three dimensions
 
@@ -105,8 +105,8 @@ The actual runs use a periodic unit box, $T_0=1$, $A=0.1$,
 $\mathsf{\Sigma}_0=0.1^2\mathsf{I}$, $\boldsymbol{x}_0=(0.5,\ldots)$,
 $\rho=1$, $\gamma=2$, and $\boldsymbol B=(1,2,3)$.
 The references sum the periodic Fourier solution and integrate it over each
-cell, including the cell-average sinc factors. This avoids confusing a point
-sample or an unbounded Gaussian with the finite-volume reference.
+cell, including the cell-average sinc factors, to match the finite-volume
+representation and periodic domain.
 
 ![Measured Gaussian temperatures and analytic cell-average profiles in 2D and 3D](figures/gaussian_solution.png)
 
@@ -157,7 +157,7 @@ on these coarse grids, even though the source and boundary heat loss balance.
 
 ![Sovinec temperature errors and inferred perpendicular diffusion](figures/retained_coarse_limits.png)
 
-All four cases exceed the original $L_1<0.05$ criterion, where
+All four cases exceed the specified $L_1<0.05$ criterion, where
 $L_1=\sum V_i|T_i-T_{*,i}|/\sum V_i$. For N8→N16, van Leer gives
 0.22410→0.17354 and MC gives 0.16729→0.08516.
 The central-amplitude diagnostic for numerical perpendicular diffusivity,
@@ -270,48 +270,154 @@ states trigger coordinated restoration and interval halving, with up to
 32 halvings per segment; invalid initial states or unrepresentable closure
 and rate values terminate the run.
 
+## 7. Three-dimensional thermal modes and perpendicular leakage
+
+These experiments follow
+[Albery & Pittard (2026), §6.1 and Table 2](https://arxiv.org/html/2611.05086v1#S6.SS1).
+The measured source is
+[943eb71a](https://github.com/rajsekhar33/athenak-RM/tree/943eb71a9b9b8cec7868aa2426c951830242d8d5),
+with a Fourier-mode initializer and completed-step diagnostics. The CPU/GPU
+and RKL2 results in this section apply to that pinned source. Binary, fixture
+and transport-source hashes accompany the [measurements](paper_comparison.json).
+
+### Exponential thermal damping
+
+The periodic cube is $[-10,10]^3$, with $\rho_0=p_0=1$,
+$\gamma=5/3$, $\boldsymbol B=(1,0,0)$, and
+$T(0)=1+10^{-6}\cos[k(x+y)]$, where $k=2\pi/20$.
+Initialization uses exact finite-volume averages. In the isotropic case,
+$\alpha_{\rm iso}=5500$ and $\alpha_{\rm aniso}=0$; in the parallel case,
+$\alpha_{\rm iso}=0$ and $\alpha_{\rm aniso}=11000$.
+Both have the same expected decay rate,
+
+$$
+\Gamma=(\gamma-1)5500(2k^2)=(\gamma-1)11000k^2,
+\qquad A(t)=A(0)e^{-\Gamma t}.
+$$
+
+The full MHD equations evolve with PLM/HLLE and CFL 0.9 through $\Gamma t=8$.
+The large diffusion coefficient makes the damping faster than sound and
+Alfvén propagation across the box. Resolutions are $16^3$, $32^3$ and
+$64^3$, with eight MeshBlocks at each resolution. Both transverse limiters
+are tested for parallel conduction.
+
+![Thermal-mode amplitudes and temperature errors for isotropic and parallel conduction](figures/paper_thermal_modes.png)
+
+The temperature modes follow the exponential solution. For each resolution,
+$E_N=\max_t[\sum_i V_i(T_i-T_{{\rm ref},i})^2/\sum_i V_i]^{1/2}$
+uses recorded completed steps. The relative error below divides $E_N$ by
+the initial perturbation RMS $A_{\rm cell}/\sqrt{2}$, with
+$A_{\rm cell}=10^{-6}[\sin(\pi/N)/(\pi/N)]^2$.
+Spatial order is $p=\log_2(E_{32}/E_{64})$.
+
+| Transport | Integrator | $64^3$ error (% initial RMS) | Measured $p$ | Paper RK1 $p$ |
+|---|---|---:|---:|---:|
+| Isotropic | RK1 | 0.023675 | 2.0003 | 2.00 |
+| Isotropic | RKL2 | 0.041270 | 2.9678 | — |
+| Parallel, van Leer | RK1 | 0.027305 | 1.9975 | 2.01 |
+| Parallel, MC | RK1 | 0.027305 | 1.9975 | 2.01 |
+| Parallel, van Leer | RKL2 | 0.029547 | 1.9997 | — |
+| Parallel, MC | RKL2 | 0.029548 | 1.9996 | — |
+
+The six GPU resolution sequences show the expected spatial convergence.
+CPU runs cover the six $16^3$ configurations. The paper uses first-order
+RKL1; AthenaK uses second-order RKL2. The RKL2 spatial series changes both
+grid spacing and timestep, so the isotropic order above two includes a
+decreasing temporal-error contribution.
+At $16^3$, the isotropic RKL2 run takes four completed timesteps and has a
+maximum sampled error of 3.74% of initial perturbation RMS. Open markers
+identify the sparsely sampled RKL2 curves in the evolution figure.
+
+![Spatial refinement and fixed-grid RKL2 temporal refinement](figures/paper_thermal_convergence.png)
+
+The separate CPU time-refinement experiment fixes the parallel-conduction
+grid at $32^3$ and compares final temperature fields reconstructed from the
+conserved state at maximum steps
+$H,H/2,H/4$ with an $H/32$ solution. It gives orders 2.0260 and 2.0044.
+The $H/16$–$H/32$ difference is 5.84% of the $H/4$ error, quantifying the
+finite accuracy of the numerical reference. The measured maximum steps
+halve between successive coarse runs. This isolates the second-order time
+accuracy from the spatial error.
+
+### A stationary oblique temperature wave
+
+An additional control sets $\hat{\boldsymbol b}=(1,-1,0)/\sqrt{2}$ with the
+same wavevector $(k,k,0)$, pure parallel coefficient 11000 and fixed zero
+velocity. Since $\hat{\boldsymbol b}\cdot\boldsymbol k=0$, the continuum
+temperature remains stationary. Axis-aligned perpendicular controls preserve
+the temperature to roundoff; the oblique limited stencil produces
+cross-field transport and shape distortion.
+
+![Stationary-mode attenuation and spatial error for both transverse limiters](figures/paper_oblique_null.png)
+
+| Limiter | $32^3$ error (% initial RMS) | $64^3$ error (% initial RMS) |
+|---|---:|---:|
+| van Leer | 44.2625 | 18.3667 |
+| MC | 20.2329 | 7.1644 |
+
+These errors are measured at $\tau=(\gamma-1)\alpha_\parallel k^2t=8$.
+They quantify changes to the $10^{-6}$ perturbation against a background
+temperature of 1. Reducing the $32^3$ van Leer RKL2 ratio cap from 50 to 5
+leaves its error at 44.2631%. An independently time-refined integration of
+the reduced spatial stencil reproduces the measured attenuation. The
+limitation is therefore spatial; finer time integration alone does not
+remove it.
+
+In the right-hand panel, crosses are the three-dimensional AthenaK results
+at $N=32,64$. Curves at $N=32,64,128,256$ come from the reduced stencil
+with the symmetry $T_{ij}=F_{i+j}$; the higher resolutions are reduced-operator
+calculations. At N256 its errors are 4.34% for van Leer and 0.738% for MC.
+The reduced-stencil error decreases with refinement, with measured successive
+orders 0.88–1.27 for van Leer and 1.50–1.64 for MC in this geometry.
+
+The paper's §5.1 uses the same nested MC transverse-gradient construction,
+but its §6.1 does not measure this stationary oblique configuration.
+[Sharma & Hammett, §7.2](https://arxiv.org/html/0707.2616#S7.SS2) discusses
+the numerical perpendicular diffusion introduced by slope limiting. The
+present control directly measures that limitation for a Fourier mode.
+At N64, the MC fundamental attenuation corresponds to an effective
+$D_{\perp,\rm num}/D_\parallel=-\ln[A(t)/A(0)]/16\simeq0.00220$ over
+this interval. This attenuation measure summarizes the fundamental mode;
+the full $L_2$ error also includes the generated harmonics.
+
 ## Reproducing the figures and identifying the source
 
 ```bash
 python docs/feature-validation/conduction/plot_results.py
+python docs/feature-validation/conduction/plot_paper_comparison.py
 ```
 
-NumPy and Matplotlib recreate all eight figures from
+The first command uses NumPy and Matplotlib to recreate the eight figures in §§1–5 from
 [results.json](results.json) and [physical_profiles.npz](physical_profiles.npz).
+The second command recreates the three thermal-mode figures from
+[paper_comparison.json](paper_comparison.json) and
+[paper_comparison_series.npz](paper_comparison_series.npz).
 Use `--output DIRECTORY` for a separate destination.
 [Physical-profile metadata](physical_profiles.json) gives the archived field
 hashes, coefficients, binary identifiers and independently checked metrics.
 The optional [scalar exporter](export_results.py) and
-[field exporter](export_physical_profiles.py) document extraction from the
-original campaign; the latter also uses SciPy for its analytic Gaussian check.
+[field exporter](export_physical_profiles.py) document extraction from saved
+test outputs; the latter also uses SciPy for its analytic Gaussian check.
 Native tests use the supplied-executable [runners](../../../tst/transport) and
 [backend adapters](../../../tst/test_suite/diffusion).
 
-The studies span successive implementations identified by binary hashes.
-Early constant-coefficient results predate the nonlinear implementation.
-The potential-flux Spitzer prototype had accuracy failures and was superseded
-by the harmonic stencil measured here. The later module consolidation
-preserves formulas and interfaces: three cases per CPU/GPU, all fields at
-149 checkpoints, and restart endpoints agree bitwise with the preceding
-version; the largest energy drift is $3.92\times10^{-15}$.
-
-The source baseline is `588d737fac0251b5538c287cf50c3ccdd4cad706`; the implementation
-inventory below describes `c3a8fccca928eef8b22d233458c4a4aabd9cb171`.
-The [source manifest](source_manifest.json) records hashes and every changed hunk
-across the 77-path implementation delta.
+Per-test binary hashes identify the implementation used for each measurement.
+The implementation inventory below describes source revision
+`c3a8fccca928eef8b22d233458c4a4aabd9cb171`; §7 identifies its tested revision
+separately. The [source manifest](source_manifest.json) records the file hashes
+and source locations.
 
 ## Appendix A: implementation locations
 
 <details>
-<summary>Source locations, changed functions, and test fixtures</summary>
+<summary>Source locations, functions, and test fixtures</summary>
 
-Line numbers refer to the pinned source above; the [hunk inventory](source_manifest.json)
-records every changed location. Helpers are consolidated in one implementation
-unit; the earlier closure, Spitzer and saturated auxiliary files were removed.
+Line numbers refer to the source revision above. The conduction implementation
+contains the coefficient closures, heat fluxes and admissibility checks.
 
-| File | Changed functions/locations and purpose |
+| File | Functions/locations and purpose |
 |---|---|
-| [conduction.cpp](../../../src/diffusion/conduction.cpp), 47–533 | Device helpers: finite/range checks, harmonic conductivity, temperature/slopes, VL/MC limiting, vector saturation, donor response, unit conversion and saturated-face assembly. Potential-gradient helpers remain reference-only. |
+| [conduction.cpp](../../../src/diffusion/conduction.cpp), 47–533 | Device helpers: finite/range checks, harmonic conductivity, temperature/slopes, VL/MC limiting, vector saturation, donor response, unit conversion and saturated-face assembly. |
 | Same, 589 | Constructor validates coefficients, geometry, saturation, integration and units. |
 | Same, 736–829 | `FailIfInvalid`, `ValidateRawState`, `InspectRawState`: pre-floor raw thermal checks and collective failure. |
 | Same, 830–869 | `UsesNonlinearSTS`, `BeginSTSTrial`, `RestoreSTSTrial`, `CheckSTSTransport`: nonlinear snapshot, rollback and trial restrictions. |
@@ -319,7 +425,7 @@ unit; the earlier closure, Spitzer and saturated auxiliary files were removed.
 | Same, 1012–1225 | `AddHeatFluxes`, `AddHeatFluxIso/Aniso`, `NewTimeStep`: dispatch, constant fluxes, CT projection and combined timestep. |
 | Same, 1234–1485 | `AddHeatFluxSpitzer`, `AddHeatFluxSaturated`, `SaturationTimeStep`: harmonic nonlinear faces, summed-vector cap and donor/drain bounds. |
 | [conduction.hpp](../../../src/diffusion/conduction.hpp), 30–80 | Coefficients/selectors, raw-state/trial/timestep interfaces and primitive backup. |
-| [sts_rkl2.cpp](../../../src/diffusion/sts_rkl2.cpp), 41–49 | Adds NaN/Inf rejection to `ComputeRKL2StageCount`. Odd stage counts and capacity/rounding behavior predate this change. |
+| [sts_rkl2.cpp](../../../src/diffusion/sts_rkl2.cpp), 41–49 | `ComputeRKL2StageCount` selects the odd stage count and rejects nonfinite interval or capacity values. |
 | [driver.cpp](../../../src/driver/driver.cpp), 63/341/422/498/730/751; [driver.hpp](../../../src/driver/driver.hpp), 35–38/91 | Nonlinear owner selection, controller reset, supported-combination checks, `ExecuteSTSSweep`, pre/post calls and trial state. |
 | [hydro.cpp](../../../src/hydro/hydro.cpp), 104–109; [mhd.cpp](../../../src/mhd/mhd.cpp), 154–159 | Register explicit/STS and nonlinear conduction. |
 | [hydro.hpp](../../../src/hydro/hydro.hpp), 170; [mhd.hpp](../../../src/mhd/mhd.hpp), 227 | Declare the `STSCheckState` task. |
@@ -332,8 +438,7 @@ unit; the earlier closure, Spitzer and saturated auxiliary files were removed.
 
 ### Fixtures, oracles and feature tests
 
-The manifest lists every changed file and hunk. Test initializers and
-diagnostics exercise the production conduction operator.
+Test initializers and diagnostics exercise the production conduction operator.
 
 | Location | Feature-specific responsibility |
 |---|---|
@@ -360,7 +465,7 @@ diagnostics exercise the production conduction operator.
 | Positivity/checkerboard kernels | Kernel tests compare both limiters with raw thermal bounds and a discrete damping reference; coupled-MHD positivity requires separate checks. |
 | Patches/fronts and Gaussian diffusion | Localized contrasts, conserved heat and raw stages; Gaussian and refinement cases compared independently with cell-average references. |
 | Circular ring | Eight N50/100/200/400 cases, both limiters, to t=200. N400 published norm differences <0.23% for van Leer and <0.12% for MC. |
-| Sovinec ratio-100 equilibrium | Four N8/N16 cases become stationary but fail their original accuracy criterion; measured leakage decreases with refinement. |
+| Sovinec ratio-100 equilibrium | Four N8/N16 cases become stationary but fail the specified accuracy criterion; measured leakage decreases with refinement. |
 | Helical/curved fields | Three-component projection, perpendicular-null/heat-flow and restart checks; geometry-/resolution-specific accuracy. |
 | Constant-anisotropic RKL2 | CPU/GPU cases and field comparisons, including ordinary taskgraph, refined 3D, boundary ghosts, evolving fields and restart. |
 | Inter-node RKL2 conduction | MPI-CPU/MPI-GPU evolution, restart and cross-backend field comparisons. |
@@ -373,11 +478,13 @@ diagnostics exercise the production conduction operator.
 | Static SMR | Plane-flux conservation, stage CFL and explicit-reference checks. Density-step largest RKL normalized error 0.00481588 versus 0.005 criterion. |
 | Dynamic AMR | CPU/MPI2/GPU: uninterrupted and post-refine/post-derefine restart runs, 4→7→4 leaves; three endpoint and 17 checkpoint cross-lane pairs. Largest GPU raw gap 1.09499620857e-14 versus 5e-12. |
 | Saturated sawtooth | Six CPU cases/four comparisons, explicit halving controls and RKL ratio caps 40/1000 at N400, t=.1; isotropic 1D benchmark. |
-| Disabled-feature compatibility | Constant-alpha controls, disabled saturation, legacy sentinels and old/new real restarts preserve measured behavior. |
-| Consolidated module | Three conduction runs per CPU/GPU; all fields at 149 checkpoints match the prior consolidated reference bitwise; restart endpoint exact; maximum energy drift 3.92e-15. |
+| Compatibility controls | Constant-alpha controls, disabled saturation and checkpoint-restoration checks preserve measured behavior. |
+| Three-dimensional paper thermal modes | Six GPU spatial sequences at N16/32/64; all six N16 configurations checked on CPU. Explicit orders match the paper; fixed-N32 RKL2 temporal orders are 2.0260/2.0044. Source version and measurements are identified in §7. |
+| Oblique perpendicular thermal mode | Native N32/N64 and reduced-stencil N32/64/128/256 measurements quantify cross-field leakage. MC N64 error is 7.1644% of initial perturbation RMS; van Leer is 18.3667%. |
 
 ## References
 
+- [Albery & Pittard (2026)](https://arxiv.org/abs/2611.05086), §§5.1 and 6.1, Table 2: anisotropic-transport discretization and three-dimensional thermal-mode tests.
 - [Sharma & Hammett (2007)](https://arxiv.org/abs/0707.2616), JCP 227, 123–142: limited anisotropic diffusion and ring tests.
 - [Spitzer & Harm (1953)](https://doi.org/10.1103/PhysRev.89.977): collisional temperature-dependent conductivity.
 - [Cowie & McKee (1977)](https://doi.org/10.1086/154911): saturated heat-flux scale.

@@ -10348,7 +10348,7 @@
           }
         }
       },
-      "scope": "Three native smoke cases; all fields at 149 checkpoints bitwise match the earlier consolidated implementation"
+      "scope": "Three constant-coefficient compatibility cases; all fields at 149 checkpoints agree bitwise between the compared executables"
     },
     "gpu": {
       "status": "PASS",
@@ -10393,7 +10393,7 @@
           }
         }
       },
-      "scope": "Three native smoke cases; all fields at 149 checkpoints bitwise match the earlier consolidated implementation"
+      "scope": "Three constant-coefficient compatibility cases; all fields at 149 checkpoints agree bitwise between the compared executables"
     }
   },
   "evidence": {

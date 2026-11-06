@@ -1,0 +1,1778 @@
+{
+  "reference": {
+    "title": "Albery & Pittard (2026), sections 5.1 and 6.1, Table 2",
+    "url": "https://arxiv.org/abs/2611.05086",
+    "version": "v1"
+  },
+  "tested_source": {
+    "commit": "943eb71a9b9b8cec7868aa2426c951830242d8d5",
+    "url": "https://github.com/rajsekhar33/athenak-RM/tree/943eb71a9b9b8cec7868aa2426c951830242d8d5",
+    "fixture": "Fourier-mode initializer and completed-step diagnostics added to the identified source; production transport files unchanged.",
+    "file_sha256": {
+      "src/diffusion/conduction.cpp": "6b013de88d460ebb1cb8890b9f4bfb00b595f1c1bf01eda5e65d358030f58d99",
+      "src/diffusion/conduction.hpp": "4764a6b11c240234f8a3026bf0ecd92ceb48a5fcb36ead52ee283c005266bc3d",
+      "src/diffusion/sts_rkl2.cpp": "0dc19b9f636d967c71ea2459b74b744cd1617ea29d207934f9ea4e72df0186c5",
+      "src/driver/driver.cpp": "358baaf700f7d61952957df011e6e793dedfe3f4a23bdd78989751bca0043ee4",
+      "src/mhd/mhd_sts.cpp": "014ae6a8a5238e9f1d6a359e2d7b9a993b8002d279ae058ae5949bc6ba6606dd",
+      "src/pgen/tests/transport_paper.cpp": "83fe865d8662a68cd5704dda69387807fb62376d3805faf39c72dc6dedf50097"
+    },
+    "cpu_binary_sha256": "8620c105beed585be3397810cc1812d31529fae07fccf43992f48783a537ec99",
+    "gpu_binary_sha256": "afc73072038d5dba0aad0371500372b78e96f886cd5fd96809747dd078d4305b"
+  },
+  "normalization": {
+    "error": "volume RMS of T minus analytic finite-volume temperature",
+    "spatial": "maximum error over eight decay times; order uses unnormalized error",
+    "relative": "error divided by initial perturbation RMS"
+  },
+  "paper_rk1_orders": {
+    "C1": [
+      2.01,
+      2.0
+    ],
+    "C2": [
+      2.04,
+      2.01
+    ]
+  },
+  "spatial": [
+    {
+      "backend": "gpu",
+      "ranks": 1,
+      "label": "C1",
+      "method": "rk1",
+      "limiter": "vanleer",
+      "n": [
+        16,
+        32,
+        64
+      ],
+      "maximum_l2": [
+        2.6784174956372947e-09,
+        6.692209157004342e-10,
+        1.6727113179157754e-10
+      ],
+      "maximum_l2_initial_rms_scaled": [
+        0.003836909890308318,
+        0.0009494677917019023,
+        0.00023674719518115332
+      ],
+      "orders": [
+        2.0008264159271167,
+        2.000294054042065
+      ],
+      "checks": {
+        "complete_resolution_sequence": true,
+        "native_case_checks": true,
+        "spatial_orders": true,
+        "finest_error": true
+      },
+      "status": "PASS",
+      "peak_times": [
+        0.001406249999999997,
+        0.0013742897727272723,
+        0.0013822798295454529
+      ],
+      "maximum_gamma_sample_spacing": [
+        0.04626377063010638,
+        0.02313188531505319,
+        0.01734891398629012
+      ]
+    },
+    {
+      "backend": "gpu",
+      "ranks": 1,
+      "label": "C1",
+      "method": "rkl2",
+      "limiter": "vanleer",
+      "n": [
+        16,
+        32,
+        64
+      ],
+      "maximum_l2": [
+        2.612085389739353e-08,
+        2.281167872866946e-09,
+        2.915910759919674e-10
+      ],
+      "maximum_l2_initial_rms_scaled": [
+        0.03741887245937399,
+        0.003236443111592514,
+        0.0004127034273132645
+      ],
+      "orders": [
+        3.5173575350377715,
+        2.967754147126167
+      ],
+      "checks": {
+        "complete_resolution_sequence": true,
+        "native_case_checks": true,
+        "spatial_orders": true,
+        "finest_error": true
+      },
+      "status": "PASS",
+      "peak_times": [
+        0.0031960227272727275,
+        0.0015980113636363618,
+        0.001398259943181815
+      ],
+      "maximum_gamma_sample_spacing": [
+        2.3131885315053187,
+        0.5782971328763297,
+        0.14457428321908242
+      ]
+    },
+    {
+      "backend": "gpu",
+      "ranks": 1,
+      "label": "C2",
+      "method": "rk1",
+      "limiter": "vanleer",
+      "n": [
+        16,
+        32,
+        64
+      ],
+      "maximum_l2": [
+        3.0555789639416275e-09,
+        7.703490870014236e-10,
+        1.9292074758093578e-10
+      ],
+      "maximum_l2_initial_rms_scaled": [
+        0.00437720451216516,
+        0.0010929449891883343,
+        0.00027305037870460305
+      ],
+      "orders": [
+        1.9878615018660188,
+        1.9975040516777418
+      ],
+      "checks": {
+        "complete_resolution_sequence": true,
+        "native_case_checks": true,
+        "spatial_orders": true,
+        "finest_error": true
+      },
+      "status": "PASS",
+      "peak_times": [
+        0.001390269886363625,
+        0.0013822798295455101,
+        0.001381780450994375
+      ],
+      "maximum_gamma_sample_spacing": [
+        0.0019276571095878956,
+        0.01590317115410532,
+        0.015662214015406753
+      ]
+    },
+    {
+      "backend": "gpu",
+      "ranks": 1,
+      "label": "C2",
+      "method": "rk1",
+      "limiter": "mc",
+      "n": [
+        16,
+        32,
+        64
+      ],
+      "maximum_l2": [
+        3.0555789639416275e-09,
+        7.703490870014236e-10,
+        1.9292074758093578e-10
+      ],
+      "maximum_l2_initial_rms_scaled": [
+        0.00437720451216516,
+        0.0010929449891883343,
+        0.00027305037870460305
+      ],
+      "orders": [
+        1.9878615018660188,
+        1.9975040516777418
+      ],
+      "checks": {
+        "complete_resolution_sequence": true,
+        "native_case_checks": true,
+        "spatial_orders": true,
+        "finest_error": true
+      },
+      "status": "PASS",
+      "peak_times": [
+        0.001390269886363625,
+        0.0013822798295455101,
+        0.001381780450994375
+      ],
+      "maximum_gamma_sample_spacing": [
+        0.0019276571095878956,
+        0.01590317115410532,
+        0.015662214015406753
+      ]
+    },
+    {
+      "backend": "gpu",
+      "ranks": 1,
+      "label": "C2",
+      "method": "rkl2",
+      "limiter": "vanleer",
+      "n": [
+        16,
+        32,
+        64
+      ],
+      "maximum_l2": [
+        3.332149582444588e-09,
+        8.34858031221859e-10,
+        2.0876338340407978e-10
+      ],
+      "maximum_l2_initial_rms_scaled": [
+        0.004773399856330579,
+        0.00118446807727038,
+        0.00029547325320322985
+      ],
+      "orders": [
+        1.9968503744685366,
+        1.999662197277752
+      ],
+      "checks": {
+        "complete_resolution_sequence": true,
+        "native_case_checks": true,
+        "spatial_orders": true,
+        "finest_error": true
+      },
+      "status": "PASS",
+      "peak_times": [
+        0.0013316761363636337,
+        0.0013982599431818148,
+        0.0013899369673295479
+      ],
+      "maximum_gamma_sample_spacing": [
+        0.09638285547938827,
+        0.024095713869847067,
+        0.018071785402385344
+      ]
+    },
+    {
+      "backend": "gpu",
+      "ranks": 1,
+      "label": "C2",
+      "method": "rkl2",
+      "limiter": "mc",
+      "n": [
+        16,
+        32,
+        64
+      ],
+      "maximum_l2": [
+        3.332149582444588e-09,
+        8.348605705384835e-10,
+        2.0876655923025214e-10
+      ],
+      "maximum_l2_initial_rms_scaled": [
+        0.004773399856330579,
+        0.0011844716799661284,
+        0.0002954777481087801
+      ],
+      "orders": [
+        1.9968459863524823,
+        1.9996446384711937
+      ],
+      "checks": {
+        "complete_resolution_sequence": true,
+        "native_case_checks": true,
+        "spatial_orders": true,
+        "finest_error": true
+      },
+      "status": "PASS",
+      "peak_times": [
+        0.0013316761363636337,
+        0.0013982599431818148,
+        0.0013899369673295479
+      ],
+      "maximum_gamma_sample_spacing": [
+        0.09638285547938827,
+        0.024095713869847067,
+        0.018071785402385344
+      ]
+    }
+  ],
+  "temporal": {
+    "backend": "cpu",
+    "ranks": 1,
+    "label": "C2",
+    "n": 32,
+    "status": "PASS",
+    "checks": {
+      "native_case_checks": true,
+      "same_coordinates": true,
+      "actual_steps_halve": true,
+      "temporal_orders": true,
+      "reference_resolved": true
+    },
+    "errors_to_finest": {
+      "1": 3.0555263423596304e-11,
+      "2": 7.502196847770527e-12,
+      "4": 1.869857676053922e-12,
+      "16": 1.0911162118488405e-13,
+      "32": 0.0
+    },
+    "orders": [
+      2.026035895839884,
+      2.004384654147134
+    ],
+    "actual_dt_max": {
+      "1": 0.0002763305008427394,
+      "2": 0.0001381652504213697,
+      "4": 6.908262521068485e-05,
+      "16": 1.727065630267121e-05,
+      "32": 8.635328151335606e-06
+    },
+    "actual_step_ratios": {
+      "1:2": 2.0,
+      "2:4": 2.0
+    },
+    "reference_fraction": 0.058352901711294494
+  },
+  "mode_series": [
+    {
+      "name": "C1_n16_rk1",
+      "case": {
+        "label": "C1",
+        "n": 16,
+        "method": "rk1",
+        "limiter": "vanleer",
+        "family": "conduction",
+        "modes": [
+          1,
+          1,
+          0
+        ],
+        "b": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "a": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "theta": 1.0471975511965976,
+        "polarization": "z",
+        "amplitude": 1e-06,
+        "alpha_iso": 5500,
+        "alpha_aniso": 0.0,
+        "nu_iso": 0.0,
+        "nu_aniso": 0.0,
+        "eta_ohm": 0.0,
+        "eta_ad": 0.0,
+        "cfl": 0.9,
+        "sts_ratio": 50.0,
+        "dt_ceiling": 0.0,
+        "dump_fields": true,
+        "group": "canonical",
+        "nlim": -1,
+        "sample_dt": 0.0,
+        "sample_count": 0,
+        "evolution": "dynamic",
+        "clock_rate": 723.7709894132197,
+        "tlim": 0.011053220033709574,
+        "rates": [
+          723.7709894132197,
+          0.0,
+          0.0
+        ],
+        "amplitudes": [
+          1e-06,
+          0.0,
+          0.0
+        ],
+        "fv_factor": 0.9872148307666581,
+        "name": "C1_n16_rk1"
+      },
+      "diagnostic_sha256": "cb448131841f264901a3cc739211b3dac2461483bcd282ce1c3d565d439ef20d",
+      "initial_rms": 6.980663013230338e-07,
+      "maximum_l2": 2.6784174956372947e-09,
+      "maximum_l2_initial_rms_scaled": 0.003836909890308318
+    },
+    {
+      "name": "C1_n16_rkl2",
+      "case": {
+        "label": "C1",
+        "n": 16,
+        "method": "rkl2",
+        "limiter": "vanleer",
+        "family": "conduction",
+        "modes": [
+          1,
+          1,
+          0
+        ],
+        "b": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "a": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "theta": 1.0471975511965976,
+        "polarization": "z",
+        "amplitude": 1e-06,
+        "alpha_iso": 5500,
+        "alpha_aniso": 0.0,
+        "nu_iso": 0.0,
+        "nu_aniso": 0.0,
+        "eta_ohm": 0.0,
+        "eta_ad": 0.0,
+        "cfl": 0.9,
+        "sts_ratio": 50.0,
+        "dt_ceiling": 0.0,
+        "dump_fields": true,
+        "group": "canonical",
+        "nlim": -1,
+        "sample_dt": 0.0,
+        "sample_count": 0,
+        "evolution": "dynamic",
+        "clock_rate": 723.7709894132197,
+        "tlim": 0.011053220033709574,
+        "rates": [
+          723.7709894132197,
+          0.0,
+          0.0
+        ],
+        "amplitudes": [
+          1e-06,
+          0.0,
+          0.0
+        ],
+        "fv_factor": 0.9872148307666581,
+        "name": "C1_n16_rkl2"
+      },
+      "diagnostic_sha256": "750fcba83ac9c0d73efc1dee397e7899c0dcfb5502968e2a06470a30e4042921",
+      "initial_rms": 6.980663013230338e-07,
+      "maximum_l2": 2.612085389739353e-08,
+      "maximum_l2_initial_rms_scaled": 0.03741887245937399
+    },
+    {
+      "name": "C2_n16_rk1_vanleer",
+      "case": {
+        "label": "C2",
+        "n": 16,
+        "method": "rk1",
+        "limiter": "vanleer",
+        "family": "conduction",
+        "modes": [
+          1,
+          1,
+          0
+        ],
+        "b": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "a": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "theta": 1.0471975511965976,
+        "polarization": "z",
+        "amplitude": 1e-06,
+        "alpha_iso": 0.0,
+        "alpha_aniso": 11000,
+        "nu_iso": 0.0,
+        "nu_aniso": 0.0,
+        "eta_ohm": 0.0,
+        "eta_ad": 0.0,
+        "cfl": 0.9,
+        "sts_ratio": 50.0,
+        "dt_ceiling": 0.0,
+        "dump_fields": true,
+        "group": "canonical",
+        "nlim": -1,
+        "sample_dt": 0.0,
+        "sample_count": 0,
+        "evolution": "dynamic",
+        "clock_rate": 723.7709894132197,
+        "tlim": 0.011053220033709574,
+        "rates": [
+          723.7709894132197,
+          0.0,
+          0.0
+        ],
+        "amplitudes": [
+          1e-06,
+          0.0,
+          0.0
+        ],
+        "fv_factor": 0.9872148307666581,
+        "name": "C2_n16_rk1_vanleer"
+      },
+      "diagnostic_sha256": "f3b19b1d21ad156664757adf3fd63c202fc9291f89341fd2c9bb4db124a9388a",
+      "initial_rms": 6.980663013230338e-07,
+      "maximum_l2": 3.0555789639416275e-09,
+      "maximum_l2_initial_rms_scaled": 0.00437720451216516
+    },
+    {
+      "name": "C2_n16_rk1_mc",
+      "case": {
+        "label": "C2",
+        "n": 16,
+        "method": "rk1",
+        "limiter": "mc",
+        "family": "conduction",
+        "modes": [
+          1,
+          1,
+          0
+        ],
+        "b": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "a": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "theta": 1.0471975511965976,
+        "polarization": "z",
+        "amplitude": 1e-06,
+        "alpha_iso": 0.0,
+        "alpha_aniso": 11000,
+        "nu_iso": 0.0,
+        "nu_aniso": 0.0,
+        "eta_ohm": 0.0,
+        "eta_ad": 0.0,
+        "cfl": 0.9,
+        "sts_ratio": 50.0,
+        "dt_ceiling": 0.0,
+        "dump_fields": true,
+        "group": "canonical",
+        "nlim": -1,
+        "sample_dt": 0.0,
+        "sample_count": 0,
+        "evolution": "dynamic",
+        "clock_rate": 723.7709894132197,
+        "tlim": 0.011053220033709574,
+        "rates": [
+          723.7709894132197,
+          0.0,
+          0.0
+        ],
+        "amplitudes": [
+          1e-06,
+          0.0,
+          0.0
+        ],
+        "fv_factor": 0.9872148307666581,
+        "name": "C2_n16_rk1_mc"
+      },
+      "diagnostic_sha256": "f3b19b1d21ad156664757adf3fd63c202fc9291f89341fd2c9bb4db124a9388a",
+      "initial_rms": 6.980663013230338e-07,
+      "maximum_l2": 3.0555789639416275e-09,
+      "maximum_l2_initial_rms_scaled": 0.00437720451216516
+    },
+    {
+      "name": "C2_n16_rkl2_vanleer",
+      "case": {
+        "label": "C2",
+        "n": 16,
+        "method": "rkl2",
+        "limiter": "vanleer",
+        "family": "conduction",
+        "modes": [
+          1,
+          1,
+          0
+        ],
+        "b": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "a": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "theta": 1.0471975511965976,
+        "polarization": "z",
+        "amplitude": 1e-06,
+        "alpha_iso": 0.0,
+        "alpha_aniso": 11000,
+        "nu_iso": 0.0,
+        "nu_aniso": 0.0,
+        "eta_ohm": 0.0,
+        "eta_ad": 0.0,
+        "cfl": 0.9,
+        "sts_ratio": 50.0,
+        "dt_ceiling": 0.0,
+        "dump_fields": true,
+        "group": "canonical",
+        "nlim": -1,
+        "sample_dt": 0.0,
+        "sample_count": 0,
+        "evolution": "dynamic",
+        "clock_rate": 723.7709894132197,
+        "tlim": 0.011053220033709574,
+        "rates": [
+          723.7709894132197,
+          0.0,
+          0.0
+        ],
+        "amplitudes": [
+          1e-06,
+          0.0,
+          0.0
+        ],
+        "fv_factor": 0.9872148307666581,
+        "name": "C2_n16_rkl2_vanleer"
+      },
+      "diagnostic_sha256": "951450c590ad8a8948ae2190aeb7e3f40d99bfb1e2f5d83b1536d205a52b6106",
+      "initial_rms": 6.980663013230338e-07,
+      "maximum_l2": 3.332149582444588e-09,
+      "maximum_l2_initial_rms_scaled": 0.004773399856330579
+    },
+    {
+      "name": "C2_n16_rkl2_mc",
+      "case": {
+        "label": "C2",
+        "n": 16,
+        "method": "rkl2",
+        "limiter": "mc",
+        "family": "conduction",
+        "modes": [
+          1,
+          1,
+          0
+        ],
+        "b": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "a": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "theta": 1.0471975511965976,
+        "polarization": "z",
+        "amplitude": 1e-06,
+        "alpha_iso": 0.0,
+        "alpha_aniso": 11000,
+        "nu_iso": 0.0,
+        "nu_aniso": 0.0,
+        "eta_ohm": 0.0,
+        "eta_ad": 0.0,
+        "cfl": 0.9,
+        "sts_ratio": 50.0,
+        "dt_ceiling": 0.0,
+        "dump_fields": true,
+        "group": "canonical",
+        "nlim": -1,
+        "sample_dt": 0.0,
+        "sample_count": 0,
+        "evolution": "dynamic",
+        "clock_rate": 723.7709894132197,
+        "tlim": 0.011053220033709574,
+        "rates": [
+          723.7709894132197,
+          0.0,
+          0.0
+        ],
+        "amplitudes": [
+          1e-06,
+          0.0,
+          0.0
+        ],
+        "fv_factor": 0.9872148307666581,
+        "name": "C2_n16_rkl2_mc"
+      },
+      "diagnostic_sha256": "3bc7ee08a4d9ed0afe8b5908535b7e2451f5023d000e0b2afdbf34bb3b7407ba",
+      "initial_rms": 6.980663013230338e-07,
+      "maximum_l2": 3.332149582444588e-09,
+      "maximum_l2_initial_rms_scaled": 0.004773399856330579
+    },
+    {
+      "name": "C1_n32_rk1",
+      "case": {
+        "label": "C1",
+        "n": 32,
+        "method": "rk1",
+        "limiter": "vanleer",
+        "family": "conduction",
+        "modes": [
+          1,
+          1,
+          0
+        ],
+        "b": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "a": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "theta": 1.0471975511965976,
+        "polarization": "z",
+        "amplitude": 1e-06,
+        "alpha_iso": 5500,
+        "alpha_aniso": 0.0,
+        "nu_iso": 0.0,
+        "nu_aniso": 0.0,
+        "eta_ohm": 0.0,
+        "eta_ad": 0.0,
+        "cfl": 0.9,
+        "sts_ratio": 50.0,
+        "dt_ceiling": 0.0,
+        "dump_fields": false,
+        "group": "canonical",
+        "nlim": -1,
+        "sample_dt": 2.1588320378339012e-05,
+        "sample_count": 512,
+        "evolution": "dynamic",
+        "clock_rate": 723.7709894132197,
+        "tlim": 0.011053220033709574,
+        "rates": [
+          723.7709894132197,
+          0.0,
+          0.0
+        ],
+        "amplitudes": [
+          1e-06,
+          0.0,
+          0.0
+        ],
+        "fv_factor": 0.9967913640449608,
+        "name": "C1_n32_rk1"
+      },
+      "diagnostic_sha256": "307ea01a9a2b57e3666b348f605702d83481ae9edabaa6b88592ae43106f53e0",
+      "initial_rms": 7.048379329443803e-07,
+      "maximum_l2": 6.692209157004342e-10,
+      "maximum_l2_initial_rms_scaled": 0.0009494677917019023
+    },
+    {
+      "name": "C1_n32_rkl2",
+      "case": {
+        "label": "C1",
+        "n": 32,
+        "method": "rkl2",
+        "limiter": "vanleer",
+        "family": "conduction",
+        "modes": [
+          1,
+          1,
+          0
+        ],
+        "b": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "a": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "theta": 1.0471975511965976,
+        "polarization": "z",
+        "amplitude": 1e-06,
+        "alpha_iso": 5500,
+        "alpha_aniso": 0.0,
+        "nu_iso": 0.0,
+        "nu_aniso": 0.0,
+        "eta_ohm": 0.0,
+        "eta_ad": 0.0,
+        "cfl": 0.9,
+        "sts_ratio": 50.0,
+        "dt_ceiling": 0.0,
+        "dump_fields": false,
+        "group": "canonical",
+        "nlim": -1,
+        "sample_dt": 2.1588320378339012e-05,
+        "sample_count": 512,
+        "evolution": "dynamic",
+        "clock_rate": 723.7709894132197,
+        "tlim": 0.011053220033709574,
+        "rates": [
+          723.7709894132197,
+          0.0,
+          0.0
+        ],
+        "amplitudes": [
+          1e-06,
+          0.0,
+          0.0
+        ],
+        "fv_factor": 0.9967913640449608,
+        "name": "C1_n32_rkl2"
+      },
+      "diagnostic_sha256": "0acf0e485411d5f2e8cfa71fd796b7b46df8d305dd27548327d288412d3af48d",
+      "initial_rms": 7.048379329443803e-07,
+      "maximum_l2": 2.281167872866946e-09,
+      "maximum_l2_initial_rms_scaled": 0.003236443111592514
+    },
+    {
+      "name": "C1_n64_rk1",
+      "case": {
+        "label": "C1",
+        "n": 64,
+        "method": "rk1",
+        "limiter": "vanleer",
+        "family": "conduction",
+        "modes": [
+          1,
+          1,
+          0
+        ],
+        "b": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "a": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "theta": 1.0471975511965976,
+        "polarization": "z",
+        "amplitude": 1e-06,
+        "alpha_iso": 5500,
+        "alpha_aniso": 0.0,
+        "nu_iso": 0.0,
+        "nu_aniso": 0.0,
+        "eta_ohm": 0.0,
+        "eta_ad": 0.0,
+        "cfl": 0.9,
+        "sts_ratio": 50.0,
+        "dt_ceiling": 0.0,
+        "dump_fields": false,
+        "group": "canonical",
+        "nlim": -1,
+        "sample_dt": 2.1588320378339012e-05,
+        "sample_count": 512,
+        "evolution": "dynamic",
+        "clock_rate": 723.7709894132197,
+        "tlim": 0.011053220033709574,
+        "rates": [
+          723.7709894132197,
+          0.0,
+          0.0
+        ],
+        "amplitudes": [
+          1e-06,
+          0.0,
+          0.0
+        ],
+        "fv_factor": 0.9991970675392312,
+        "name": "C1_n64_rk1"
+      },
+      "diagnostic_sha256": "14033d36ae0a996d825f539fc147700654ed6ffaea45b852bfd093ab718da4e6",
+      "initial_rms": 7.065390221987029e-07,
+      "maximum_l2": 1.6727113179157754e-10,
+      "maximum_l2_initial_rms_scaled": 0.00023674719518115332
+    },
+    {
+      "name": "C1_n64_rkl2",
+      "case": {
+        "label": "C1",
+        "n": 64,
+        "method": "rkl2",
+        "limiter": "vanleer",
+        "family": "conduction",
+        "modes": [
+          1,
+          1,
+          0
+        ],
+        "b": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "a": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "theta": 1.0471975511965976,
+        "polarization": "z",
+        "amplitude": 1e-06,
+        "alpha_iso": 5500,
+        "alpha_aniso": 0.0,
+        "nu_iso": 0.0,
+        "nu_aniso": 0.0,
+        "eta_ohm": 0.0,
+        "eta_ad": 0.0,
+        "cfl": 0.9,
+        "sts_ratio": 50.0,
+        "dt_ceiling": 0.0,
+        "dump_fields": false,
+        "group": "canonical",
+        "nlim": -1,
+        "sample_dt": 2.1588320378339012e-05,
+        "sample_count": 512,
+        "evolution": "dynamic",
+        "clock_rate": 723.7709894132197,
+        "tlim": 0.011053220033709574,
+        "rates": [
+          723.7709894132197,
+          0.0,
+          0.0
+        ],
+        "amplitudes": [
+          1e-06,
+          0.0,
+          0.0
+        ],
+        "fv_factor": 0.9991970675392312,
+        "name": "C1_n64_rkl2"
+      },
+      "diagnostic_sha256": "ed77155d0685ba4f95d262b6eff2f343fae0e588dde48bfc09e93638f6a640cb",
+      "initial_rms": 7.065390221987029e-07,
+      "maximum_l2": 2.915910759919674e-10,
+      "maximum_l2_initial_rms_scaled": 0.0004127034273132645
+    },
+    {
+      "name": "C2_n32_rk1_vanleer",
+      "case": {
+        "label": "C2",
+        "n": 32,
+        "method": "rk1",
+        "limiter": "vanleer",
+        "family": "conduction",
+        "modes": [
+          1,
+          1,
+          0
+        ],
+        "b": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "a": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "theta": 1.0471975511965976,
+        "polarization": "z",
+        "amplitude": 1e-06,
+        "alpha_iso": 0.0,
+        "alpha_aniso": 11000,
+        "nu_iso": 0.0,
+        "nu_aniso": 0.0,
+        "eta_ohm": 0.0,
+        "eta_ad": 0.0,
+        "cfl": 0.9,
+        "sts_ratio": 50.0,
+        "dt_ceiling": 0.0,
+        "dump_fields": false,
+        "group": "canonical",
+        "nlim": -1,
+        "sample_dt": 2.1588320378339012e-05,
+        "sample_count": 512,
+        "evolution": "dynamic",
+        "clock_rate": 723.7709894132197,
+        "tlim": 0.011053220033709574,
+        "rates": [
+          723.7709894132197,
+          0.0,
+          0.0
+        ],
+        "amplitudes": [
+          1e-06,
+          0.0,
+          0.0
+        ],
+        "fv_factor": 0.9967913640449608,
+        "name": "C2_n32_rk1_vanleer"
+      },
+      "diagnostic_sha256": "9fd80f7b632dd3c4eae0636cedec22439ccafbde95e87d8a28caec5fa08aeec8",
+      "initial_rms": 7.048379329443803e-07,
+      "maximum_l2": 7.703490870014236e-10,
+      "maximum_l2_initial_rms_scaled": 0.0010929449891883343
+    },
+    {
+      "name": "C2_n32_rk1_mc",
+      "case": {
+        "label": "C2",
+        "n": 32,
+        "method": "rk1",
+        "limiter": "mc",
+        "family": "conduction",
+        "modes": [
+          1,
+          1,
+          0
+        ],
+        "b": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "a": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "theta": 1.0471975511965976,
+        "polarization": "z",
+        "amplitude": 1e-06,
+        "alpha_iso": 0.0,
+        "alpha_aniso": 11000,
+        "nu_iso": 0.0,
+        "nu_aniso": 0.0,
+        "eta_ohm": 0.0,
+        "eta_ad": 0.0,
+        "cfl": 0.9,
+        "sts_ratio": 50.0,
+        "dt_ceiling": 0.0,
+        "dump_fields": false,
+        "group": "canonical",
+        "nlim": -1,
+        "sample_dt": 2.1588320378339012e-05,
+        "sample_count": 512,
+        "evolution": "dynamic",
+        "clock_rate": 723.7709894132197,
+        "tlim": 0.011053220033709574,
+        "rates": [
+          723.7709894132197,
+          0.0,
+          0.0
+        ],
+        "amplitudes": [
+          1e-06,
+          0.0,
+          0.0
+        ],
+        "fv_factor": 0.9967913640449608,
+        "name": "C2_n32_rk1_mc"
+      },
+      "diagnostic_sha256": "9fd80f7b632dd3c4eae0636cedec22439ccafbde95e87d8a28caec5fa08aeec8",
+      "initial_rms": 7.048379329443803e-07,
+      "maximum_l2": 7.703490870014236e-10,
+      "maximum_l2_initial_rms_scaled": 0.0010929449891883343
+    },
+    {
+      "name": "C2_n32_rkl2_vanleer",
+      "case": {
+        "label": "C2",
+        "n": 32,
+        "method": "rkl2",
+        "limiter": "vanleer",
+        "family": "conduction",
+        "modes": [
+          1,
+          1,
+          0
+        ],
+        "b": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "a": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "theta": 1.0471975511965976,
+        "polarization": "z",
+        "amplitude": 1e-06,
+        "alpha_iso": 0.0,
+        "alpha_aniso": 11000,
+        "nu_iso": 0.0,
+        "nu_aniso": 0.0,
+        "eta_ohm": 0.0,
+        "eta_ad": 0.0,
+        "cfl": 0.9,
+        "sts_ratio": 50.0,
+        "dt_ceiling": 0.0,
+        "dump_fields": false,
+        "group": "canonical",
+        "nlim": -1,
+        "sample_dt": 2.1588320378339012e-05,
+        "sample_count": 512,
+        "evolution": "dynamic",
+        "clock_rate": 723.7709894132197,
+        "tlim": 0.011053220033709574,
+        "rates": [
+          723.7709894132197,
+          0.0,
+          0.0
+        ],
+        "amplitudes": [
+          1e-06,
+          0.0,
+          0.0
+        ],
+        "fv_factor": 0.9967913640449608,
+        "name": "C2_n32_rkl2_vanleer"
+      },
+      "diagnostic_sha256": "08723b248231e841f70eea2df8fac2a63e1fc5dadf0f940e0f2be98d084e49e5",
+      "initial_rms": 7.048379329443803e-07,
+      "maximum_l2": 8.34858031221859e-10,
+      "maximum_l2_initial_rms_scaled": 0.00118446807727038
+    },
+    {
+      "name": "C2_n32_rkl2_mc",
+      "case": {
+        "label": "C2",
+        "n": 32,
+        "method": "rkl2",
+        "limiter": "mc",
+        "family": "conduction",
+        "modes": [
+          1,
+          1,
+          0
+        ],
+        "b": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "a": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "theta": 1.0471975511965976,
+        "polarization": "z",
+        "amplitude": 1e-06,
+        "alpha_iso": 0.0,
+        "alpha_aniso": 11000,
+        "nu_iso": 0.0,
+        "nu_aniso": 0.0,
+        "eta_ohm": 0.0,
+        "eta_ad": 0.0,
+        "cfl": 0.9,
+        "sts_ratio": 50.0,
+        "dt_ceiling": 0.0,
+        "dump_fields": false,
+        "group": "canonical",
+        "nlim": -1,
+        "sample_dt": 2.1588320378339012e-05,
+        "sample_count": 512,
+        "evolution": "dynamic",
+        "clock_rate": 723.7709894132197,
+        "tlim": 0.011053220033709574,
+        "rates": [
+          723.7709894132197,
+          0.0,
+          0.0
+        ],
+        "amplitudes": [
+          1e-06,
+          0.0,
+          0.0
+        ],
+        "fv_factor": 0.9967913640449608,
+        "name": "C2_n32_rkl2_mc"
+      },
+      "diagnostic_sha256": "917992e14e82c9c9d5a0cd67321316f910cb2c0d2b85a6fa82e37f394a203cf9",
+      "initial_rms": 7.048379329443803e-07,
+      "maximum_l2": 8.348605705384835e-10,
+      "maximum_l2_initial_rms_scaled": 0.0011844716799661284
+    },
+    {
+      "name": "C2_n64_rk1_vanleer",
+      "case": {
+        "label": "C2",
+        "n": 64,
+        "method": "rk1",
+        "limiter": "vanleer",
+        "family": "conduction",
+        "modes": [
+          1,
+          1,
+          0
+        ],
+        "b": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "a": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "theta": 1.0471975511965976,
+        "polarization": "z",
+        "amplitude": 1e-06,
+        "alpha_iso": 0.0,
+        "alpha_aniso": 11000,
+        "nu_iso": 0.0,
+        "nu_aniso": 0.0,
+        "eta_ohm": 0.0,
+        "eta_ad": 0.0,
+        "cfl": 0.9,
+        "sts_ratio": 50.0,
+        "dt_ceiling": 0.0,
+        "dump_fields": false,
+        "group": "canonical",
+        "nlim": -1,
+        "sample_dt": 2.1588320378339012e-05,
+        "sample_count": 512,
+        "evolution": "dynamic",
+        "clock_rate": 723.7709894132197,
+        "tlim": 0.011053220033709574,
+        "rates": [
+          723.7709894132197,
+          0.0,
+          0.0
+        ],
+        "amplitudes": [
+          1e-06,
+          0.0,
+          0.0
+        ],
+        "fv_factor": 0.9991970675392312,
+        "name": "C2_n64_rk1_vanleer"
+      },
+      "diagnostic_sha256": "0b904e6887d4726a51287cb5cf0756bedddb79bcbc4e7579c5afc72ab0d130c2",
+      "initial_rms": 7.065390221987029e-07,
+      "maximum_l2": 1.9292074758093578e-10,
+      "maximum_l2_initial_rms_scaled": 0.00027305037870460305
+    },
+    {
+      "name": "C2_n64_rk1_mc",
+      "case": {
+        "label": "C2",
+        "n": 64,
+        "method": "rk1",
+        "limiter": "mc",
+        "family": "conduction",
+        "modes": [
+          1,
+          1,
+          0
+        ],
+        "b": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "a": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "theta": 1.0471975511965976,
+        "polarization": "z",
+        "amplitude": 1e-06,
+        "alpha_iso": 0.0,
+        "alpha_aniso": 11000,
+        "nu_iso": 0.0,
+        "nu_aniso": 0.0,
+        "eta_ohm": 0.0,
+        "eta_ad": 0.0,
+        "cfl": 0.9,
+        "sts_ratio": 50.0,
+        "dt_ceiling": 0.0,
+        "dump_fields": false,
+        "group": "canonical",
+        "nlim": -1,
+        "sample_dt": 2.1588320378339012e-05,
+        "sample_count": 512,
+        "evolution": "dynamic",
+        "clock_rate": 723.7709894132197,
+        "tlim": 0.011053220033709574,
+        "rates": [
+          723.7709894132197,
+          0.0,
+          0.0
+        ],
+        "amplitudes": [
+          1e-06,
+          0.0,
+          0.0
+        ],
+        "fv_factor": 0.9991970675392312,
+        "name": "C2_n64_rk1_mc"
+      },
+      "diagnostic_sha256": "0b904e6887d4726a51287cb5cf0756bedddb79bcbc4e7579c5afc72ab0d130c2",
+      "initial_rms": 7.065390221987029e-07,
+      "maximum_l2": 1.9292074758093578e-10,
+      "maximum_l2_initial_rms_scaled": 0.00027305037870460305
+    },
+    {
+      "name": "C2_n64_rkl2_vanleer",
+      "case": {
+        "label": "C2",
+        "n": 64,
+        "method": "rkl2",
+        "limiter": "vanleer",
+        "family": "conduction",
+        "modes": [
+          1,
+          1,
+          0
+        ],
+        "b": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "a": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "theta": 1.0471975511965976,
+        "polarization": "z",
+        "amplitude": 1e-06,
+        "alpha_iso": 0.0,
+        "alpha_aniso": 11000,
+        "nu_iso": 0.0,
+        "nu_aniso": 0.0,
+        "eta_ohm": 0.0,
+        "eta_ad": 0.0,
+        "cfl": 0.9,
+        "sts_ratio": 50.0,
+        "dt_ceiling": 0.0,
+        "dump_fields": false,
+        "group": "canonical",
+        "nlim": -1,
+        "sample_dt": 2.1588320378339012e-05,
+        "sample_count": 512,
+        "evolution": "dynamic",
+        "clock_rate": 723.7709894132197,
+        "tlim": 0.011053220033709574,
+        "rates": [
+          723.7709894132197,
+          0.0,
+          0.0
+        ],
+        "amplitudes": [
+          1e-06,
+          0.0,
+          0.0
+        ],
+        "fv_factor": 0.9991970675392312,
+        "name": "C2_n64_rkl2_vanleer"
+      },
+      "diagnostic_sha256": "0dcef278b38373267a01a6e395308ee3bd3d228301a5b0c37f12e6b2b729b9c6",
+      "initial_rms": 7.065390221987029e-07,
+      "maximum_l2": 2.0876338340407978e-10,
+      "maximum_l2_initial_rms_scaled": 0.00029547325320322985
+    },
+    {
+      "name": "C2_n64_rkl2_mc",
+      "case": {
+        "label": "C2",
+        "n": 64,
+        "method": "rkl2",
+        "limiter": "mc",
+        "family": "conduction",
+        "modes": [
+          1,
+          1,
+          0
+        ],
+        "b": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "a": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "theta": 1.0471975511965976,
+        "polarization": "z",
+        "amplitude": 1e-06,
+        "alpha_iso": 0.0,
+        "alpha_aniso": 11000,
+        "nu_iso": 0.0,
+        "nu_aniso": 0.0,
+        "eta_ohm": 0.0,
+        "eta_ad": 0.0,
+        "cfl": 0.9,
+        "sts_ratio": 50.0,
+        "dt_ceiling": 0.0,
+        "dump_fields": false,
+        "group": "canonical",
+        "nlim": -1,
+        "sample_dt": 2.1588320378339012e-05,
+        "sample_count": 512,
+        "evolution": "dynamic",
+        "clock_rate": 723.7709894132197,
+        "tlim": 0.011053220033709574,
+        "rates": [
+          723.7709894132197,
+          0.0,
+          0.0
+        ],
+        "amplitudes": [
+          1e-06,
+          0.0,
+          0.0
+        ],
+        "fv_factor": 0.9991970675392312,
+        "name": "C2_n64_rkl2_mc"
+      },
+      "diagnostic_sha256": "2d9485702b226ac2fb554a5a19ba35fd251d7e12fa358dd787b10314412fd55e",
+      "initial_rms": 7.065390221987029e-07,
+      "maximum_l2": 2.0876655923025214e-10,
+      "maximum_l2_initial_rms_scaled": 0.0002954777481087801
+    }
+  ],
+  "oblique_null": {
+    "gamma": 1.6666666666666667,
+    "alpha_parallel": 11000,
+    "length": 20,
+    "amplitude": 1e-06,
+    "clock_end": 8,
+    "field_direction": [
+      1,
+      -1,
+      0
+    ],
+    "mode": [
+      1,
+      1,
+      0
+    ],
+    "cases": [
+      {
+        "n": 32,
+        "limiter": "vanleer",
+        "tlim": 0.011053220033709576,
+        "cell_average_factor": 0.9967913640449608,
+        "reference_uncertainty_max_temperature": 9.833273694981999e-16,
+        "final_amplitude": 5.626868523804576e-07,
+        "final_l2_initial_rms_scaled": 0.4426314753658293,
+        "reference_refinement_pass": true,
+        "name": "vanleer_n32",
+        "initial_amplitude": 9.967913640449609e-07,
+        "reference_series_sha256": "10aca5775660516e7de81cb85caacd7a680726c5e52df9b9db6e27f17c47e4d5",
+        "native": [
+          {
+            "name": "vanleer_n32_cap50",
+            "sts_ratio": 50.0,
+            "final_error_initial_rms_scaled": 0.4426250587736786,
+            "final_retained_amplitude": 0.5645048136508314,
+            "metrics": {
+              "amplitude": {
+                "max_absolute_native_difference": 1.001136367062959e-11,
+                "final_native": 5.626935232089586e-07,
+                "final_reference": 5.626868523804576e-07,
+                "final_native_difference": 6.670828500980104e-12,
+                "max_reference_refinement_difference": 1.1578940388966286e-18
+              },
+              "quadrature": {
+                "max_absolute_native_difference": 6.342797417123217e-21,
+                "final_native": -1.3382789694372923e-22,
+                "final_reference": 1.7291573798597376e-23,
+                "final_native_difference": -1.511194707423266e-22,
+                "max_reference_refinement_difference": 6.384049046442151e-21
+              },
+              "l2": {
+                "max_absolute_native_difference": 2.8251923473102317e-11,
+                "final_native": 3.1197893149542444e-07,
+                "final_reference": 3.1198345415297256e-07,
+                "final_native_difference": -4.522657548122266e-12,
+                "max_reference_refinement_difference": 4.589436266460613e-18
+              }
+            },
+            "diagnostic_sha256": "6c2045d5b6856e845d3917e74f38223fc88daea561291e40842579516e2f46f1"
+          },
+          {
+            "name": "vanleer_n32_cap5",
+            "sts_ratio": 5.0,
+            "final_error_initial_rms_scaled": 0.4426311694337564,
+            "final_retained_amplitude": 0.5644984405007338,
+            "metrics": {
+              "amplitude": {
+                "max_absolute_native_difference": 3.223948359414158e-13,
+                "final_native": 5.626871705079797e-07,
+                "final_reference": 5.626868523804576e-07,
+                "final_native_difference": 3.1812752206963126e-13,
+                "max_reference_refinement_difference": 5.851938874343147e-19
+              },
+              "quadrature": {
+                "max_absolute_native_difference": 7.606788650643158e-21,
+                "final_native": -1.3460213799707887e-22,
+                "final_reference": 1.7291573798597376e-23,
+                "final_native_difference": -1.5189371179567625e-22,
+                "max_reference_refinement_difference": 7.871124393121526e-21
+              },
+              "l2": {
+                "max_absolute_native_difference": 2.931082901893479e-13,
+                "final_native": 3.119832385204426e-07,
+                "final_reference": 3.1198345415297256e-07,
+                "final_native_difference": -2.1563252993893247e-13,
+                "max_reference_refinement_difference": 2.3376653506340596e-18
+              }
+            },
+            "diagnostic_sha256": "1feb4ab1f3f74b8e1675866c553fe90c58d96479cb4c17958f86e202d391c09f"
+          }
+        ]
+      },
+      {
+        "n": 64,
+        "limiter": "vanleer",
+        "tlim": 0.011053220033709576,
+        "cell_average_factor": 0.9991970675392312,
+        "reference_uncertainty_max_temperature": 1.6822199653647713e-14,
+        "final_amplitude": 8.675519469188235e-07,
+        "final_l2_initial_rms_scaled": 0.1836673300936585,
+        "reference_refinement_pass": true,
+        "name": "vanleer_n64",
+        "initial_amplitude": 9.99197067539231e-07,
+        "reference_series_sha256": "a3a3f77f150f5c88c303cefe2cdce50cd7f4e42a6131820d165b37f59b70635a",
+        "native": [
+          {
+            "name": "vanleer_n64_cap50",
+            "sts_ratio": 50.0,
+            "final_error_initial_rms_scaled": 0.18366678019934976,
+            "final_retained_amplitude": 0.8682499826495802,
+            "metrics": {
+              "amplitude": {
+                "max_absolute_native_difference": 8.896356253246701e-13,
+                "final_native": 8.675528365544488e-07,
+                "final_reference": 8.675519469188235e-07,
+                "final_native_difference": 8.896356253246701e-13,
+                "max_reference_refinement_difference": 9.251717366385095e-19
+              },
+              "quadrature": {
+                "max_absolute_native_difference": 4.7864753945445134e-21,
+                "final_native": -1.8846596813742409e-22,
+                "final_reference": -2.4049962216351387e-23,
+                "final_native_difference": -1.644160059210727e-22,
+                "max_reference_refinement_difference": 6.31686340923677e-20
+              },
+              "l2": {
+                "max_absolute_native_difference": 4.835283250008571e-12,
+                "final_native": 1.2976774729243268e-07,
+                "final_reference": 1.2976813581421988e-07,
+                "final_native_difference": -3.885217872025638e-13,
+                "max_reference_refinement_difference": 1.9867329831417025e-17
+              }
+            },
+            "diagnostic_sha256": "2a2c339a480b334630d2c52cc623460bece8b2f2b2c442088752eeb9c78b3cc0"
+          }
+        ]
+      },
+      {
+        "n": 128,
+        "limiter": "vanleer",
+        "tlim": 0.011053220033709576,
+        "cell_average_factor": 0.9997992185115969,
+        "reference_uncertainty_max_temperature": 6.953514674082837e-16,
+        "final_amplitude": 9.710845510111835e-07,
+        "final_l2_initial_rms_scaled": 0.09951420231022451,
+        "reference_refinement_pass": true,
+        "name": "vanleer_n128",
+        "initial_amplitude": 9.99799218511597e-07,
+        "reference_series_sha256": "c8254554d39ac13513fb32d07ea4e7d0799caad35c743918eae2a64b5b598c77",
+        "native": []
+      },
+      {
+        "n": 256,
+        "limiter": "vanleer",
+        "tlim": 0.011053220033709576,
+        "cell_average_factor": 0.9999498016040856,
+        "reference_uncertainty_max_temperature": 1.0739963775464846e-15,
+        "final_amplitude": 9.935302234652453e-07,
+        "final_l2_initial_rms_scaled": 0.043365330260097874,
+        "reference_refinement_pass": true,
+        "name": "vanleer_n256",
+        "initial_amplitude": 9.999498016040856e-07,
+        "reference_series_sha256": "f13f3f24882823f89f85fd4bb822784c86f5ffea77865dbbc696069f5118e25a",
+        "native": []
+      },
+      {
+        "n": 32,
+        "limiter": "mc",
+        "tlim": 0.011053220033709576,
+        "cell_average_factor": 0.9967913640449608,
+        "reference_uncertainty_max_temperature": 2.319940460267073e-16,
+        "final_amplitude": 8.196060198588923e-07,
+        "final_l2_initial_rms_scaled": 0.202339765495344,
+        "reference_refinement_pass": true,
+        "name": "mc_n32",
+        "initial_amplitude": 9.967913640449609e-07,
+        "reference_series_sha256": "fefd436299c00771d5119239274cac947e6784a861b0627f27518106257c0086",
+        "native": [
+          {
+            "name": "mc_n32_cap50",
+            "sts_ratio": 50.0,
+            "final_error_initial_rms_scaled": 0.202328853076185,
+            "final_retained_amplitude": 0.8222574539943215,
+            "metrics": {
+              "amplitude": {
+                "max_absolute_native_difference": 1.4066562844596075e-11,
+                "final_native": 8.196191291631364e-07,
+                "final_reference": 8.196060198588923e-07,
+                "final_native_difference": 1.310930424408335e-11,
+                "max_reference_refinement_difference": 6.267408534971382e-18
+              },
+              "quadrature": {
+                "max_absolute_native_difference": 2.5824946541522963e-22,
+                "final_native": -2.024276395039769e-22,
+                "final_reference": -1.1758270183046215e-22,
+                "final_native_difference": -8.484493767351476e-23,
+                "max_reference_refinement_difference": 2.299779315213451e-22
+              },
+              "l2": {
+                "max_absolute_native_difference": 1.1092590565355913e-10,
+                "final_native": 1.4260905057722545e-07,
+                "final_reference": 1.4261674206418893e-07,
+                "final_native_difference": -7.691486963476448e-12,
+                "max_reference_refinement_difference": 9.969928513762837e-18
+              }
+            },
+            "diagnostic_sha256": "67a4bc854470d4a8f8eda8714a4df77a0a03737224f320d3e3ab1c545e418978"
+          }
+        ]
+      },
+      {
+        "n": 64,
+        "limiter": "mc",
+        "tlim": 0.011053220033709576,
+        "cell_average_factor": 0.9991970675392312,
+        "reference_uncertainty_max_temperature": 1.3140565168872755e-16,
+        "final_amplitude": 9.646377246398661e-07,
+        "final_l2_initial_rms_scaled": 0.07164443896476899,
+        "reference_refinement_pass": true,
+        "name": "mc_n64",
+        "initial_amplitude": 9.99197067539231e-07,
+        "reference_series_sha256": "d07ab50621eb2a2c336653d8c3aa7db146f97b143041d73d80773506bc529671",
+        "native": [
+          {
+            "name": "mc_n64_cap50",
+            "sts_ratio": 50.0,
+            "final_error_initial_rms_scaled": 0.0716436164754515,
+            "final_retained_amplitude": 0.9654137036895908,
+            "metrics": {
+              "amplitude": {
+                "max_absolute_native_difference": 8.185807645430694e-13,
+                "final_native": 9.646385416888273e-07,
+                "final_reference": 9.646377246398661e-07,
+                "final_native_difference": 8.170489611503763e-13,
+                "max_reference_refinement_difference": 1.153658874160357e-18
+              },
+              "quadrature": {
+                "max_absolute_native_difference": 5.647235122113944e-22,
+                "final_native": -2.167864609621318e-22,
+                "final_reference": 9.858317845441334e-23,
+                "final_native_difference": -3.1536963941654517e-22,
+                "max_reference_refinement_difference": 2.924995404691385e-22
+              },
+              "l2": {
+                "max_absolute_native_difference": 1.6763131200760334e-11,
+                "final_native": 5.061901073134439e-08,
+                "final_reference": 5.0619591852142546e-08,
+                "final_native_difference": -5.811207981577786e-13,
+                "max_reference_refinement_difference": 9.599025690177735e-18
+              }
+            },
+            "diagnostic_sha256": "bddd728c043d35d9c8736e2751c004791538a992c1975f7c8c87ecf3a1d285cc"
+          }
+        ]
+      },
+      {
+        "n": 128,
+        "limiter": "mc",
+        "tlim": 0.011053220033709576,
+        "cell_average_factor": 0.9997992185115969,
+        "reference_uncertainty_max_temperature": 3.665895140192695e-15,
+        "final_amplitude": 9.928435288789989e-07,
+        "final_l2_initial_rms_scaled": 0.022990547811857148,
+        "reference_refinement_pass": true,
+        "name": "mc_n128",
+        "initial_amplitude": 9.99799218511597e-07,
+        "reference_series_sha256": "b36c4e2338938ddb3574338367b06aa33f50048a3ac89c37e78f2778063b039a",
+        "native": []
+      },
+      {
+        "n": 256,
+        "limiter": "mc",
+        "tlim": 0.011053220033709576,
+        "cell_average_factor": 0.9999498016040856,
+        "reference_uncertainty_max_temperature": 2.3161725534250308e-15,
+        "final_amplitude": 9.984650130108019e-07,
+        "final_l2_initial_rms_scaled": 0.007378605241955712,
+        "reference_refinement_pass": true,
+        "name": "mc_n256",
+        "initial_amplitude": 9.999498016040856e-07,
+        "reference_series_sha256": "9c4818f9873b5acee9ce18d35a44f1644ff21d36fea884e30abcbb4f9ea2cc0d",
+        "native": []
+      }
+    ],
+    "attenuation_summary": [
+      {
+        "n": 32,
+        "limiter": "vanleer",
+        "final_retained_amplitude": 0.5644981213491707,
+        "final_l2_initial_rms_scaled": 0.4426314753658293,
+        "effective_perpendicular_to_parallel": 0.0357386389617999
+      },
+      {
+        "n": 64,
+        "limiter": "vanleer",
+        "final_retained_amplitude": 0.8682490922990636,
+        "final_l2_initial_rms_scaled": 0.1836673300936585,
+        "effective_perpendicular_to_parallel": 0.00882978954973756
+      },
+      {
+        "n": 128,
+        "limiter": "vanleer",
+        "final_retained_amplitude": 0.971279565968094,
+        "final_l2_initial_rms_scaled": 0.09951420231022451,
+        "effective_perpendicular_to_parallel": 0.0018213085382757259
+      },
+      {
+        "n": 256,
+        "limiter": "vanleer",
+        "final_retained_amplitude": 0.9935800995924573,
+        "final_l2_initial_rms_scaled": 0.043365330260097874,
+        "effective_perpendicular_to_parallel": 0.0004025372871262295
+      },
+      {
+        "n": 32,
+        "limiter": "mc",
+        "final_retained_amplitude": 0.8222443024916932,
+        "final_l2_initial_rms_scaled": 0.202339765495344,
+        "effective_perpendicular_to_parallel": 0.012232357694054919
+      },
+      {
+        "n": 64,
+        "limiter": "mc",
+        "final_retained_amplitude": 0.9654128859840674,
+        "final_l2_initial_rms_scaled": 0.07164443896476899,
+        "effective_perpendicular_to_parallel": 0.002199963001639703
+      },
+      {
+        "n": 128,
+        "limiter": "mc",
+        "final_retained_amplitude": 0.9930429135132222,
+        "final_l2_initial_rms_scaled": 0.022990547811857148,
+        "effective_perpendicular_to_parallel": 0.00043633749033437653
+      },
+      {
+        "n": 256,
+        "limiter": "mc",
+        "final_retained_amplitude": 0.998515136868969,
+        "final_l2_initial_rms_scaled": 0.007378605241955712,
+        "effective_perpendicular_to_parallel": 9.287291454945609e-05
+      }
+    ]
+  },
+  "series_sha256": "971d0333c248cd8afc9f76b63863103ae94511bdf9c710e92712b08d00f2fefb"
+}

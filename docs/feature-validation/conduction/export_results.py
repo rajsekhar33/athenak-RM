@@ -115,7 +115,7 @@ def main():
             "binary_sha256": d["binary_sha256"],
             "cases": {name: {"status": case["status"], "metrics": case["metrics"]}
                       for name, case in d["cases"].items()},
-            "scope": "Three native smoke cases; all fields at 149 checkpoints bitwise match the earlier consolidated implementation"}
+            "scope": "Three constant-coefficient compatibility cases; all fields at 149 checkpoints agree bitwise between the compared executables"}
     results["evidence"] = evidence
     encoded = json.dumps(results, indent=2, allow_nan=False) + "\n"
     assert not re.search(r'"(?:/|[A-Za-z]:\\)', encoded), "absolute path in public data"
