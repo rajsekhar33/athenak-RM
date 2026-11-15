@@ -78,7 +78,7 @@ class ShearingBox {
   // function to find index in x1bndry array of MB with input GID
   int TargetIndex(const int n, const int tgid) {
     for (int m=0; m<nmb_x1bndry(n); ++m) {
-      if (x1bndry_mbgid.h_view(n,m) == tgid) return m;
+      if (x1bndry_mbgid.view_host()(n,m) == tgid) return m;
     }
     return -1;
   }

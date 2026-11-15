@@ -270,9 +270,9 @@ FastFlow::FastFlow(MeshBlockPack *pmbp, ParameterInput *pin, int n):
 
       // Print grid to the output file.
       for (int p = 0; p < nangles; ++p) {
-        const Real theta = gl_grid->polar_pos.h_view(p,0);
-        const Real phi   = gl_grid->polar_pos.h_view(p,1);
-        const Real weight = gl_grid->int_weights.h_view(p);
+        const Real theta = gl_grid->polar_pos.view_host()(p,0);
+        const Real phi   = gl_grid->polar_pos.view_host()(p,1);
+        const Real weight = gl_grid->int_weights.view_host()(p);
         fprintf(pofile_grid, "%.15e %.15e %.15e\n", theta, phi, weight);
       }
       fclose(pofile_grid);
@@ -296,35 +296,35 @@ FastFlow::FastFlow(MeshBlockPack *pmbp, ParameterInput *pin, int n):
       for (int l = 0; l <= lmax; ++l) {
         for (int m = 0; m <= l; ++m) {
           for (int p = 0; p < nangles; ++p) {
-            const Real theta = gl_grid->polar_pos.h_view(p,0);
-            const Real phi   = gl_grid->polar_pos.h_view(p,1);
+            const Real theta = gl_grid->polar_pos.view_host()(p,0);
+            const Real phi   = gl_grid->polar_pos.view_host()(p,1);
 
             if (m == 0) {
               fprintf(pofile_ylm, "%.15e %.15e %d %d %.15e %.15e %.15e %.15e %.15e %.15e"
                                 "%.15e %.15e %.15e %.15e %.15e %.15e %.15e %.15e %.15e\n",
-                      theta, phi, l, m, Y0.h_view(p,l), 0.0, 0.0,
-                      dY0dth.h_view(p,l), 0.0, 0.0, 0.0, 0.0,
-                      dY0dth2.h_view(p,l), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+                      theta, phi, l, m, Y0.view_host()(p,l), 0.0, 0.0,
+                      dY0dth.view_host()(p,l), 0.0, 0.0, 0.0, 0.0,
+                      dY0dth2.view_host()(p,l), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
             } else {
               const int l1 = lmindex(l,m,lmax);
               fprintf(pofile_ylm, "%.15e %.15e %d %d %.15e %.15e %.15e %.15e %.15e %.15e"
                                 "%.15e %.15e %.15e %.15e %.15e %.15e %.15e %.15e %.15e\n",
                       theta, phi, l, m,
                       0.0,
-                      Yc.h_view(p,l1),
-                      Ys.h_view(p,l1),
+                      Yc.view_host()(p,l1),
+                      Ys.view_host()(p,l1),
                       0.0,
-                      dYcdth.h_view(p,l1),
-                      dYsdth.h_view(p,l1),
-                      dYcdph.h_view(p,l1),
-                      dYsdph.h_view(p,l1),
+                      dYcdth.view_host()(p,l1),
+                      dYsdth.view_host()(p,l1),
+                      dYcdph.view_host()(p,l1),
+                      dYsdph.view_host()(p,l1),
                       0.0,
-                      dYcdth2.h_view(p,l1),
-                      dYsdth2.h_view(p,l1),
-                      dYcdph2.h_view(p,l1),
-                      dYsdph2.h_view(p,l1),
-                      dYcdthdph.h_view(p,l1),
-                      dYsdthdph.h_view(p,l1)
+                      dYcdth2.view_host()(p,l1),
+                      dYsdth2.view_host()(p,l1),
+                      dYcdph2.view_host()(p,l1),
+                      dYsdph2.view_host()(p,l1),
+                      dYcdthdph.view_host()(p,l1),
+                      dYsdthdph.view_host()(p,l1)
                       );
             }
           }
@@ -396,12 +396,12 @@ void FastFlow::Write(int iter, Real time) {
       }
       fprintf(pofile_shape, "# iter = %d, Time = %g\n",iter,time);
       for (int l = 0; l <= lmax; l++) {
-        fprintf(pofile_shape,"%e ", a0.h_view(l));
+        fprintf(pofile_shape,"%e ", a0.view_host()(l));
 
         for (int m = 1; m <= l; m++) {
           int l1 = lmindex(l,m,lmax);
-          fprintf(pofile_shape,"%e ",ac.h_view(l1));
-          fprintf(pofile_shape,"%e ",as.h_view(l1));
+          fprintf(pofile_shape,"%e ",ac.view_host()(l1));
+          fprintf(pofile_shape,"%e ",as.view_host()(l1));
         }
       }
       fprintf(pofile_shape,"\n");
@@ -447,9 +447,9 @@ void FastFlow::Find(int iter, Real time) {
 //! \brief Initial guess for spectral coefs of horizon n
 void FastFlow::InitialGuess() {
   // Reset Coefficients to Zero
-  Kokkos::deep_copy(a0.h_view, 0.0);
-  Kokkos::deep_copy(ac.h_view, 0.0);
-  Kokkos::deep_copy(as.h_view, 0.0);
+  Kokkos::deep_copy(a0.view_host(), 0.0);
+  Kokkos::deep_copy(ac.view_host(), 0.0);
+  Kokkos::deep_copy(as.view_host(), 0.0);
 
   if (use_puncture >= 0) {
     // Update the center to the puncture position
@@ -464,10 +464,10 @@ void FastFlow::InitialGuess() {
     Real largedist = PuncMaxDistance(use_puncture);
     Real mass = pmbp->pz4c->ptracker[use_puncture]->GetMass();
     if (ah_found && last_a0 > 0) {
-      a0.h_view(0) = last_a0 * expand_guess;
+      a0.view_host()(0) = last_a0 * expand_guess;
     } else {
-      a0.h_view(0) = Kokkos::fmax(0.5 * mass, Kokkos::fmin(mass, 0.5 * largedist));
-      a0.h_view(0) *= Kokkos::sqrt(4.0 * M_PI);
+      a0.view_host()(0) = Kokkos::fmax(0.5 * mass, Kokkos::fmin(mass, 0.5 * largedist));
+      a0.view_host()(0) *= Kokkos::sqrt(4.0 * M_PI);
     }
 
     // Sync to device
@@ -491,9 +491,9 @@ void FastFlow::InitialGuess() {
 
   // Take a0 either from previous or from input value
   if (ah_found && last_a0 > 0) {
-    a0.h_view(0) = last_a0 * expand_guess;
+    a0.view_host()(0) = last_a0 * expand_guess;
   } else {
-    a0.h_view(0) = Kokkos::sqrt(4.0 * M_PI) * initial_radius;
+    a0.view_host()(0) = Kokkos::sqrt(4.0 * M_PI) * initial_radius;
   }
   // Sync to device
   a0.template modify<HostMemSpace>();
@@ -527,8 +527,8 @@ void FastFlow::MetricDerivatives(Real time) {
   par_for("FastFlow_metric_derivatives",DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
     // Grid spacing
-    Real idx[] = {1.0 / size.d_view(m).dx1, 1.0 / size.d_view(m).dx2,
-                  1.0 / size.d_view(m).dx3};
+    Real idx[] = {1.0 / size.view_device()(m).dx1, 1.0 / size.view_device()(m).dx2,
+                  1.0 / size.view_device()(m).dx3};
 
     // x-derivative
     dg_(m,D1S11,k,j,i) = Dx<NGHOST>(0, idx, adm.g_dd, m, 0, 0, k, j, i);
@@ -569,7 +569,7 @@ template <int NGHOST>
 void FastFlow::MetricInterp() {
   // In MetricInterp() we'll flag the surface points on this mesh
   // default to 0 (no points).
-  Kokkos::deep_copy(havepoint.d_view, 0.0);
+  Kokkos::deep_copy(havepoint.view_device(), 0.0);
 
   // Set metric interpolated on the surface to 0.0.
   Kokkos::deep_copy(g_interp, 0.0);
@@ -617,8 +617,8 @@ void FastFlow::MetricInterp() {
 
   par_for("FastFlow_interpolate", DevExeSpace(), 0, nangles-1,
   KOKKOS_LAMBDA(int p) {
-    Real theta = polar_pos.d_view(p,0);
-    Real phi = polar_pos.d_view(p,1);
+    Real theta = polar_pos.view_device()(p,0);
+    Real phi = polar_pos.view_device()(p,1);
 
     // Global coordinates of the surface.
     Real pos[3];
@@ -633,7 +633,7 @@ void FastFlow::MetricInterp() {
     auto ind_and_wghts = IndicesAndWeights<NGHOST>(indcs, size, pos, nmb);
 
     // Set havepoint flag.
-    havepoint_.d_view(p) = ind_and_wghts.point_exist;
+    havepoint_.view_device()(p) = ind_and_wghts.point_exist;
     if (ind_and_wghts.point_exist) {
       // Metric
       for (int a = 0; a < NSPMETRIC; ++a) {
@@ -666,7 +666,7 @@ template void FastFlow::MetricInterp<4>();
 void FastFlow::FastFlowLoop() {
   ah_found = false;
 
-  Real meanradius = a0.h_view(0) / Kokkos::sqrt(4.0*M_PI);
+  Real meanradius = a0.view_host()(0) / Kokkos::sqrt(4.0*M_PI);
   Real mass = 0;
   Real mass_prev = 0;
   Real area = 0;
@@ -715,7 +715,7 @@ void FastFlow::FastFlowLoop() {
     Sz = integrals[iSz] / (8 * M_PI);
     S  = Kokkos::sqrt(SQR(Sx) + SQR(Sy) + SQR(Sz));
 
-    meanradius = a0.h_view(0) / Kokkos::sqrt(4.0 * M_PI);
+    meanradius = a0.view_host()(0) / Kokkos::sqrt(4.0 * M_PI);
 
     // Step 4: Check that we get a finite result.
     if (!(Kokkos::isfinite(area))) {
@@ -786,7 +786,7 @@ void FastFlow::FastFlowLoop() {
   }
 
   if (ah_found) {
-    last_a0 = a0.h_view(0);
+    last_a0 = a0.view_host()(0);
 
     ah_prop[harea] = area;
     ah_prop[hcoarea] = integrals[icoarea];
@@ -848,17 +848,17 @@ void FastFlow::UpdateFlowSpectralComponents() {
 
   // Step 2: Build the local sums.
   for (int p = 0; p < nangles; p++) {
-    if (!havepoint.h_view(p)) continue;
+    if (!havepoint.view_host()(p)) continue;
 
-    const Real drho = gl_grid->int_weights.h_view(p) * rho.h_view(p);
+    const Real drho = gl_grid->int_weights.view_host()(p) * rho.view_host()(p);
 
     for (int l = 0; l <= lmax; l++) {
-      spec0[l] += drho * Y0.h_view(p,l);
+      spec0[l] += drho * Y0.view_host()(p,l);
 
       for (int m = 1; m <= l; m++) {
         int l1 = lmindex(l,m,lmax);
-        specc[l1] += drho * Yc.h_view(p,l1);
-        specs[l1] += drho * Ys.h_view(p,l1);
+        specc[l1] += drho * Yc.view_host()(p,l1);
+        specs[l1] += drho * Ys.view_host()(p,l1);
       }
     }
   }
@@ -872,12 +872,12 @@ void FastFlow::UpdateFlowSpectralComponents() {
 
   // Step 4: Update the spectral coefficients.
   for (int l = 0; l <= lmax; l++) {
-    a0.h_view(l) -= ABfac[l] * spec0[l];
+    a0.view_host()(l) -= ABfac[l] * spec0[l];
 
     for (int m = 1; m <= l; m++) {
       int l1 = lmindex(l,m,lmax);
-      ac.h_view(l1) -= ABfac[l] * specc[l1];
-      as.h_view(l1) -= ABfac[l] * specs[l1];
+      ac.view_host()(l1) -= ABfac[l] * specc[l1];
+      as.view_host()(l1) -= ABfac[l] * specs[l1];
     }
   }
 
@@ -925,16 +925,17 @@ void FastFlow::RadiiFromSphericalHarmonics() {
   par_for("FastFlow_sphradii_compute", DevExeSpace(), 0, nangles-1,
   KOKKOS_LAMBDA(int p) {
     for (int l = 0; l <= lmax_; l++){
-      rr_(p) += a0_.d_view(l) * Y0_.d_view(p,l);
-      rr_dth_(p) += a0_.d_view(l) * dY0dth_.d_view(p,l);
+      rr_(p) += a0_.view_device()(l) * Y0_.view_device()(p,l);
+      rr_dth_(p) += a0_.view_device()(l) * dY0dth_.view_device()(p,l);
 
       for (int m = 1; m <= l; m++){
         int l1 = lmindex(l,m,lmax_);
-        rr_(p) += ac_.d_view(l1) * Yc_.d_view(p,l1) + as_.d_view(l1) * Ys_.d_view(p,l1);
-        rr_dth_(p) += ac_.d_view(l1) * dYcdth_.d_view(p,l1) +
-                      as_.d_view(l1) * dYsdth_.d_view(p,l1);
-        rr_dph_(p) += ac_.d_view(l1) * dYcdph_.d_view(p,l1) +
-                      as_.d_view(l1) * dYsdph_.d_view(p,l1);
+        rr_(p) += ac_.view_device()(l1) * Yc_.view_device()(p,l1) + as_.view_device()(l1)
+            * Ys_.view_device()(p,l1);
+        rr_dth_(p) += ac_.view_device()(l1) * dYcdth_.view_device()(p,l1) +
+                      as_.view_device()(l1) * dYsdth_.view_device()(p,l1);
+        rr_dph_(p) += ac_.view_device()(l1) * dYcdph_.view_device()(p,l1) +
+                      as_.view_device()(l1) * dYsdph_.view_device()(p,l1);
       }
     }
   });
@@ -961,7 +962,7 @@ void FastFlow::SurfaceIntegrals() {
     integrals[v] = 0.0;
   }
 
-  Kokkos::deep_copy(rho.d_view, 0.0); // Initialize rho
+  Kokkos::deep_copy(rho.view_device(), 0.0); // Initialize rho
 
   // Explicitely capture the variables for the Kokkos kernel.
   auto &polar_pos = gl_grid->polar_pos;
@@ -1081,12 +1082,12 @@ void FastFlow::SurfaceIntegrals() {
 
     AthenaPointTensor<Real, TensorSymm::SYM2, NDIM, 2> nnF;
 
-    if (havepoint_.d_view(p)) {
-      Real const theta = polar_pos.d_view(p,0);
+    if (havepoint_.view_device()(p)) {
+      Real const theta = polar_pos.view_device()(p,0);
       Real const sinth = Kokkos::sin(theta);
       Real const costh = Kokkos::cos(theta);
 
-      Real const phi = polar_pos.d_view(p,1);
+      Real const phi = polar_pos.view_device()(p,1);
       Real const sinph = Kokkos::sin(phi);
       Real const cosph = Kokkos::cos(phi);
 
@@ -1178,15 +1179,15 @@ void FastFlow::SurfaceIntegrals() {
         dFdi(a) = drdi(a);
 
         for (int l = 0; l <= lmax_; l++) {
-          dFdi(a) -= a0_.d_view(l) * dthetadi(a) * dY0dth_.d_view(p,l);
+          dFdi(a) -= a0_.view_device()(l) * dthetadi(a) * dY0dth_.view_device()(p,l);
 
           for (int m = 1; m <= l; m++) {
             const int l1 = lmindex(l,m,lmax_);
             dFdi(a) -=
-              ac_.d_view(l1) * (dthetadi(a) * dYcdth_.d_view(p,l1) +
-              dphidi(a) * dYcdph_.d_view(p,l1)) +
-              as_.d_view(l1) * (dthetadi(a) * dYsdth_.d_view(p,l1) +
-              dphidi(a) * dYsdph_.d_view(p,l1));
+              ac_.view_device()(l1) * (dthetadi(a) * dYcdth_.view_device()(p,l1) +
+              dphidi(a) * dYcdph_.view_device()(p,l1)) +
+              as_.view_device()(l1) * (dthetadi(a) * dYsdth_.view_device()(p,l1) +
+              dphidi(a) * dYsdph_.view_device()(p,l1));
           }
         }
 
@@ -1195,23 +1196,25 @@ void FastFlow::SurfaceIntegrals() {
           dFdidj(a,b) = drdidj(a,b);
 
           for (int l = 0; l <= lmax_; l++) {
-            dFdidj(a,b) -= a0_.d_view(l)*(dthetadidj(a,b) * dY0dth_.d_view(p,l)
-                            + dthetadi(a) * dthetadi(b) * dY0dth2_.d_view(p,l));
+            dFdidj(a,b) -= a0_.view_device()(l)
+                *(dthetadidj(a,b) * dY0dth_.view_device()(p,l)
+                            + dthetadi(a) * dthetadi(b) * dY0dth2_.view_device()(p,l));
 
             for (int m = 1; m <= l; m++) {
               int l1 = lmindex(l,m,lmax_);
-              dFdidj(a,b) -= ac_.d_view(l1) * (dthetadidj(a,b) * dYcdth_.d_view(p,l1)
-                + dthetadi(a) * (dthetadi(b) * dYcdth2_.d_view(p,l1)
-                + dphidi(b) * dYcdthdph_.d_view(p,l1))
-                + dphididj(a,b) * dYcdph_.d_view(p,l1)
-                + dphidi(a) * (dthetadi(b) * dYcdthdph_.d_view(p,l1)
-                + dphidi(b) * dYcdph2_.d_view(p,l1)))
-                + as_.d_view(l1) * (dthetadidj(a,b) * dYsdth_.d_view(p,l1)
-                + dthetadi(a) * (dthetadi(b) * dYsdth2_.d_view(p,l1)
-                + dphidi(b) * dYsdthdph_.d_view(p,l1))
-                + dphididj(a,b) * dYsdph_.d_view(p,l1)
-                + dphidi(a) * (dthetadi(b) * dYsdthdph_.d_view(p,l1)
-                + dphidi(b) * dYsdph2_.d_view(p,l1)));
+              dFdidj(a,b) -= ac_.view_device()(l1)
+                  * (dthetadidj(a,b) * dYcdth_.view_device()(p,l1)
+                + dthetadi(a) * (dthetadi(b) * dYcdth2_.view_device()(p,l1)
+                + dphidi(b) * dYcdthdph_.view_device()(p,l1))
+                + dphididj(a,b) * dYcdph_.view_device()(p,l1)
+                + dphidi(a) * (dthetadi(b) * dYcdthdph_.view_device()(p,l1)
+                + dphidi(b) * dYcdph2_.view_device()(p,l1)))
+                + as_.view_device()(l1) * (dthetadidj(a,b) * dYsdth_.view_device()(p,l1)
+                + dthetadi(a) * (dthetadi(b) * dYsdth2_.view_device()(p,l1)
+                + dphidi(b) * dYsdthdph_.view_device()(p,l1))
+                + dphididj(a,b) * dYsdph_.view_device()(p,l1)
+                + dphidi(a) * (dthetadi(b) * dYsdthdph_.view_device()(p,l1)
+                + dphidi(b) * dYsdph2_.view_device()(p,l1)));
             }
           }
         }
@@ -1269,9 +1272,9 @@ void FastFlow::SurfaceIntegrals() {
       }
 
       if (flowflag_ == 1) {
-        rho_.d_view(p) = H;
+        rho_.view_device()(p) = H;
       } else if (flowflag_ == 2) {
-        rho_.d_view(p) = H * u;
+        rho_.view_device()(p) = H * u;
       } else {
         // Compute the shear for the flow function.
         Real sigma_para = (
@@ -1291,7 +1294,7 @@ void FastFlow::SurfaceIntegrals() {
               + R(1) * R(2) * drdi(1) * drdi(2)));
 
         Real sigma = 2 * SQR(rp) * (1 / sigma_para);
-        rho_.d_view(p) = H * u * sigma;
+        rho_.view_device()(p) = H * u * sigma;
       }
 
       // ---------------
@@ -1360,7 +1363,7 @@ void FastFlow::SurfaceIntegrals() {
       // ----------
       // Local sums
       // ----------
-      const Real wght = int_weights.d_view(p);
+      const Real wght = int_weights.view_device()(p);
       const Real da = wght * Kokkos::sqrt(deth) / sinth;
 
       area   += da;
@@ -1423,8 +1426,8 @@ void FastFlow::ComputeSphericalHarmonics() {
   // Loop over all angles.
   par_for("FastFlow_sphharmonics", DevExeSpace(), 0, nangles-1,
   KOKKOS_LAMBDA(int p) {
-    const Real theta = polar_pos.d_view(p,0);
-    const Real phi   = polar_pos.d_view(p,1);
+    const Real theta = polar_pos.view_device()(p,0);
+    const Real phi   = polar_pos.view_device()(p,1);
 
     for (int l = 0; l <= lmax_; ++l) {
       for (int m = 0; m <= l; ++m) {
@@ -1438,25 +1441,25 @@ void FastFlow::ComputeSphericalHarmonics() {
                                   &YlmRdthdphi, &YlmIdthdphi, l, m, theta, phi);
 
         if (m == 0) { // m = 0 spherical harmonics
-          Y0_.d_view(p,l) = YlmR;
-          dY0dth_.d_view(p,l) = YlmRdth;
-          dY0dth2_.d_view(p,l) = YlmRdth2;
+          Y0_.view_device()(p,l) = YlmR;
+          dY0dth_.view_device()(p,l) = YlmRdth;
+          dY0dth2_.view_device()(p,l) = YlmRdth2;
         } else { // m > 0 spherical harmonics
           const int l1 = lmindex(l,m,lmax_);
-          Yc_.d_view(p,l1) = sqrt2 * YlmR;
-          Ys_.d_view(p,l1) = sqrt2 * YlmI;
+          Yc_.view_device()(p,l1) = sqrt2 * YlmR;
+          Ys_.view_device()(p,l1) = sqrt2 * YlmI;
 
-          dYcdth_.d_view(p,l1) = sqrt2 * YlmRdth;
-          dYsdth_.d_view(p,l1) = sqrt2 * YlmIdth;
-          dYcdph_.d_view(p,l1) = sqrt2 * YlmRdphi;
-          dYsdph_.d_view(p,l1) = sqrt2 * YlmIdphi;
+          dYcdth_.view_device()(p,l1) = sqrt2 * YlmRdth;
+          dYsdth_.view_device()(p,l1) = sqrt2 * YlmIdth;
+          dYcdph_.view_device()(p,l1) = sqrt2 * YlmRdphi;
+          dYsdph_.view_device()(p,l1) = sqrt2 * YlmIdphi;
 
-          dYcdth2_.d_view(p,l1) = sqrt2 * YlmRdth2;
-          dYsdth2_.d_view(p,l1) = sqrt2 * YlmIdth2;
-          dYcdph2_.d_view(p,l1) = sqrt2 * YlmRdphi2;
-          dYsdph2_.d_view(p,l1) = sqrt2 * YlmIdphi2;
-          dYsdthdph_.d_view(p,l1) = sqrt2 * YlmIdthdphi;
-          dYcdthdph_.d_view(p,l1) = sqrt2 * YlmRdthdphi;
+          dYcdth2_.view_device()(p,l1) = sqrt2 * YlmRdth2;
+          dYsdth2_.view_device()(p,l1) = sqrt2 * YlmIdth2;
+          dYcdph2_.view_device()(p,l1) = sqrt2 * YlmRdphi2;
+          dYsdph2_.view_device()(p,l1) = sqrt2 * YlmIdphi2;
+          dYsdthdph_.view_device()(p,l1) = sqrt2 * YlmIdthdphi;
+          dYcdthdph_.view_device()(p,l1) = sqrt2 * YlmRdthdphi;
         }
       }
     }

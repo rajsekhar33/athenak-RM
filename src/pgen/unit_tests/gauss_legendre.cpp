@@ -46,7 +46,8 @@ void ProblemGenerator::GaussLegendre(ParameterInput *pin, const bool restart) {
       const int index = l*l + l + m;
       for (int ip = 0; ip < grid.nangles; ++ip) {
         SWSphericalHarm(&ylm_r[index][ip], &ylm_i[index][ip], l, m, 0,
-                        grid.polar_pos.h_view(ip,0), grid.polar_pos.h_view(ip,1));
+                        grid.polar_pos.view_host()(ip,0),
+                            grid.polar_pos.view_host()(ip,1));
       }
     }
   }
@@ -58,7 +59,7 @@ void ProblemGenerator::GaussLegendre(ParameterInput *pin, const bool restart) {
     double int_r = 0;
     double int_i = 0;
     for (int ip = 0; ip < grid.nangles; ++ip) {
-      const Real weight = grid.int_weights.h_view(ip);
+      const Real weight = grid.int_weights.view_host()(ip);
       int_r += weight*(ylm_r[n1][ip]*ylm_r[n2][ip] + ylm_i[n1][ip]*ylm_i[n2][ip]);
       int_i += weight*(ylm_i[n1][ip]*ylm_r[n2][ip] - ylm_r[n1][ip]*ylm_i[n2][ip]);
     }

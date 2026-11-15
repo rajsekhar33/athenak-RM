@@ -129,7 +129,8 @@ void HistoryOutput::LoadHydroHistoryData(HistoryData *pdata, Mesh *pm) {
     k += ks;
     j += js;
 
-    Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+    Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2
+        *size.view_device()(m).dx3;
 
     // Hydro conserved variables:
     array_sum::GlobalSum hvars;
@@ -224,7 +225,8 @@ void HistoryOutput::LoadZ4cHistoryData(HistoryData *pdata, Mesh *pm) {
                                 adm.g_dd(m,0,2,k,j,i), adm.g_dd(m,1,1,k,j,i),
                                 adm.g_dd(m,1,2,k,j,i), adm.g_dd(m,2,2,k,j,i));
 
-    Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3
+    Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2
+        *size.view_device()(m).dx3
                * std::sqrt(std::abs(detg));
 
     // Excise the punctures based on chi
@@ -338,7 +340,8 @@ void HistoryOutput::LoadMHDHistoryData(HistoryData *pdata, Mesh *pm) {
     k += ks;
     j += js;
 
-    Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+    Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2
+        *size.view_device()(m).dx3;
 
     // MHD conserved variables:
     array_sum::GlobalSum hvars;

@@ -6,6 +6,7 @@
 //! \file zoom_data.cpp
 //! \brief Implementation of constructor and basic functions in ZoomData class
 
+#include <cfloat>
 #include <iostream>
 #include <string>
 

@@ -419,7 +419,7 @@ struct SFE1Sampler {
             double &fac) const {
     const int64_t n1 = ndraw/nrep + ((t < ndraw % nrep) ? 1 : 0);
     if (d >= n1) return false;
-    const uint64_t owner = static_cast<uint64_t>(gid.d_view(m));
+    const uint64_t owner = static_cast<uint64_t>(gid.view_device()(m));
 
     // Chebyshev radius c in [1, cmax] with p(c) = (1/c)/harm
     const double u = SFUniform(SFKey(seed, outnum, kStreamE1Radius, owner, t, d));
@@ -1085,10 +1085,10 @@ void SFOutput::BuildStrata(Mesh *pm) {
   const Real lo[3] = {out_params.x1_min, out_params.x2_min, out_params.x3_min};
   const Real hi[3] = {out_params.x1_max, out_params.x2_max, out_params.x3_max};
   for (int m = 0; m < nmb; ++m) {
-    const Real xmin[3] = {size.h_view(m).x1min, size.h_view(m).x2min,
-                          size.h_view(m).x3min};
-    const Real xmax[3] = {size.h_view(m).x1max, size.h_view(m).x2max,
-                          size.h_view(m).x3max};
+    const Real xmin[3] = {size.view_host()(m).x1min, size.view_host()(m).x2min,
+                          size.view_host()(m).x3min};
+    const Real xmax[3] = {size.view_host()(m).x1max, size.view_host()(m).x2max,
+                          size.view_host()(m).x3max};
     const int nx[3] = {mbi.nx1, mbi.nx2, mbi.nx3};
     int64_t ncell = 1;
     for (int d = 0; d < 3; ++d) {
@@ -1539,9 +1539,9 @@ void SFOutput::SampleAcrossBlocks(Mesh *pm) {
     auto &ms = pm->mesh_size;
     const double h[3] = {geom_.h0, geom_.h1, geom_.h2};
     for (int m = 0; m < nmb; ++m) {
-      const double x0[3] = {size.h_view(m).x1min - ms.x1min,
-                            size.h_view(m).x2min - ms.x2min,
-                            size.h_view(m).x3min - ms.x3min};
+      const double x0[3] = {size.view_host()(m).x1min - ms.x1min,
+                            size.view_host()(m).x2min - ms.x2min,
+                            size.view_host()(m).x3min - ms.x3min};
       for (int d = 0; d < 3; ++d) h_cell0(m, d) = std::llround(x0[d]/h[d]);
     }
     Kokkos::deep_copy(cell0, h_cell0);
@@ -1588,7 +1588,7 @@ void SFOutput::SampleAcrossBlocks(Mesh *pm) {
       for (int n = 0; n < fields.nfield; ++n) {
         rec_(idx, 4 + n) = static_cast<double>(fields.Get(n, m, k + ks, j + js, i + is));
       }
-      rgid_(idx) = static_cast<int64_t>(gid.d_view(m));
+      rgid_(idx) = static_cast<int64_t>(gid.view_device()(m));
     });
   };
 

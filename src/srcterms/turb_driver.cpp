@@ -250,9 +250,9 @@ void TurbulenceDriver::Initialize() {
     kx = dkx*trip[0];
     ky = dky*trip[1];
     kz = dkz*trip[2];
-    kx_mode_.h_view(nmode) = kx;
-    ky_mode_.h_view(nmode) = ky;
-    kz_mode_.h_view(nmode) = kz;
+    kx_mode_.view_host()(nmode) = kx;
+    ky_mode_.view_host()(nmode) = ky;
+    kz_mode_.view_host()(nmode) = kz;
   }
 
   kx_mode_.template modify<HostMemSpace>();
@@ -267,20 +267,20 @@ void TurbulenceDriver::Initialize() {
 
   par_for("xsin/xcos", DevExeSpace(),0,nmb-1,0,mode_count-1,is,ie,
   KOKKOS_LAMBDA(int m, int n, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
-    Real k1v = kx_mode_.d_view(n);
+    Real k1v = kx_mode_.view_device()(n);
     xsin_(m,n,i) = sin(k1v*x1v);
     xcos_(m,n,i) = cos(k1v*x1v);
   });
 
   par_for("ysin/ycos", DevExeSpace(),0,nmb-1,0,mode_count-1,js,je,
   KOKKOS_LAMBDA(int m, int n, int j) {
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
-    Real k2v = ky_mode_.d_view(n);
+    Real k2v = ky_mode_.view_device()(n);
     ysin_(m,n,j) = sin(k2v*x2v);
     ycos_(m,n,j) = cos(k2v*x2v);
     if (ncells2-1 == 0) {
@@ -291,10 +291,10 @@ void TurbulenceDriver::Initialize() {
 
   par_for("zsin/zcos", DevExeSpace(),0,nmb-1,0,mode_count-1,ks,ke,
   KOKKOS_LAMBDA(int m, int n, int k) {
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
-    Real k3v = kz_mode_.d_view(n);
+    Real k3v = kz_mode_.view_device()(n);
     zsin_(m,n,k) = sin(k3v*x3v);
     zcos_(m,n,k) = cos(k3v*x3v);
     if (ncells3-1 == 0 || (drivingtype == 1)) {
@@ -454,11 +454,11 @@ TaskStatus TurbulenceDriver::InitializeModes(Driver *pdrive, int stage) {
         Real kb = 0.0;
 
         for (int dir = 0; dir < no_dir; dir ++) {
-          aka_.h_view(dir,nmode) = norm*RanGaussianSt(&(rstate));
-          akb_.h_view(dir,nmode) = norm*RanGaussianSt(&(rstate));
+          aka_.view_host()(dir,nmode) = norm*RanGaussianSt(&(rstate));
+          akb_.view_host()(dir,nmode) = norm*RanGaussianSt(&(rstate));
 
-          ka = ka + k[dir]*akb_.h_view(dir,nmode);
-          kb = kb + k[dir]*aka_.h_view(dir,nmode);
+          ka = ka + k[dir]*akb_.view_host()(dir,nmode);
+          kb = kb + k[dir]*aka_.view_host()(dir,nmode);
         }
 
         // Now decompose into solenoidal/compressive modes
@@ -467,10 +467,10 @@ TaskStatus TurbulenceDriver::InitializeModes(Driver *pdrive, int stage) {
             Real diva = k[dir]*ka/SQR(kiso);
             Real divb = k[dir]*kb/SQR(kiso);
 
-            Real curla = aka_.h_view(dir,nmode) - divb;
-            Real curlb = akb_.h_view(dir,nmode) - diva;
-            aka_.h_view(dir,nmode) = sol_fraction*curla+(1.0-sol_fraction)*divb;
-            akb_.h_view(dir,nmode) = sol_fraction*curlb+(1.0-sol_fraction)*diva;
+            Real curla = aka_.view_host()(dir,nmode) - divb;
+            Real curlb = akb_.view_host()(dir,nmode) - diva;
+            aka_.view_host()(dir,nmode) = sol_fraction*curla+(1.0-sol_fraction)*divb;
+            akb_.view_host()(dir,nmode) = sol_fraction*curlb+(1.0-sol_fraction)*diva;
           }
         }
       }
@@ -497,8 +497,8 @@ TaskStatus TurbulenceDriver::InitializeModes(Driver *pdrive, int stage) {
               ( ycos_(m,n,j)*zsin_(m,n,k) + ysin_(m,n,j)*zcos_(m,n,k) ) * xcos_(m,n,i) +
               ( ycos_(m,n,j)*zcos_(m,n,k) - ysin_(m,n,j)*zsin_(m,n,k) ) * xsin_(m,n,i);
           for (int dir = 0; dir < no_dir; dir ++){
-            force_tmp2_(m,dir,k,j,i) += aka_.d_view(dir,n)*forc_real -
-                                         akb_.d_view(dir,n)*forc_imag;
+            force_tmp2_(m,dir,k,j,i) += aka_.view_device()(dir,n)*forc_real -
+                                         akb_.view_device()(dir,n)*forc_imag;
           }
         });
       }
@@ -611,8 +611,8 @@ TaskStatus TurbulenceDriver::UpdateForcing(Driver *pdrive, int stage) {
     if (x_turb_scale_height_ > 0) {
       par_for("force_OU_process",DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
       KOKKOS_LAMBDA(int m, int k, int j, int i) {
-        Real &x1min = size.d_view(m).x1min;
-        Real &x1max = size.d_view(m).x1max;
+        Real &x1min = size.view_device()(m).x1min;
+        Real &x1max = size.view_device()(m).x1max;
         Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
         force_(m,0,k,j,i) *=
             std::exp(-SQR(x1v-x_turb_center_)/(2*SQR(x_turb_scale_height_)));
@@ -626,8 +626,8 @@ TaskStatus TurbulenceDriver::UpdateForcing(Driver *pdrive, int stage) {
     if (y_turb_scale_height_ > 0) {
       par_for("force_OU_process",DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
       KOKKOS_LAMBDA(int m, int k, int j, int i) {
-        Real &x2min = size.d_view(m).x2min;
-        Real &x2max = size.d_view(m).x2max;
+        Real &x2min = size.view_device()(m).x2min;
+        Real &x2max = size.view_device()(m).x2max;
         Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
         force_(m,0,k,j,i) *=
             std::exp(-SQR(x2v-y_turb_center_)/(2*SQR(y_turb_scale_height_)));
@@ -641,8 +641,8 @@ TaskStatus TurbulenceDriver::UpdateForcing(Driver *pdrive, int stage) {
     if (z_turb_scale_height_ > 0) {
       par_for("force_OU_process",DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
       KOKKOS_LAMBDA(int m, int k, int j, int i) {
-        Real &x3min = size.d_view(m).x3min;
-        Real &x3max = size.d_view(m).x3max;
+        Real &x3min = size.view_device()(m).x3min;
+        Real &x3max = size.view_device()(m).x3max;
         Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
         force_(m,0,k,j,i) *=
             std::exp(-SQR(x3v-z_turb_center_)/(2*SQR(z_turb_scale_height_)));
@@ -664,7 +664,8 @@ TaskStatus TurbulenceDriver::UpdateForcing(Driver *pdrive, int stage) {
       int i = (idx - m*nkji - k*nji - j*nx1) + is;
       k += ks;
       j += js;
-      Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+      Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2
+          *size.view_device()(m).dx3;
       Real den = u0(m,IDN,k,j,i);
       if (flag_twofl) {
         den += u0_(m,IDN,k,j,i);
@@ -703,7 +704,8 @@ TaskStatus TurbulenceDriver::UpdateForcing(Driver *pdrive, int stage) {
       int i = (idx - m*nkji - k*nji - j*nx1) + is;
       k += ks;
       j += js;
-      Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+      Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2
+          *size.view_device()(m).dx3;
 
       Real den  = u0(m,IDN,k,j,i);
       Real mom1 = u0(m,IM1,k,j,i);

@@ -63,9 +63,10 @@ int MaxNeighborLevelAtOffset(const int m, const int nnghbr, const int ox1,
   for (int n1 = 0; n1 <= 1; ++n1) {
     for (int n2 = 0; n2 <= 1; ++n2) {
       const int idx = NeighborIndex(ox1, ox2, ox3, n1, n2);
-      if ((idx >= 0) && (idx < nnghbr) && (nghbr.d_view(m, idx).gid >= 0)) {
+      if ((idx >= 0) && (idx < nnghbr) && (nghbr.view_device()(m, idx).gid >= 0)) {
         max_lev =
-            (nghbr.d_view(m, idx).lev > max_lev) ? nghbr.d_view(m, idx).lev : max_lev;
+            (nghbr.view_device()(m, idx).lev > max_lev) ? nghbr.view_device()(m,
+                idx).lev : max_lev;
       }
     }
   }
@@ -410,7 +411,8 @@ void MeshBoundaryValuesCC::FillCoarseInBndryCC(DvceArray5D<Real> &a,
       const int v = (tmember.league_rank() - m*(nnghbr*nvar) - n*nvar);
 
       // only restrict when neighbor exists and is at SAME level
-      if ((nghbr.d_view(m,n).gid >= 0) && (nghbr.d_view(m,n).lev == mblev.d_view(m))) {
+      if ((nghbr.view_device()(m,n).gid >= 0)
+          && (nghbr.view_device()(m,n).lev == mblev.view_device()(m))) {
         // loop over indices for receives at same level, but convert loop limits to
         // coarse array
         int il = (rbuf[n].isame[0].bis + cis)/2;
@@ -506,7 +508,8 @@ void MeshBoundaryValuesCC::ProlongateCC(DvceArray5D<Real> &a, DvceArray5D<Real> 
     const int v = (tmember.league_rank() - m*(nnghbr*nvar) - n*nvar);
 
     // only prolongate when neighbor exists and is at coarser level
-    if ((nghbr.d_view(m,n).gid >= 0) && (nghbr.d_view(m,n).lev < mblev.d_view(m))) {
+    if ((nghbr.view_device()(m,n).gid >= 0)
+        && (nghbr.view_device()(m,n).lev < mblev.view_device()(m))) {
       // loop over indices for prolongation on this buffer
       int il = rbuf[n].iprol[0].bis;
       int iu = rbuf[n].iprol[0].bie;
@@ -581,7 +584,8 @@ bool MeshBoundaryValuesCC::ProlongateHydroPositive(DvceArray5D<Real> &a,
     const int i = idx%ni, j = (idx/ni)%nj, k = (idx/(ni*nj))%nk;
     bool selected = false;
     for (int n = 0; n < nnghbr; ++n) {
-      if (nghbr.d_view(m,n).gid < 0 || nghbr.d_view(m,n).lev >= mblev.d_view(m)) {
+      if (nghbr.view_device()(m,n).gid < 0
+          || nghbr.view_device()(m,n).lev >= mblev.view_device()(m)) {
         continue;
       }
       const auto b = rbuf[n].iprol[0];
@@ -677,7 +681,8 @@ void MeshBoundaryValuesFC::FillCoarseInBndryFC(DvceFaceFld4D<Real> &b,
       const int v = (tmember.league_rank() - m*(3*nnghbr) - 3*n);
 
       // only restrict when neighbor exists and is at SAME level
-      if ((nghbr.d_view(m,n).gid >= 0) && (nghbr.d_view(m,n).lev == mblev.d_view(m))) {
+      if ((nghbr.view_device()(m,n).gid >= 0)
+          && (nghbr.view_device()(m,n).lev == mblev.view_device()(m))) {
         // loop over indices for receives at same level, but convert loop limits to
         // coarse array
         int il = (rbuf[n].isame[v].bis + cis)/2;
@@ -769,10 +774,11 @@ void MeshBoundaryValuesFC::ProlongateFC(DvceFaceFld4D<Real> &b, DvceFaceFld4D<Re
     const int v = (tmember.league_rank() - m*(3*nnghbr) - 3*n);
 
     // only prolongate when neighbor exists and is at coarser level
-    if ((nghbr.d_view(m,n).gid >= 0) && (nghbr.d_view(m,n).lev < mblev.d_view(m))) {
+    if ((nghbr.view_device()(m,n).gid >= 0)
+        && (nghbr.view_device()(m,n).lev < mblev.view_device()(m))) {
       int ox1, ox2, ox3;
       NeighborOffsetFromIndex(n, ox1, ox2, ox3);
-      const int my_lev = mblev.d_view(m);
+      const int my_lev = mblev.view_device()(m);
 
       int il = rbuf[n].iprol[v].bis;
       int iu = rbuf[n].iprol[v].bie;
@@ -830,10 +836,11 @@ void MeshBoundaryValuesFC::ProlongateFC(DvceFaceFld4D<Real> &b, DvceFaceFld4D<Re
     const int n = (tmember.league_rank() - m*(nnghbr));
 
     // only prolongate when neighbor exists and is at coarser level
-    if ((nghbr.d_view(m,n).gid >= 0) && (nghbr.d_view(m,n).lev < mblev.d_view(m))) {
+    if ((nghbr.view_device()(m,n).gid >= 0)
+        && (nghbr.view_device()(m,n).lev < mblev.view_device()(m))) {
       int ox1, ox2, ox3;
       NeighborOffsetFromIndex(n, ox1, ox2, ox3);
-      const int my_lev = mblev.d_view(m);
+      const int my_lev = mblev.view_device()(m);
 
       // use prolongation indices of different field components for interior fine cells
       int il = rbuf[n].iprol[2].bis;

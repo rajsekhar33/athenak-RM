@@ -2,7 +2,7 @@
 #
 #------ start with setting various compiler, environment, and build defaults -------------
 
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.22)
 project(athena VERSION 0.1 LANGUAGES C CXX)
 
 # Disable in-source builds to prevent source tree corruption.
@@ -10,12 +10,9 @@ if( "${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}" )
   message(FATAL_ERROR "FATAL: In-source builds disabled. Please create a separate build directory in which to run cmake, e.g. mkdir build; cd build; cmake ../" )
 endif()
 
-# Athena++ (and Kokkos) require C++17 standard as minimum
-set(CMAKE_CXX_STANDARD 17)
+# Kokkos 5 requires C++20.
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# Force flag to denote C++ standard, as deprecated c++1z is not supported by nvcc.
-set(CMAKE_CXX17_STANDARD_COMPILE_OPTION "-std=c++17")
 
 # Kokkos recommends NOT using default compiler extensions
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -93,11 +90,6 @@ endif()
 # Kokkos prefers this capitalization for debugging reasons
 SET (Kokkos_ENABLE_AGGRESSIVE_VECTORIZATION ON CACHE BOOL
      "Kokkos aggressive vectorization")
-
-# Tell Kokkos we need lambdas in Cuda.
-if (Kokkos_ENABLE_CUDA)
-  SET (Kokkos_ENABLE_CUDA_LAMBDA ON CACHE BOOL "Enable lambda expressions in CUDA")
-endif()
 
 # If this is a debug build, set kokkos debug on
 if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")

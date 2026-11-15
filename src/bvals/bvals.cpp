@@ -117,9 +117,9 @@ int MeshBoundaryValues::GetVarDataSize(const MeshBoundaryBuffer &buf, int m, int
   int data_size = nvars;
   auto &nghbr = pmy_pack->pmb->nghbr;
   auto &mblev = pmy_pack->pmb->mb_lev;
-  if (nghbr.h_view(m,n).lev < mblev.h_view(m)) {
+  if (nghbr.view_host()(m,n).lev < mblev.view_host()(m)) {
     data_size *= buf.icoar_ndat;
-  } else if (nghbr.h_view(m,n).lev == mblev.h_view(m)) {
+  } else if (nghbr.view_host()(m,n).lev == mblev.view_host()(m)) {
     if (is_z4c_) {
       data_size *= buf.isame_z4c_ndat;
     } else {
@@ -151,15 +151,15 @@ void MeshBoundaryValues::BuildRankPackedVarMetadata(const int nvars) {
 
   for (int m=0; m<nmb; ++m) {
     for (int n=0; n<nnghbr; ++n) {
-      if (nghbr.h_view(m,n).gid < 0) continue;
-      int drank = nghbr.h_view(m,n).rank;
+      if (nghbr.view_host()(m,n).gid < 0) continue;
+      int drank = nghbr.view_host()(m,n).rank;
       if (drank == my_rank) continue;
 
       RankPackedVarEntry send_entry;
       send_entry.m = m;
       send_entry.n = n;
-      send_entry.lid = nghbr.h_view(m,n).gid - pmy_pack->pmesh->gids_eachrank[drank];
-      send_entry.dn = nghbr.h_view(m,n).dest;
+      send_entry.lid = nghbr.view_host()(m,n).gid - pmy_pack->pmesh->gids_eachrank[drank];
+      send_entry.dn = nghbr.view_host()(m,n).dest;
       send_entry.data_size = GetVarDataSize(sendbuf[n], m, n, nvars);
       send_entry.offset = 0;
       send_by_rank[drank].push_back(send_entry);

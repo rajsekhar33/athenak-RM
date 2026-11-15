@@ -115,8 +115,8 @@ void ProblemGenerator::Turbulence(ParameterInput *pin, const bool restart) {
       u0(m,IM2,k,j,i) = 0.0;
       u0(m,IM3,k,j,i) = 0.0;
 
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       int nx1 = indcs.nx1;
       Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
 
@@ -180,8 +180,8 @@ void ProblemGenerator::Turbulence(ParameterInput *pin, const bool restart) {
       u0(m,IM2,k,j,i) = 0.0;
       u0(m,IM3,k,j,i) = 0.0;
 
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       int nx1 = indcs.nx1;
       Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
 
@@ -307,8 +307,9 @@ void TurbulentHistory(HistoryData *pdata, Mesh *pm) {
     k += ks;
     j += js;
 
-    Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
-    Real dx_squared = size.d_view(m).dx1 * size.d_view(m).dx1;
+    Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2
+        *size.view_device()(m).dx3;
+    Real dx_squared = size.view_device()(m).dx1 * size.view_device()(m).dx1;
 
     // MHD conserved variables:
     array_sum::GlobalSum hvars;

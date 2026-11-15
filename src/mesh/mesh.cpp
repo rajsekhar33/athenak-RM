@@ -476,10 +476,10 @@ void Mesh::WriteMeshStructure() {
             fp,"#  Logical level %d, location = (%" PRId32 " %" PRId32 " %" PRId32")\n",
             lloc_eachmb[j].level, lx1, lx2, lx3);
         if (two_d) { // 2D
-          Real &x1min = block.mb_size.h_view(0).x1min;
-          Real &x1max = block.mb_size.h_view(0).x1max;
-          Real &x2min = block.mb_size.h_view(0).x2min;
-          Real &x2max = block.mb_size.h_view(0).x2max;
+          Real &x1min = block.mb_size.view_host()(0).x1min;
+          Real &x1max = block.mb_size.view_host()(0).x1max;
+          Real &x2min = block.mb_size.view_host()(0).x2min;
+          Real &x2max = block.mb_size.view_host()(0).x2max;
           std::fprintf(fp,"%g %g\n", x1min, x2min);
           std::fprintf(fp,"%g %g\n", x1max, x2min);
           std::fprintf(fp,"%g %g\n", x1max, x2max);
@@ -488,12 +488,12 @@ void Mesh::WriteMeshStructure() {
           std::fprintf(fp,"\n\n");
         }
         if (three_d) { // 3D
-          Real &x1min = block.mb_size.h_view(0).x1min;
-          Real &x1max = block.mb_size.h_view(0).x1max;
-          Real &x2min = block.mb_size.h_view(0).x2min;
-          Real &x2max = block.mb_size.h_view(0).x2max;
-          Real &x3min = block.mb_size.h_view(0).x3min;
-          Real &x3max = block.mb_size.h_view(0).x3max;
+          Real &x1min = block.mb_size.view_host()(0).x1min;
+          Real &x1max = block.mb_size.view_host()(0).x1max;
+          Real &x2min = block.mb_size.view_host()(0).x2min;
+          Real &x2max = block.mb_size.view_host()(0).x2max;
+          Real &x3min = block.mb_size.view_host()(0).x3min;
+          Real &x3max = block.mb_size.view_host()(0).x3max;
           std::fprintf(fp,"%g %g %g\n", x1min, x2min, x3min);
           std::fprintf(fp,"%g %g %g\n", x1max, x2min, x3min);
           std::fprintf(fp,"%g %g %g\n", x1max, x2max, x3min);

@@ -85,18 +85,18 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   par_for("pgen_diffusion2",DevExeSpace(),0,nmb1,ks,ke,js,je,is,ie,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
     // coordinates
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     int nx1 = indcs.nx1;
     Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     int nx2 = indcs.nx2;
     Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     int nx3 = indcs.nx3;
     Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
 
@@ -138,16 +138,20 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     // Go through each angle
     for (int n=0; n<nangles_; ++n) {
       // Calculate direction in fluid frame
-      Real un_t =  (u_tet_[1]*nh_c_.d_view(n,1) + u_tet_[2]*nh_c_.d_view(n,2) +
-                    u_tet_[3]*nh_c_.d_view(n,3));
+      Real un_t =  (u_tet_[1]*nh_c_.view_device()(n,1) + u_tet_[2]
+          *nh_c_.view_device()(n,2) +
+                    u_tet_[3]*nh_c_.view_device()(n,3));
 
-      Real n0_f =  u_tet_[0]*nh_c_.d_view(n,0) - un_t;
-      Real n1_f = (-u_tet_[1]*nh_c_.d_view(n,0) + u_tet_[1]/(u_tet_[0] + 1.0)*un_t +
-                   nh_c_.d_view(n,1));
-      Real n2_f = (-u_tet_[2]*nh_c_.d_view(n,0) + u_tet_[2]/(u_tet_[0] + 1.0)*un_t +
-                   nh_c_.d_view(n,2));
-      Real n3_f = (-u_tet_[3]*nh_c_.d_view(n,0) + u_tet_[3]/(u_tet_[0] + 1.0)*un_t +
-                   nh_c_.d_view(n,3));
+      Real n0_f =  u_tet_[0]*nh_c_.view_device()(n,0) - un_t;
+      Real n1_f = (-u_tet_[1]*nh_c_.view_device()(n,0) + u_tet_[1]/(u_tet_[0] + 1.0)*un_t
+          +
+                   nh_c_.view_device()(n,1));
+      Real n2_f = (-u_tet_[2]*nh_c_.view_device()(n,0) + u_tet_[2]/(u_tet_[0] + 1.0)*un_t
+          +
+                   nh_c_.view_device()(n,2));
+      Real n3_f = (-u_tet_[3]*nh_c_.view_device()(n,0) + u_tet_[3]/(u_tet_[0] + 1.0)*un_t
+          +
+                   nh_c_.view_device()(n,3));
 
       // Calculate intensity in fluid frame
       Real fn_f = f1_f*n1_f + f2_f*n2_f + f3_f*n3_f;
@@ -160,7 +164,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
       // Calculate intensity in tetrad frame
       Real n0 = tet_c_(m,0,0,k,j,i); Real n_0 = 0.0;
-      for (int d=0; d<4; ++d) {  n_0 += tetcov_c_(m,d,0,k,j,i)*nh_c_.d_view(n,d);  }
+      for (int d=0; d<4; ++d) {  n_0 += tetcov_c_(m,d,0,k,j,i)
+          *nh_c_.view_device()(n,d);  }
       i0(m,n,k,j,i) = n0*n_0*ii_f/SQR(SQR(n0_f));
     }
   });

@@ -47,9 +47,9 @@ TaskStatus Z4c::NewTimeStep(Driver *pdriver, int stage) {
     // compute m,k,j,i indices of thread and call function
     int m = (idx)/nkji;
 
-    min_dt1 = fmin((mbsize.d_view(m).dx1), min_dt1);
-    min_dt2 = fmin((mbsize.d_view(m).dx2), min_dt2);
-    min_dt3 = fmin((mbsize.d_view(m).dx3), min_dt3);
+    min_dt1 = fmin((mbsize.view_device()(m).dx1), min_dt1);
+    min_dt2 = fmin((mbsize.view_device()(m).dx2), min_dt2);
+    min_dt3 = fmin((mbsize.view_device()(m).dx3), min_dt3);
   }, Kokkos::Min<Real>(dt1), Kokkos::Min<Real>(dt2),Kokkos::Min<Real>(dt3));
 
   // compute minimum of dt1/dt2/dt3 for 1D/2D/3D problems

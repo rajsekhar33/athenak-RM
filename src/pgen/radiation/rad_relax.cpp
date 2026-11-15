@@ -90,23 +90,28 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     // Go through each angle
     for (int n=0; n<=nang1; ++n) {
       // Calculate direction in fluid frame
-      Real un_t =  (u_tet_[1]*nh_c_.d_view(n,1) + u_tet_[2]*nh_c_.d_view(n,2) +
-                    u_tet_[3]*nh_c_.d_view(n,3));
+      Real un_t =  (u_tet_[1]*nh_c_.view_device()(n,1) + u_tet_[2]
+          *nh_c_.view_device()(n,2) +
+                    u_tet_[3]*nh_c_.view_device()(n,3));
 
-      Real n0_f =  u_tet_[0]*nh_c_.d_view(n,0) - un_t;
-      Real n1_f = (-u_tet_[1]*nh_c_.d_view(n,0) + u_tet_[1]/(u_tet_[0] + 1.0)*un_t +
-                   nh_c_.d_view(n,1));
-      Real n2_f = (-u_tet_[2]*nh_c_.d_view(n,0) + u_tet_[2]/(u_tet_[0] + 1.0)*un_t +
-                   nh_c_.d_view(n,2));
-      Real n3_f = (-u_tet_[3]*nh_c_.d_view(n,0) + u_tet_[3]/(u_tet_[0] + 1.0)*un_t +
-                   nh_c_.d_view(n,3));
+      Real n0_f =  u_tet_[0]*nh_c_.view_device()(n,0) - un_t;
+      Real n1_f = (-u_tet_[1]*nh_c_.view_device()(n,0) + u_tet_[1]/(u_tet_[0] + 1.0)*un_t
+          +
+                   nh_c_.view_device()(n,1));
+      Real n2_f = (-u_tet_[2]*nh_c_.view_device()(n,0) + u_tet_[2]/(u_tet_[0] + 1.0)*un_t
+          +
+                   nh_c_.view_device()(n,2));
+      Real n3_f = (-u_tet_[3]*nh_c_.view_device()(n,0) + u_tet_[3]/(u_tet_[0] + 1.0)*un_t
+          +
+                   nh_c_.view_device()(n,3));
 
       // Calculate intensity in fluid frame
       Real ii_f =  erad/(4.0*M_PI);
 
       // Calculate intensity in tetrad frame
       Real n0 = tet_c_(m,0,0,k,j,i); Real n_0 = 0.0;
-      for (int d=0; d<4; ++d) {  n_0 += tetcov_c_(m,d,0,k,j,i)*nh_c_.d_view(n,d);  }
+      for (int d=0; d<4; ++d) {  n_0 += tetcov_c_(m,d,0,k,j,i)
+          *nh_c_.view_device()(n,d);  }
       i0(m,n,k,j,i) = n0*n_0*ii_f/SQR(SQR(n0_f));
     }
   });

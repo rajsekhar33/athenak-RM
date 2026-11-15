@@ -218,7 +218,7 @@ void SphericalSurfaceOutput::LoadOutputData(Mesh *pm) {
   for (int n = 0; n < nout_vars; ++n) {
     psurf->InterpolateToSphere(outvars[n].data_index, *(outvars[n].data_ptr));
     auto v_slice = Kokkos::subview(outarray, n, 0, 0, 0, Kokkos::ALL);
-    Kokkos::deep_copy(v_slice, psurf->interp_vals.h_view);
+    Kokkos::deep_copy(v_slice, psurf->interp_vals.view_host());
   }
 #if MPI_PARALLEL_ENABLED
   // Note that InterpolateToSphere will set zero values for points not owned by
@@ -247,12 +247,12 @@ void SphericalSurfaceOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
     char fname[BUFSIZ];
     if (nradii == 1) {
       std::snprintf(fname, BUFSIZ, "sph/%s.r=%.2f.%s.%05d.vtk",
-                    out_params.file_basename.c_str(), psurf->radii.h_view(0),
+                    out_params.file_basename.c_str(), psurf->radii.view_host()(0),
                     out_params.file_id.c_str(), out_params.file_number);
     } else {
       std::snprintf(fname, BUFSIZ, "sph/%s.r=%.2f-%.2f.%s.%05d.vtk",
-                    out_params.file_basename.c_str(), psurf->radii.h_view(0),
-                    psurf->radii.h_view(nradii-1), out_params.file_id.c_str(),
+                    out_params.file_basename.c_str(), psurf->radii.view_host()(0),
+                    psurf->radii.view_host()(nradii-1), out_params.file_id.c_str(),
                     out_params.file_number);
     }
 
@@ -262,8 +262,8 @@ void SphericalSurfaceOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
     ofile << "# vtk DataFile Version 3.0" << std::endl;
     ofile << "# AthenaK data at time=" << pm->time
           << " cycle=" << pm->ncycle << " nradii=" << nradii
-          << " rmin=" << psurf->radii.h_view(0)
-          << " rmax=" << psurf->radii.h_view(nradii-1)
+          << " rmin=" << psurf->radii.view_host()(0)
+          << " rmax=" << psurf->radii.view_host()(nradii-1)
           << " xc=" << psurf->xc << " yc=" << psurf->yc << " zc=" << psurf->zc
           << " theta_spacing=" << SpacingName(psurf->theta_spacing)
           << " theta_centering=" << CenteringName(psurf->theta_centering)
@@ -277,9 +277,9 @@ void SphericalSurfaceOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
 
     for (int i = 0; i < psurf->nangles; ++i) {
       for (int r = 0; r < nradii; ++r) {
-        float dline[3] = {static_cast<float>(psurf->radii.h_view(r)),
-                          static_cast<float>(psurf->polar_pos.h_view(i, 0)),
-                          static_cast<float>(psurf->polar_pos.h_view(i, 1))};
+        float dline[3] = {static_cast<float>(psurf->radii.view_host()(r)),
+                          static_cast<float>(psurf->polar_pos.view_host()(i, 0)),
+                          static_cast<float>(psurf->polar_pos.view_host()(i, 1))};
         if (!big_end) {
           Swap4Bytes(&dline[0]);
           Swap4Bytes(&dline[1]);
@@ -308,7 +308,7 @@ void SphericalSurfaceOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
     // write the radii explicitely
     ofile << "\nRADII 1 " << nradii << " float\n";
     for (int r = 0; r < nradii; ++r) {
-      float rr = static_cast<float>(psurf->radii.h_view(r));
+      float rr = static_cast<float>(psurf->radii.view_host()(r));
       if (!big_end) {
         Swap4Bytes(&rr);
       }
@@ -322,9 +322,9 @@ void SphericalSurfaceOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
       ofile << "LOOKUP_TABLE default" << std::endl;
       for (int i = 0; i < psurf->nangles; ++i) {
         for (int r = 0; r < nradii; ++r) {
-          Real rad = psurf->radii.h_view(r);
+          Real rad = psurf->radii.view_host()(r);
           // int_weights is the solid angle of the point, r^2*dOmega its surface element
-          float d = rad * rad * psurf->int_weights.h_view(i);
+          float d = rad * rad * psurf->int_weights.view_host()(i);
           if (!big_end) {
             Swap4Bytes(&d);
           }

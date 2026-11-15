@@ -68,11 +68,12 @@ TaskStatus MeshBoundaryValuesCC::PackAndSendFluxCC(DvceFaceFld5D<Real> &flx) {
 
     // indices of recv'ing (destination) MB and buffer: MB IDs are stored sequentially
     // in MeshBlockPacks, so array index equals (target_id - first_id)
-    int dm = nghbr.d_view(m,n).gid - mbgid.d_view(0);
-    int dn = nghbr.d_view(m,n).dest;
+    int dm = nghbr.view_device()(m,n).gid - mbgid.view_device()(0);
+    int dn = nghbr.view_device()(m,n).dest;
 
     // only pack buffers when neighbor is at coarser level
-    if ((nghbr.d_view(m,n).gid >=0) && (nghbr.d_view(m,n).lev < mblev.d_view(m))) {
+    if ((nghbr.view_device()(m,n).gid >=0)
+        && (nghbr.view_device()(m,n).lev < mblev.view_device()(m))) {
       // x1faces
       if (n<8) {
         // i-index is fixed for flux correction on x1faces
@@ -93,7 +94,7 @@ TaskStatus MeshBoundaryValuesCC::PackAndSendFluxCC(DvceFaceFld5D<Real> &flx) {
                          flx.x1f(m,v,fk+1,fj,fi) + flx.x1f(m,v,fk+1,fj+1,fi));
           }
           // copy directly into recv buffer if MeshBlocks on same rank
-          if (nghbr.d_view(m,n).rank == my_rank) {
+          if (nghbr.view_device()(m,n).rank == my_rank) {
             rbuf[dn].flux(dm, (j-jl + nj*(k-kl + nk*v)) ) = rflx;
           // else copy into send buffer for MPI communication below
           } else {
@@ -119,7 +120,7 @@ TaskStatus MeshBoundaryValuesCC::PackAndSendFluxCC(DvceFaceFld5D<Real> &flx) {
                          flx.x2f(m,v,fk+1,fj,fi) + flx.x2f(m,v,fk+1,fj,fi+1));
           }
           // copy directly into recv buffer if MeshBlocks on same rank
-          if (nghbr.d_view(m,n).rank == my_rank) {
+          if (nghbr.view_device()(m,n).rank == my_rank) {
             rbuf[dn].flux(dm, (i-il + ni*(k-kl + nk*v)) ) = rflx;
           // else copy into send buffer for MPI communication below
           } else {
@@ -140,7 +141,7 @@ TaskStatus MeshBoundaryValuesCC::PackAndSendFluxCC(DvceFaceFld5D<Real> &flx) {
           Real rflx = 0.25*(flx.x3f(m,v,fk,fj  ,fi) + flx.x3f(m,v,fk,fj  ,fi+1) +
                             flx.x3f(m,v,fk,fj+1,fi) + flx.x3f(m,v,fk,fj+1,fi+1));
           // copy directly into recv buffer if MeshBlocks on same rank
-          if (nghbr.d_view(m,n).rank == my_rank) {
+          if (nghbr.view_device()(m,n).rank == my_rank) {
             rbuf[dn].flux(dm, (i-il + ni*(j-jl + nj*v)) ) = rflx;
           // else copy into send buffer for MPI communication below
           } else {
@@ -159,16 +160,16 @@ TaskStatus MeshBoundaryValuesCC::PackAndSendFluxCC(DvceFaceFld5D<Real> &flx) {
   bool no_errors=true;
   for (int m=0; m<nmb; ++m) {
     for (int n=0; n<nnghbr; ++n) {
-      if ( (nghbr.h_view(m,n).gid >=0) &&
-           (nghbr.h_view(m,n).lev < mblev.h_view(m)) &&
+      if ( (nghbr.view_host()(m,n).gid >=0) &&
+           (nghbr.view_host()(m,n).lev < mblev.view_host()(m)) &&
            ((n<16) || ((n>=24) && (n<32))) ) {
         // index and rank of destination Neighbor
-        int dn = nghbr.h_view(m,n).dest;
-        int drank = nghbr.h_view(m,n).rank;
+        int dn = nghbr.view_host()(m,n).dest;
+        int drank = nghbr.view_host()(m,n).rank;
 
         if (drank != my_rank) {
           // create tag using local ID and buffer index of *receiving* MeshBlock
-          int lid = nghbr.h_view(m,n).gid - pmy_pack->pmesh->gids_eachrank[drank];
+          int lid = nghbr.view_host()(m,n).gid - pmy_pack->pmesh->gids_eachrank[drank];
           int tag = CreateBvals_MPI_Tag(lid, dn);
 
           // get ptr to send buffer for fluxes
@@ -211,10 +212,10 @@ TaskStatus MeshBoundaryValuesCC::RecvAndUnpackFluxCC(DvceFaceFld5D<Real> &flx) {
   bool no_errors=true;
   for (int m=0; m<nmb; ++m) {
     for (int n=0; n<nnghbr; ++n) {
-      if ( (nghbr.h_view(m,n).gid >=0) &&
-           (nghbr.h_view(m,n).lev > mblev.h_view(m)) &&
+      if ( (nghbr.view_host()(m,n).gid >=0) &&
+           (nghbr.view_host()(m,n).lev > mblev.view_host()(m)) &&
            ((n<16) || ((n>=24) && (n<32))) ) {
-        if (nghbr.h_view(m,n).rank != global_variable::my_rank) {
+        if (nghbr.view_host()(m,n).rank != global_variable::my_rank) {
           int test;
           int ierr = MPI_Test(&(rbuf[n].flux_req[m]), &test, MPI_STATUS_IGNORE);
           if (ierr != MPI_SUCCESS) {no_errors=false;}
@@ -262,7 +263,8 @@ TaskStatus MeshBoundaryValuesCC::RecvAndUnpackFluxCC(DvceFaceFld5D<Real> &flx) {
     const int nki  = nk*ni;
 
     // only unpack buffers for faces when neighbor is at finer level
-    if ((nghbr.d_view(m,n).gid >=0) && (nghbr.d_view(m,n).lev > mblev.d_view(m))) {
+    if ((nghbr.view_device()(m,n).gid >=0)
+        && (nghbr.view_device()(m,n).lev > mblev.view_device()(m))) {
       //x1 faces
       if (n<8) {
         Kokkos::parallel_for(Kokkos::TeamThreadRange<>(tmember, nkj), [&](const int idx) {
@@ -313,11 +315,11 @@ TaskStatus MeshBoundaryValuesCC::InitFluxRecv(const int nvars) {
     for (int n=0; n<nnghbr; ++n) {
       // only post receives for neighbors on FACES at FINER level
       // this is the only thing different from BoundaryValuesFC::InitRecvFlux()
-      if ( (nghbr.h_view(m,n).gid >=0) &&
-           (nghbr.h_view(m,n).lev > pmy_pack->pmb->mb_lev.h_view(m)) &&
+      if ( (nghbr.view_host()(m,n).gid >=0) &&
+           (nghbr.view_host()(m,n).lev > pmy_pack->pmb->mb_lev.view_host()(m)) &&
            ((n<16) || ((n>=24) && (n<32))) ) {
         // rank of destination buffer
-        int drank = nghbr.h_view(m,n).rank;
+        int drank = nghbr.view_host()(m,n).rank;
 
         // post non-blocking receive if neighboring MeshBlock on a different rank
         if (drank != global_variable::my_rank) {

@@ -47,7 +47,7 @@ void ZoomData::PackBuffer() {
     ci0_cnt = coarse_i0.extent(1) * coarse_i0.extent(2) *
               coarse_i0.extent(3) * coarse_i0.extent(4);
   }
-  auto dzbuf = zbuf.d_view;  // Get device view for packing
+  auto dzbuf = zbuf.view_device();  // Get device view for packing
   for (int zm = 0; zm < pzmesh->nzmb_thisdvce; ++zm) {
     // offset = zm * zmb_data_cnt;
     if (pmbp->phydro != nullptr || pmbp->pmhd != nullptr) {
@@ -91,7 +91,7 @@ void ZoomData::PackBuffer() {
     std::exit(EXIT_FAILURE);
   }
   Kokkos::deep_copy(
-    Kokkos::subview(zbuf.h_view, Kokkos::make_pair(size_t(0), used_size)),
+    Kokkos::subview(zbuf.view_host(), Kokkos::make_pair(size_t(0), used_size)),
     Kokkos::subview(dzbuf, Kokkos::make_pair(size_t(0), used_size))
   );
   return;
@@ -199,11 +199,11 @@ void ZoomData::UnpackBuffer() {
   // Sync only the used portion to device for bandwidth efficiency
   size_t used_size = pzmesh->nzmb_thisdvce * zmb_data_cnt;
   Kokkos::deep_copy(
-    Kokkos::subview(zbuf.d_view, Kokkos::make_pair(size_t(0), used_size)),
-    Kokkos::subview(zbuf.h_view, Kokkos::make_pair(size_t(0), used_size))
+    Kokkos::subview(zbuf.view_device(), Kokkos::make_pair(size_t(0), used_size)),
+    Kokkos::subview(zbuf.view_host(), Kokkos::make_pair(size_t(0), used_size))
   );
   // Unpack data from device buffer to zoom data arrays
-  auto dzbuf = zbuf.d_view;  // Get device view for unpacking
+  auto dzbuf = zbuf.view_device();  // Get device view for unpacking
   auto &pmbp = pzoom->pmesh->pmb_pack;
   // use size_t for offset to avoid overflow
   size_t offset = 0;
@@ -501,7 +501,7 @@ void ZoomData::RedistZMBs(int nlmb, int lmbs,
 //! \param[in] zone Zone level to save
 
 void ZoomData::SaveToStorage(int zone) {
-  auto hzbuf = zbuf.h_view;
+  auto hzbuf = zbuf.view_host();
   int nlmb = pzmesh->nzmb_eachlevel[zone];  // Number of ZMBs at this level
   int lmbs = pzmesh->gzms_eachlevel[zone];  // Global starting index for this level
   RedistZMBs(nlmb, lmbs,
@@ -525,7 +525,7 @@ void ZoomData::SaveToStorage(int zone) {
 //! \param[in] zone Zone level to load
 
 void ZoomData::LoadFromStorage(int zone) {
-  auto hzbuf = zbuf.h_view;
+  auto hzbuf = zbuf.view_host();
   int nlmb = pzmesh->nzmb_eachlevel[zone];  // Number of ZMBs at this level
   int lmbs = pzmesh->gzms_eachlevel[zone];  // Global starting index for this level
   RedistZMBs(nlmb, lmbs,

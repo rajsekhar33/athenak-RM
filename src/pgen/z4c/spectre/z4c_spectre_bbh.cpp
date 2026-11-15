@@ -97,7 +97,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 void LoadSpectreInitialData(MeshBlockPack *pmbp, const std::string &filename_glob,
                             const std::string &subfile_name, const int observation_step) {
   auto &u_adm = pmbp->padm->u_adm;
-  HostArray5D<Real>::HostMirror host_u_adm = create_mirror(u_adm);
+  HostArray5D<Real>::host_mirror_type host_u_adm = create_mirror(u_adm);
   z4c::Z4c::ADMhost_vars host_adm;
   host_adm.psi4.InitWithShallowSlice(host_u_adm, adm::ADM::I_ADM_PSI4);
   host_adm.g_dd.InitWithShallowSlice(
@@ -139,12 +139,12 @@ void LoadSpectreInitialData(MeshBlockPack *pmbp, const std::string &filename_glo
   Kokkos::Timer timer{};
   for (int m = 0; m < nmb; ++m) {
     // Get the coordinates for this meshblock
-    Real &x1min = size.h_view(m).x1min;
-    Real &x1max = size.h_view(m).x1max;
-    Real &x2min = size.h_view(m).x2min;
-    Real &x2max = size.h_view(m).x2max;
-    Real &x3min = size.h_view(m).x3min;
-    Real &x3max = size.h_view(m).x3max;
+    Real &x1min = size.view_host()(m).x1min;
+    Real &x1max = size.view_host()(m).x1max;
+    Real &x2min = size.view_host()(m).x2min;
+    Real &x2max = size.view_host()(m).x2max;
+    Real &x3min = size.view_host()(m).x3min;
+    Real &x3max = size.view_host()(m).x3max;
     for (int ix_I = isg; ix_I < ieg + 1; ix_I++) {
       for (int ix_J = jsg; ix_J < jeg + 1; ix_J++) {
         for (int ix_K = ksg; ix_K < keg + 1; ix_K++) {

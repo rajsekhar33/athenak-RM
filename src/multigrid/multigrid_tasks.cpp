@@ -176,20 +176,20 @@ TaskStatus MultigridDriver::PhysicalBoundary(Driver *pdrive, int stage) {
     KOKKOS_LAMBDA(const int m) {
       for (int v = 0; v < nvar; ++v) {
         // inner x1
-        if (mb_bcs.d_view(m, BoundaryFace::inner_x1) != BoundaryFlag::block &&
-            mb_bcs.d_view(m, BoundaryFace::inner_x1) != BoundaryFlag::periodic) {
+        if (mb_bcs.view_device()(m, BoundaryFace::inner_x1) != BoundaryFlag::block &&
+            mb_bcs.view_device()(m, BoundaryFace::inner_x1) != BoundaryFlag::periodic) {
           if (bc_ix1 == BoundaryFlag::mg_multipole && d_mpc.data() != nullptr) {
-            Real dx1 = (mb_size.d_view(m).x1max - mb_size.d_view(m).x1min)
+            Real dx1 = (mb_size.view_device()(m).x1max - mb_size.view_device()(m).x1min)
                        / static_cast<Real>(nx1);
-            Real dx2_l = (mb_size.d_view(m).x2max - mb_size.d_view(m).x2min)
+            Real dx2_l = (mb_size.view_device()(m).x2max - mb_size.view_device()(m).x2min)
                        / static_cast<Real>(nx2);
-            Real dx3_l = (mb_size.d_view(m).x3max - mb_size.d_view(m).x3min)
+            Real dx3_l = (mb_size.view_device()(m).x3max - mb_size.view_device()(m).x3min)
                        / static_cast<Real>(nx3);
-            Real xf = mb_size.d_view(m).x1min - d_xo;
+            Real xf = mb_size.view_device()(m).x1min - d_xo;
             for (int k = ngh; k < ngh + ncells; ++k) {
-              Real zv = mb_size.d_view(m).x3min + (k-ngh+0.5)*dx3_l - d_zo;
+              Real zv = mb_size.view_device()(m).x3min + (k-ngh+0.5)*dx3_l - d_zo;
               for (int j = ngh; j < ngh + ncells; ++j) {
-                Real yv = mb_size.d_view(m).x2min + (j-ngh+0.5)*dx2_l - d_yo;
+                Real yv = mb_size.view_device()(m).x2min + (j-ngh+0.5)*dx2_l - d_yo;
                 Real phis = EvalMultipolePhi(xf, yv, zv, d_mpc.data(), d_order);
                 for (int n = 0; n < ngh; ++n)
                   u(m,v,k,j,ngh-1-n) = 2.0*phis - u(m,v,k,j,ngh+n);
@@ -207,18 +207,18 @@ TaskStatus MultigridDriver::PhysicalBoundary(Driver *pdrive, int stage) {
           }
         }
         // outer x1
-        if (mb_bcs.d_view(m, BoundaryFace::outer_x1) != BoundaryFlag::block &&
-            mb_bcs.d_view(m, BoundaryFace::outer_x1) != BoundaryFlag::periodic) {
+        if (mb_bcs.view_device()(m, BoundaryFace::outer_x1) != BoundaryFlag::block &&
+            mb_bcs.view_device()(m, BoundaryFace::outer_x1) != BoundaryFlag::periodic) {
           if (bc_ox1 == BoundaryFlag::mg_multipole && d_mpc.data() != nullptr) {
-            Real dx2_l = (mb_size.d_view(m).x2max - mb_size.d_view(m).x2min)
+            Real dx2_l = (mb_size.view_device()(m).x2max - mb_size.view_device()(m).x2min)
                        / static_cast<Real>(nx2);
-            Real dx3_l = (mb_size.d_view(m).x3max - mb_size.d_view(m).x3min)
+            Real dx3_l = (mb_size.view_device()(m).x3max - mb_size.view_device()(m).x3min)
                        / static_cast<Real>(nx3);
-            Real xf = mb_size.d_view(m).x1max - d_xo;
+            Real xf = mb_size.view_device()(m).x1max - d_xo;
             for (int k = ngh; k < ngh + ncells; ++k) {
-              Real zv = mb_size.d_view(m).x3min + (k-ngh+0.5)*dx3_l - d_zo;
+              Real zv = mb_size.view_device()(m).x3min + (k-ngh+0.5)*dx3_l - d_zo;
               for (int j = ngh; j < ngh + ncells; ++j) {
-                Real yv = mb_size.d_view(m).x2min + (j-ngh+0.5)*dx2_l - d_yo;
+                Real yv = mb_size.view_device()(m).x2min + (j-ngh+0.5)*dx2_l - d_yo;
                 Real phis = EvalMultipolePhi(xf, yv, zv, d_mpc.data(), d_order);
                 for (int n = 0; n < ngh; ++n)
                   u(m,v,k,j,ngh+ncells+n) = 2.0*phis - u(m,v,k,j,ngh+ncells-1-n);
@@ -237,18 +237,18 @@ TaskStatus MultigridDriver::PhysicalBoundary(Driver *pdrive, int stage) {
           }
         }
         // inner x2
-        if (mb_bcs.d_view(m, BoundaryFace::inner_x2) != BoundaryFlag::block &&
-            mb_bcs.d_view(m, BoundaryFace::inner_x2) != BoundaryFlag::periodic) {
+        if (mb_bcs.view_device()(m, BoundaryFace::inner_x2) != BoundaryFlag::block &&
+            mb_bcs.view_device()(m, BoundaryFace::inner_x2) != BoundaryFlag::periodic) {
           if (bc_ix2 == BoundaryFlag::mg_multipole && d_mpc.data() != nullptr) {
-            Real dx1_l = (mb_size.d_view(m).x1max - mb_size.d_view(m).x1min)
+            Real dx1_l = (mb_size.view_device()(m).x1max - mb_size.view_device()(m).x1min)
                        / static_cast<Real>(nx1);
-            Real dx3_l = (mb_size.d_view(m).x3max - mb_size.d_view(m).x3min)
+            Real dx3_l = (mb_size.view_device()(m).x3max - mb_size.view_device()(m).x3min)
                        / static_cast<Real>(nx3);
-            Real yf = mb_size.d_view(m).x2min - d_yo;
+            Real yf = mb_size.view_device()(m).x2min - d_yo;
             for (int k = ngh; k < ngh + ncells; ++k) {
-              Real zv = mb_size.d_view(m).x3min + (k-ngh+0.5)*dx3_l - d_zo;
+              Real zv = mb_size.view_device()(m).x3min + (k-ngh+0.5)*dx3_l - d_zo;
               for (int i = ngh; i < ngh + ncells; ++i) {
-                Real xv = mb_size.d_view(m).x1min + (i-ngh+0.5)*dx1_l - d_xo;
+                Real xv = mb_size.view_device()(m).x1min + (i-ngh+0.5)*dx1_l - d_xo;
                 Real phis = EvalMultipolePhi(xv, yf, zv, d_mpc.data(), d_order);
                 for (int n = 0; n < ngh; ++n)
                   u(m,v,k,ngh-1-n,i) = 2.0*phis - u(m,v,k,ngh+n,i);
@@ -266,18 +266,18 @@ TaskStatus MultigridDriver::PhysicalBoundary(Driver *pdrive, int stage) {
           }
         }
         // outer x2
-        if (mb_bcs.d_view(m, BoundaryFace::outer_x2) != BoundaryFlag::block &&
-            mb_bcs.d_view(m, BoundaryFace::outer_x2) != BoundaryFlag::periodic) {
+        if (mb_bcs.view_device()(m, BoundaryFace::outer_x2) != BoundaryFlag::block &&
+            mb_bcs.view_device()(m, BoundaryFace::outer_x2) != BoundaryFlag::periodic) {
           if (bc_ox2 == BoundaryFlag::mg_multipole && d_mpc.data() != nullptr) {
-            Real dx1_l = (mb_size.d_view(m).x1max - mb_size.d_view(m).x1min)
+            Real dx1_l = (mb_size.view_device()(m).x1max - mb_size.view_device()(m).x1min)
                        / static_cast<Real>(nx1);
-            Real dx3_l = (mb_size.d_view(m).x3max - mb_size.d_view(m).x3min)
+            Real dx3_l = (mb_size.view_device()(m).x3max - mb_size.view_device()(m).x3min)
                        / static_cast<Real>(nx3);
-            Real yf = mb_size.d_view(m).x2max - d_yo;
+            Real yf = mb_size.view_device()(m).x2max - d_yo;
             for (int k = ngh; k < ngh + ncells; ++k) {
-              Real zv = mb_size.d_view(m).x3min + (k-ngh+0.5)*dx3_l - d_zo;
+              Real zv = mb_size.view_device()(m).x3min + (k-ngh+0.5)*dx3_l - d_zo;
               for (int i = ngh; i < ngh + ncells; ++i) {
-                Real xv = mb_size.d_view(m).x1min + (i-ngh+0.5)*dx1_l - d_xo;
+                Real xv = mb_size.view_device()(m).x1min + (i-ngh+0.5)*dx1_l - d_xo;
                 Real phis = EvalMultipolePhi(xv, yf, zv, d_mpc.data(), d_order);
                 for (int n = 0; n < ngh; ++n)
                   u(m,v,k,ngh+ncells+n,i) = 2.0*phis - u(m,v,k,ngh+ncells-1-n,i);
@@ -296,18 +296,18 @@ TaskStatus MultigridDriver::PhysicalBoundary(Driver *pdrive, int stage) {
           }
         }
         // inner x3
-        if (mb_bcs.d_view(m, BoundaryFace::inner_x3) != BoundaryFlag::block &&
-            mb_bcs.d_view(m, BoundaryFace::inner_x3) != BoundaryFlag::periodic) {
+        if (mb_bcs.view_device()(m, BoundaryFace::inner_x3) != BoundaryFlag::block &&
+            mb_bcs.view_device()(m, BoundaryFace::inner_x3) != BoundaryFlag::periodic) {
           if (bc_ix3 == BoundaryFlag::mg_multipole && d_mpc.data() != nullptr) {
-            Real dx1_l = (mb_size.d_view(m).x1max - mb_size.d_view(m).x1min)
+            Real dx1_l = (mb_size.view_device()(m).x1max - mb_size.view_device()(m).x1min)
                        / static_cast<Real>(nx1);
-            Real dx2_l = (mb_size.d_view(m).x2max - mb_size.d_view(m).x2min)
+            Real dx2_l = (mb_size.view_device()(m).x2max - mb_size.view_device()(m).x2min)
                        / static_cast<Real>(nx2);
-            Real zf = mb_size.d_view(m).x3min - d_zo;
+            Real zf = mb_size.view_device()(m).x3min - d_zo;
             for (int j = ngh; j < ngh + ncells; ++j) {
-              Real yv = mb_size.d_view(m).x2min + (j-ngh+0.5)*dx2_l - d_yo;
+              Real yv = mb_size.view_device()(m).x2min + (j-ngh+0.5)*dx2_l - d_yo;
               for (int i = ngh; i < ngh + ncells; ++i) {
-                Real xv = mb_size.d_view(m).x1min + (i-ngh+0.5)*dx1_l - d_xo;
+                Real xv = mb_size.view_device()(m).x1min + (i-ngh+0.5)*dx1_l - d_xo;
                 Real phis = EvalMultipolePhi(xv, yv, zf, d_mpc.data(), d_order);
                 for (int n = 0; n < ngh; ++n)
                   u(m,v,ngh-1-n,j,i) = 2.0*phis - u(m,v,ngh+n,j,i);
@@ -325,18 +325,18 @@ TaskStatus MultigridDriver::PhysicalBoundary(Driver *pdrive, int stage) {
           }
         }
         // outer x3
-        if (mb_bcs.d_view(m, BoundaryFace::outer_x3) != BoundaryFlag::block &&
-            mb_bcs.d_view(m, BoundaryFace::outer_x3) != BoundaryFlag::periodic) {
+        if (mb_bcs.view_device()(m, BoundaryFace::outer_x3) != BoundaryFlag::block &&
+            mb_bcs.view_device()(m, BoundaryFace::outer_x3) != BoundaryFlag::periodic) {
           if (bc_ox3 == BoundaryFlag::mg_multipole && d_mpc.data() != nullptr) {
-            Real dx1_l = (mb_size.d_view(m).x1max - mb_size.d_view(m).x1min)
+            Real dx1_l = (mb_size.view_device()(m).x1max - mb_size.view_device()(m).x1min)
                        / static_cast<Real>(nx1);
-            Real dx2_l = (mb_size.d_view(m).x2max - mb_size.d_view(m).x2min)
+            Real dx2_l = (mb_size.view_device()(m).x2max - mb_size.view_device()(m).x2min)
                        / static_cast<Real>(nx2);
-            Real zf = mb_size.d_view(m).x3max - d_zo;
+            Real zf = mb_size.view_device()(m).x3max - d_zo;
             for (int j = ngh; j < ngh + ncells; ++j) {
-              Real yv = mb_size.d_view(m).x2min + (j-ngh+0.5)*dx2_l - d_yo;
+              Real yv = mb_size.view_device()(m).x2min + (j-ngh+0.5)*dx2_l - d_yo;
               for (int i = ngh; i < ngh + ncells; ++i) {
-                Real xv = mb_size.d_view(m).x1min + (i-ngh+0.5)*dx1_l - d_xo;
+                Real xv = mb_size.view_device()(m).x1min + (i-ngh+0.5)*dx1_l - d_xo;
                 Real phis = EvalMultipolePhi(xv, yv, zf, d_mpc.data(), d_order);
                 for (int n = 0; n < ngh; ++n)
                   u(m,v,ngh+ncells+n,j,i) = 2.0*phis - u(m,v,ngh+ncells-1-n,j,i);

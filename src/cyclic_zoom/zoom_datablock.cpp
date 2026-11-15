@@ -142,12 +142,12 @@ void ZoomData::CoarseConToPrim(int zm, int m, DvceArray5D<Real> cu,
   // convert coarse-grained hydro conserved variables to primitive variables
   par_for("zoom_coarse_c2p",DevExeSpace(), cks-hg, cke+hg, cjs-hg, cje+hg, cis-hg, cie+hg,
   KOKKOS_LAMBDA(const int ck, const int cj, const int ci) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
 
     HydCons1D u;
     u.d = cu(zm,IDN,ck,cj,ci);
@@ -256,12 +256,12 @@ void ZoomData::StoreCoarsePrim(int zm, DvceArray5D<Real> cw,
   int hg = indcs.ng / 2;
   par_for("zoom_store_cw",DevExeSpace(), cks-hg, cke+hg, cjs-hg, cje+hg, cis-hg, cie+hg,
   KOKKOS_LAMBDA(const int ck, const int cj, const int ci) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     int fi = 2*ci - cis;  // correct when cis=is
     int fj = 2*cj - cjs;  // correct when cjs=js
     int fk = 2*ck - cks;  // correct when cks=ks
@@ -449,12 +449,12 @@ void ZoomData::ApplyCCDataSameLevel(int m, DvceArray5D<Real> a,
   int nvar = a.extent_int(1);
   par_for("zoom_apply_cc_same", DevExeSpace(),ks,ke,js,je,is,ie,
   KOKKOS_LAMBDA(int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
     Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
     Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
@@ -495,12 +495,12 @@ void ZoomData::ApplyCCDataFromFiner(int m, DvceArray5D<Real> a,
     int i = ci + ox1 * cnx1;
     int j = cj + ox2 * cnx2;
     int k = ck + ox3 * cnx3;
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
     Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
     Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
@@ -549,12 +549,12 @@ void ZoomData::ApplyPrimSameLevel(int m, int zm, const ZoomRegion &zregion) {
   auto b = pmbp->pmhd->b0;
   par_for("zoom_apply_prim_same", DevExeSpace(),ks,ke,js,je,is,ie,
   KOKKOS_LAMBDA(int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
     Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
     Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
@@ -666,12 +666,12 @@ void ZoomData::ApplyPrimFromFiner(int m, int zm, const ZoomRegion &zregion) {
     int i = ci + ox1 * cnx1;
     int j = cj + ox2 * cnx2;
     int k = ck + ox3 * cnx3;
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
     Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
     Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
@@ -778,12 +778,12 @@ void ZoomData::ApplyUniformFill(const ZoomRegion &zregion) {
 
     par_for("zoom_uniform_hyd", DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
       Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
       Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
@@ -864,12 +864,12 @@ void ZoomData::ApplyUniformFill(const ZoomRegion &zregion) {
 
     par_for("zoom_uniform_mhd", DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
       Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
       Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
@@ -939,12 +939,12 @@ void ZoomData::ApplyUniformFill(const ZoomRegion &zregion) {
 
     par_for("zoom_uniform_rad", DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
       Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
       Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);

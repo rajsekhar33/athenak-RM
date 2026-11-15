@@ -114,12 +114,12 @@ void MeshVTKOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
     dx2 = pm->mesh_size.dx2;
     dx3 = pm->mesh_size.dx3;
   } else {
-    x1min = pm->pmb_pack->pmb->mb_size.h_view(out_params.gid).x1min;
-    x2min = pm->pmb_pack->pmb->mb_size.h_view(out_params.gid).x2min;
-    x3min = pm->pmb_pack->pmb->mb_size.h_view(out_params.gid).x3min;
-    dx1 = pm->pmb_pack->pmb->mb_size.h_view(out_params.gid).dx1;
-    dx2 = pm->pmb_pack->pmb->mb_size.h_view(out_params.gid).dx2;
-    dx3 = pm->pmb_pack->pmb->mb_size.h_view(out_params.gid).dx3;
+    x1min = pm->pmb_pack->pmb->mb_size.view_host()(out_params.gid).x1min;
+    x2min = pm->pmb_pack->pmb->mb_size.view_host()(out_params.gid).x2min;
+    x3min = pm->pmb_pack->pmb->mb_size.view_host()(out_params.gid).x3min;
+    dx1 = pm->pmb_pack->pmb->mb_size.view_host()(out_params.gid).dx1;
+    dx2 = pm->pmb_pack->pmb->mb_size.view_host()(out_params.gid).dx2;
+    dx3 = pm->pmb_pack->pmb->mb_size.view_host()(out_params.gid).dx3;
   }
   if (out_params.include_gzs) {
     x1min -= (indcs.ng)*dx1;

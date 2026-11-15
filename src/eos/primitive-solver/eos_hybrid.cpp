@@ -50,8 +50,8 @@ void EOSHybrid<LogPolicy>::ReadTableFromFile(std::string fname) {
     Kokkos::realloc(m_table, ECNVARS, m_nn);
 
     // Create host storage to read into
-    HostArray1D<Real>::HostMirror host_log_nb = create_mirror_view(m_log_nb);
-    HostArray2D<Real>::HostMirror host_table =  create_mirror_view(m_table);
+    HostArray1D<Real>::host_mirror_type host_log_nb = create_mirror_view(m_log_nb);
+    HostArray2D<Real>::host_mirror_type host_table =  create_mirror_view(m_table);
 
     { // read nb
       Real * table_nb = table["nb"];

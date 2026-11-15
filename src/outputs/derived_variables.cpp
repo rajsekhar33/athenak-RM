@@ -138,9 +138,11 @@ void BaseTypeOutput::ComputeDerivedVariable(std::string name, Mesh *pm) {
       pm->pmb_pack->phydro->w0 : pm->pmb_pack->pmhd->w0;
     par_for("vorz", DevExeSpace(), 0, (nmb-1), ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      dv(m,i_dv,k,j,i) = (w0_(m,IVY,k,j,i+1) - w0_(m,IVY,k,j,i-1))/size.d_view(m).dx1;
+      dv(m,i_dv,k,j,i) = (w0_(m,IVY,k,j,i+1) - w0_(m,IVY,k,j,i-1))
+          /size.view_device()(m).dx1;
       if (multi_d) {
-        dv(m,i_dv,k,j,i) -=(w0_(m,IVX,k,j+1,i) - w0_(m,IVX,k,j-1,i))/size.d_view(m).dx2;
+        dv(m,i_dv,k,j,i) -=(w0_(m,IVX,k,j+1,i) - w0_(m,IVX,k,j-1,i))
+            /size.view_device()(m).dx2;
       }
       dv(m,i_dv,k,j,i) *= 0.5; // accounts for divide by 2*dx
     });
@@ -159,15 +161,15 @@ void BaseTypeOutput::ComputeDerivedVariable(std::string name, Mesh *pm) {
     par_for("vor2", DevExeSpace(), 0, (nmb-1), ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
       Real w1 = 0.0;
-      Real w2 = -(w0_(m,IVZ,k,j,i+1) - w0_(m,IVZ,k,j,i-1))/size.d_view(m).dx1;
-      Real w3 =  (w0_(m,IVY,k,j,i+1) - w0_(m,IVY,k,j,i-1))/size.d_view(m).dx1;
+      Real w2 = -(w0_(m,IVZ,k,j,i+1) - w0_(m,IVZ,k,j,i-1))/size.view_device()(m).dx1;
+      Real w3 =  (w0_(m,IVY,k,j,i+1) - w0_(m,IVY,k,j,i-1))/size.view_device()(m).dx1;
       if (multi_d) {
-        w1 += (w0_(m,IVZ,k,j+1,i) - w0_(m,IVZ,k,j-1,i))/size.d_view(m).dx2;
-        w3 -= (w0_(m,IVX,k,j+1,i) - w0_(m,IVX,k,j-1,i))/size.d_view(m).dx2;
+        w1 += (w0_(m,IVZ,k,j+1,i) - w0_(m,IVZ,k,j-1,i))/size.view_device()(m).dx2;
+        w3 -= (w0_(m,IVX,k,j+1,i) - w0_(m,IVX,k,j-1,i))/size.view_device()(m).dx2;
       }
       if (three_d) {
-        w1 -= (w0_(m,IVY,k+1,j,i) - w0_(m,IVY,k-1,j,i))/size.d_view(m).dx3;
-        w2 += (w0_(m,IVX,k+1,j,i) - w0_(m,IVX,k-1,j,i))/size.d_view(m).dx3;
+        w1 -= (w0_(m,IVY,k+1,j,i) - w0_(m,IVY,k-1,j,i))/size.view_device()(m).dx3;
+        w2 += (w0_(m,IVX,k+1,j,i) - w0_(m,IVX,k-1,j,i))/size.view_device()(m).dx3;
       }
       dv(m,i_dv,k,j,i) = 0.25*(w1*w1 + w2*w2 + w3*w3); // accounts for divide by 2*dx
     });
@@ -184,9 +186,11 @@ void BaseTypeOutput::ComputeDerivedVariable(std::string name, Mesh *pm) {
     auto &bcc = pm->pmb_pack->pmhd->bcc0;
     par_for("jz", DevExeSpace(), 0, (nmb-1), ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      dv(m,i_dv,k,j,i) = (bcc(m,IBY,k,j,i+1) - bcc(m,IBY,k,j,i-1))/size.d_view(m).dx1;
+      dv(m,i_dv,k,j,i) = (bcc(m,IBY,k,j,i+1) - bcc(m,IBY,k,j,i-1))
+          /size.view_device()(m).dx1;
       if (multi_d) {
-        dv(m,i_dv,k,j,i) -=(bcc(m,IBX,k,j+1,i) - bcc(m,IBX,k,j-1,i))/size.d_view(m).dx2;
+        dv(m,i_dv,k,j,i) -=(bcc(m,IBX,k,j+1,i) - bcc(m,IBX,k,j-1,i))
+            /size.view_device()(m).dx2;
       }
       dv(m,i_dv,k,j,i) *= 0.5; // accounts for divide by 2*dx
     });
@@ -203,15 +207,15 @@ void BaseTypeOutput::ComputeDerivedVariable(std::string name, Mesh *pm) {
     par_for("j2", DevExeSpace(), 0, (nmb-1), ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
       Real j1 = 0.0;
-      Real j2 = -(bcc(m,IBZ,k,j,i+1) - bcc(m,IBZ,k,j,i-1))/size.d_view(m).dx1;
-      Real j3 =  (bcc(m,IBY,k,j,i+1) - bcc(m,IBY,k,j,i-1))/size.d_view(m).dx1;
+      Real j2 = -(bcc(m,IBZ,k,j,i+1) - bcc(m,IBZ,k,j,i-1))/size.view_device()(m).dx1;
+      Real j3 =  (bcc(m,IBY,k,j,i+1) - bcc(m,IBY,k,j,i-1))/size.view_device()(m).dx1;
       if (multi_d) {
-        j1 += (bcc(m,IBZ,k,j+1,i) - bcc(m,IBZ,k,j-1,i))/size.d_view(m).dx2;
-        j3 -= (bcc(m,IBX,k,j+1,i) - bcc(m,IBX,k,j-1,i))/size.d_view(m).dx2;
+        j1 += (bcc(m,IBZ,k,j+1,i) - bcc(m,IBZ,k,j-1,i))/size.view_device()(m).dx2;
+        j3 -= (bcc(m,IBX,k,j+1,i) - bcc(m,IBX,k,j-1,i))/size.view_device()(m).dx2;
       }
       if (three_d) {
-        j1 -= (bcc(m,IBY,k+1,j,i) - bcc(m,IBY,k-1,j,i))/size.d_view(m).dx3;
-        j2 += (bcc(m,IBX,k+1,j,i) - bcc(m,IBX,k-1,j,i))/size.d_view(m).dx3;
+        j1 -= (bcc(m,IBY,k+1,j,i) - bcc(m,IBY,k-1,j,i))/size.view_device()(m).dx3;
+        j2 += (bcc(m,IBX,k+1,j,i) - bcc(m,IBX,k-1,j,i))/size.view_device()(m).dx3;
       }
       dv(m,i_dv,k,j,i) = 0.25*(j1*j1 + j2*j2 + j3*j3); // accounts for divide by 2*dx
     });
@@ -237,17 +241,26 @@ void BaseTypeOutput::ComputeDerivedVariable(std::string name, Mesh *pm) {
       Real B_mag_squared = ( Bx*Bx + By*By + Bz*Bz);
 
       // Calculate gradB tensor
-      Real dBx_dx = (bcc(m,IBX,k,j,i+1) - bcc(m,IBX,k,j,i-1))/(2.0*size.d_view(m).dx1);
-      Real dBx_dy = (bcc(m,IBX,k,j+1,i) - bcc(m,IBX,k,j-1,i))/(2.0*size.d_view(m).dx2);
-      Real dBx_dz = (bcc(m,IBX,k+1,j,i) - bcc(m,IBX,k-1,j,i))/(2.0*size.d_view(m).dx3);
+      Real dBx_dx = (bcc(m,IBX,k,j,i+1) - bcc(m,IBX,k,j,i-1))
+          /(2.0*size.view_device()(m).dx1);
+      Real dBx_dy = (bcc(m,IBX,k,j+1,i) - bcc(m,IBX,k,j-1,i))
+          /(2.0*size.view_device()(m).dx2);
+      Real dBx_dz = (bcc(m,IBX,k+1,j,i) - bcc(m,IBX,k-1,j,i))
+          /(2.0*size.view_device()(m).dx3);
 
-      Real dBy_dx = (bcc(m,IBY,k,j,i+1) - bcc(m,IBY,k,j,i-1))/(2.0*size.d_view(m).dx1);
-      Real dBy_dy = (bcc(m,IBY,k,j+1,i) - bcc(m,IBY,k,j-1,i))/(2.0*size.d_view(m).dx2);
-      Real dBy_dz = (bcc(m,IBY,k+1,j,i) - bcc(m,IBY,k-1,j,i))/(2.0*size.d_view(m).dx3);
+      Real dBy_dx = (bcc(m,IBY,k,j,i+1) - bcc(m,IBY,k,j,i-1))
+          /(2.0*size.view_device()(m).dx1);
+      Real dBy_dy = (bcc(m,IBY,k,j+1,i) - bcc(m,IBY,k,j-1,i))
+          /(2.0*size.view_device()(m).dx2);
+      Real dBy_dz = (bcc(m,IBY,k+1,j,i) - bcc(m,IBY,k-1,j,i))
+          /(2.0*size.view_device()(m).dx3);
 
-      Real dBz_dx = (bcc(m,IBZ,k,j,i+1) - bcc(m,IBZ,k,j,i-1))/(2.0*size.d_view(m).dx1);
-      Real dBz_dy = (bcc(m,IBZ,k,j+1,i) - bcc(m,IBZ,k,j-1,i))/(2.0*size.d_view(m).dx2);
-      Real dBz_dz = (bcc(m,IBZ,k+1,j,i) - bcc(m,IBZ,k-1,j,i))/(2.0*size.d_view(m).dx3);
+      Real dBz_dx = (bcc(m,IBZ,k,j,i+1) - bcc(m,IBZ,k,j,i-1))
+          /(2.0*size.view_device()(m).dx1);
+      Real dBz_dy = (bcc(m,IBZ,k,j+1,i) - bcc(m,IBZ,k,j-1,i))
+          /(2.0*size.view_device()(m).dx2);
+      Real dBz_dz = (bcc(m,IBZ,k+1,j,i) - bcc(m,IBZ,k-1,j,i))
+          /(2.0*size.view_device()(m).dx3);
 
       Real BdotGradB_x = (Bx * dBx_dx + By * dBx_dy + Bz * dBx_dz);
       Real BdotGradB_y = (Bx * dBy_dx + By * dBy_dy + Bz * dBy_dz);
@@ -352,17 +365,17 @@ void BaseTypeOutput::ComputeDerivedVariable(std::string name, Mesh *pm) {
       Real b3_km1 = bcc(m,IBZ,k-1,j,i)/B_mag_km1;
 
       // Central differencing of b_hat vector
-      Real db1_dx1 = (b1_ip1 - b1_im1)/(2.0*size.d_view(m).dx1);
-      Real db2_dx1 = (b2_ip1 - b2_im1)/(2.0*size.d_view(m).dx1);
-      Real db3_dx1 = (b3_ip1 - b3_im1)/(2.0*size.d_view(m).dx1);
+      Real db1_dx1 = (b1_ip1 - b1_im1)/(2.0*size.view_device()(m).dx1);
+      Real db2_dx1 = (b2_ip1 - b2_im1)/(2.0*size.view_device()(m).dx1);
+      Real db3_dx1 = (b3_ip1 - b3_im1)/(2.0*size.view_device()(m).dx1);
 
-      Real db1_dx2 = (b1_jp1 - b1_jm1)/(2.0*size.d_view(m).dx2);
-      Real db2_dx2 = (b2_jp1 - b2_jm1)/(2.0*size.d_view(m).dx2);
-      Real db3_dx2 = (b3_jp1 - b3_jm1)/(2.0*size.d_view(m).dx2);
+      Real db1_dx2 = (b1_jp1 - b1_jm1)/(2.0*size.view_device()(m).dx2);
+      Real db2_dx2 = (b2_jp1 - b2_jm1)/(2.0*size.view_device()(m).dx2);
+      Real db3_dx2 = (b3_jp1 - b3_jm1)/(2.0*size.view_device()(m).dx2);
 
-      Real db1_dx3 = (b1_kp1 - b1_km1)/(2.0*size.d_view(m).dx3);
-      Real db2_dx3 = (b2_kp1 - b2_km1)/(2.0*size.d_view(m).dx3);
-      Real db3_dx3 = (b3_kp1 - b3_km1)/(2.0*size.d_view(m).dx3);
+      Real db1_dx3 = (b1_kp1 - b1_km1)/(2.0*size.view_device()(m).dx3);
+      Real db2_dx3 = (b2_kp1 - b2_km1)/(2.0*size.view_device()(m).dx3);
+      Real db3_dx3 = (b3_kp1 - b3_km1)/(2.0*size.view_device()(m).dx3);
 
       // Calculate curvature = |b_hat dot nabla b_hat|
       Real curv1 = b1*db1_dx1 + b2*db1_dx2 + b3*db1_dx3;
@@ -407,20 +420,20 @@ void BaseTypeOutput::ComputeDerivedVariable(std::string name, Mesh *pm) {
         return;
       }
 
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
       Real x1v_ip1 = CellCenterX(i+1-is, indcs.nx1, x1min, x1max);
       Real x1v_im1 = CellCenterX(i-1-is, indcs.nx1, x1min, x1max);
 
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
       Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
       Real x2v_jp1 = CellCenterX(j+1-js, indcs.nx2, x2min, x2max);
       Real x2v_jm1 = CellCenterX(j-1-js, indcs.nx2, x2min, x2max);
 
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
       Real x3v_kp1 = CellCenterX(k+1-ks, indcs.nx3, x3min, x3max);
       Real x3v_km1 = CellCenterX(k-1-ks, indcs.nx3, x3min, x3max);
@@ -528,9 +541,11 @@ void BaseTypeOutput::ComputeDerivedVariable(std::string name, Mesh *pm) {
         const Real gF3m = (three_d) ? get_detg_Fcon(mu, 3, ucov_km1, bcov_km1) : 0.;
 
         const Real dgF0 = (gF0p - gF0m) / dt_last;
-        const Real dgF1 = (gF1p - gF1m) / (2 * size.d_view(m).dx1);
-        const Real dgF2 = (multi_d) ? (gF2p - gF2m) / (2 * size.d_view(m).dx2) : 0.;
-        const Real dgF3 = (three_d) ? (gF3p - gF3m) / (2 * size.d_view(m).dx3) : 0.;
+        const Real dgF1 = (gF1p - gF1m) / (2 * size.view_device()(m).dx1);
+        const Real dgF2 = (multi_d) ? (gF2p - gF2m)
+            / (2 * size.view_device()(m).dx2) : 0.;
+        const Real dgF3 = (three_d) ? (gF3p - gF3m)
+            / (2 * size.view_device()(m).dx3) : 0.;
 
         const Real detg = 1.;
         jcon(m,mu,k,j,i) = 1. / (detg * sqrt(4. * M_PI)) * (dgF0 + dgF1 + dgF2 + dgF3);
@@ -800,15 +815,15 @@ void BaseTypeOutput::ComputeDerivedVariable(std::string name, Mesh *pm) {
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
       // calculate j
       Real j1 = 0.0;
-      Real j2 = -(bcc(m,IBZ,k,j,i+1) - bcc(m,IBZ,k,j,i-1))/size.d_view(m).dx1;
-      Real j3 =  (bcc(m,IBY,k,j,i+1) - bcc(m,IBY,k,j,i-1))/size.d_view(m).dx1;
+      Real j2 = -(bcc(m,IBZ,k,j,i+1) - bcc(m,IBZ,k,j,i-1))/size.view_device()(m).dx1;
+      Real j3 =  (bcc(m,IBY,k,j,i+1) - bcc(m,IBY,k,j,i-1))/size.view_device()(m).dx1;
       if (multi_d) {
-        j1 += (bcc(m,IBZ,k,j+1,i) - bcc(m,IBZ,k,j-1,i))/size.d_view(m).dx2;
-        j3 -= (bcc(m,IBX,k,j+1,i) - bcc(m,IBX,k,j-1,i))/size.d_view(m).dx2;
+        j1 += (bcc(m,IBZ,k,j+1,i) - bcc(m,IBZ,k,j-1,i))/size.view_device()(m).dx2;
+        j3 -= (bcc(m,IBX,k,j+1,i) - bcc(m,IBX,k,j-1,i))/size.view_device()(m).dx2;
       }
       if (three_d) {
-        j1 -= (bcc(m,IBY,k+1,j,i) - bcc(m,IBY,k-1,j,i))/size.d_view(m).dx3;
-        j2 += (bcc(m,IBX,k+1,j,i) - bcc(m,IBX,k-1,j,i))/size.d_view(m).dx3;
+        j1 -= (bcc(m,IBY,k+1,j,i) - bcc(m,IBY,k-1,j,i))/size.view_device()(m).dx3;
+        j2 += (bcc(m,IBX,k+1,j,i) - bcc(m,IBX,k-1,j,i))/size.view_device()(m).dx3;
       }
       // calculate B
       Real B_mag_sq =    bcc(m,IBX,k,j,i)*bcc(m,IBX,k,j,i)
@@ -838,15 +853,15 @@ void BaseTypeOutput::ComputeDerivedVariable(std::string name, Mesh *pm) {
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
       // calculate j
       Real j1 = 0.0;
-      Real j2 = -(bcc(m,IBZ,k,j,i+1) - bcc(m,IBZ,k,j,i-1))/size.d_view(m).dx1;
-      Real j3 =  (bcc(m,IBY,k,j,i+1) - bcc(m,IBY,k,j,i-1))/size.d_view(m).dx1;
+      Real j2 = -(bcc(m,IBZ,k,j,i+1) - bcc(m,IBZ,k,j,i-1))/size.view_device()(m).dx1;
+      Real j3 =  (bcc(m,IBY,k,j,i+1) - bcc(m,IBY,k,j,i-1))/size.view_device()(m).dx1;
       if (multi_d) {
-        j1 += (bcc(m,IBZ,k,j+1,i) - bcc(m,IBZ,k,j-1,i))/size.d_view(m).dx2;
-        j3 -= (bcc(m,IBX,k,j+1,i) - bcc(m,IBX,k,j-1,i))/size.d_view(m).dx2;
+        j1 += (bcc(m,IBZ,k,j+1,i) - bcc(m,IBZ,k,j-1,i))/size.view_device()(m).dx2;
+        j3 -= (bcc(m,IBX,k,j+1,i) - bcc(m,IBX,k,j-1,i))/size.view_device()(m).dx2;
       }
       if (three_d) {
-        j1 -= (bcc(m,IBY,k+1,j,i) - bcc(m,IBY,k-1,j,i))/size.d_view(m).dx3;
-        j2 += (bcc(m,IBX,k+1,j,i) - bcc(m,IBX,k-1,j,i))/size.d_view(m).dx3;
+        j1 -= (bcc(m,IBY,k+1,j,i) - bcc(m,IBY,k-1,j,i))/size.view_device()(m).dx3;
+        j2 += (bcc(m,IBX,k+1,j,i) - bcc(m,IBX,k-1,j,i))/size.view_device()(m).dx3;
       }
       // calculate B
       Real B_mag_sq =    bcc(m,IBX,k,j,i)*bcc(m,IBX,k,j,i)
@@ -911,17 +926,17 @@ void BaseTypeOutput::ComputeDerivedVariable(std::string name, Mesh *pm) {
       Real b3_km1 = bcc(m,IBZ,k-1,j,i)/B_mag_km1;
 
       // Central differencing of b_hat vector
-      Real db1_dx1 = (b1_ip1 - b1_im1)/(2.0*size.d_view(m).dx1);
-      Real db2_dx1 = (b2_ip1 - b2_im1)/(2.0*size.d_view(m).dx1);
-      Real db3_dx1 = (b3_ip1 - b3_im1)/(2.0*size.d_view(m).dx1);
+      Real db1_dx1 = (b1_ip1 - b1_im1)/(2.0*size.view_device()(m).dx1);
+      Real db2_dx1 = (b2_ip1 - b2_im1)/(2.0*size.view_device()(m).dx1);
+      Real db3_dx1 = (b3_ip1 - b3_im1)/(2.0*size.view_device()(m).dx1);
 
-      Real db1_dx2 = (b1_jp1 - b1_jm1)/(2.0*size.d_view(m).dx2);
-      Real db2_dx2 = (b2_jp1 - b2_jm1)/(2.0*size.d_view(m).dx2);
-      Real db3_dx2 = (b3_jp1 - b3_jm1)/(2.0*size.d_view(m).dx2);
+      Real db1_dx2 = (b1_jp1 - b1_jm1)/(2.0*size.view_device()(m).dx2);
+      Real db2_dx2 = (b2_jp1 - b2_jm1)/(2.0*size.view_device()(m).dx2);
+      Real db3_dx2 = (b3_jp1 - b3_jm1)/(2.0*size.view_device()(m).dx2);
 
-      Real db1_dx3 = (b1_kp1 - b1_km1)/(2.0*size.d_view(m).dx3);
-      Real db2_dx3 = (b2_kp1 - b2_km1)/(2.0*size.d_view(m).dx3);
-      Real db3_dx3 = (b3_kp1 - b3_km1)/(2.0*size.d_view(m).dx3);
+      Real db1_dx3 = (b1_kp1 - b1_km1)/(2.0*size.view_device()(m).dx3);
+      Real db2_dx3 = (b2_kp1 - b2_km1)/(2.0*size.view_device()(m).dx3);
+      Real db3_dx3 = (b3_kp1 - b3_km1)/(2.0*size.view_device()(m).dx3);
 
       // Calculate curvature = |b_hat dot nabla b_hat|
       Real curv1 = b1*db1_dx1 + b2*db1_dx2 + b3*db1_dx3;
@@ -971,7 +986,7 @@ void BaseTypeOutput::ComputeDerivedVariable(std::string name, Mesh *pm) {
     auto &w0_ = pm->pmb_pack->pmhd->w0;
     par_for("bmag", DevExeSpace(), 0, (nmb-1), ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real dx_squared = size.d_view(m).dx1 * size.d_view(m).dx1;
+      Real dx_squared = size.view_device()(m).dx1 * size.view_device()(m).dx1;
       // 0 = < B^4 >
       Real B_mag_sq = bcc(m,IBX,k,j,i)*bcc(m,IBX,k,j,i)
                     + bcc(m,IBY,k,j,i)*bcc(m,IBY,k,j,i)
@@ -1073,12 +1088,12 @@ void BaseTypeOutput::ComputeDerivedVariable(std::string name, Mesh *pm) {
     auto b0 = pm->pmb_pack->pmhd->b0;
     par_for("divb", DevExeSpace(), 0, (nmb-1), kl, ku, jl, ju, (is-ng), (ie+ng),
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real divb = (b0.x1f(m,k,j,i+1) - b0.x1f(m,k,j,i))/size.d_view(m).dx1;
+      Real divb = (b0.x1f(m,k,j,i+1) - b0.x1f(m,k,j,i))/size.view_device()(m).dx1;
       if (multi_d) {
-        divb += (b0.x2f(m,k,j+1,i) - b0.x2f(m,k,j,i))/size.d_view(m).dx2;
+        divb += (b0.x2f(m,k,j+1,i) - b0.x2f(m,k,j,i))/size.view_device()(m).dx2;
       }
       if (three_d) {
-        divb += (b0.x3f(m,k+1,j,i) - b0.x3f(m,k,j,i))/size.d_view(m).dx3;
+        divb += (b0.x3f(m,k+1,j,i) - b0.x3f(m,k,j,i))/size.view_device()(m).dx3;
       }
       dv(m,i_dv,k,j,i) = divb;
     });
@@ -1120,16 +1135,16 @@ void BaseTypeOutput::ComputeDerivedVariable(std::string name, Mesh *pm) {
 
     par_for("moments",DevExeSpace(),0,(nmb-1),0,(n3-1),0,(n2-1),0,(n1-1),
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
       Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
       // Extract components of metric
@@ -1146,12 +1161,12 @@ void BaseTypeOutput::ComputeDerivedVariable(std::string name, Mesh *pm) {
           for (int n=0; n<=nang1; ++n) {
             Real nmun1 = 0.0; Real nmun2 = 0.0; Real n_0 = 0.0;
             for (int d=0; d<4; ++d) {
-              nmun1 += tet_c_   (m,d,n1,k,j,i)*nh_c_.d_view(n,d);
-              nmun2 += tet_c_   (m,d,n2,k,j,i)*nh_c_.d_view(n,d);
-              n_0   += tetcov_c_(m,d,0, k,j,i)*nh_c_.d_view(n,d);
+              nmun1 += tet_c_   (m,d,n1,k,j,i)*nh_c_.view_device()(n,d);
+              nmun2 += tet_c_   (m,d,n2,k,j,i)*nh_c_.view_device()(n,d);
+              n_0   += tetcov_c_(m,d,0, k,j,i)*nh_c_.view_device()(n,d);
             }
             dv(m,n12,k,j,i) += (nmun1*nmun2*(i0_(m,n,k,j,i)/(n0*n_0))*
-                                solid_angles_.d_view(n));
+                                solid_angles_.view_device()(n));
           }
         }
       }
@@ -1283,11 +1298,11 @@ void BaseTypeOutput::ComputeDerivedVariable(std::string name, Mesh *pm) {
     par_for("pdens", DevExeSpace(), 0, (npart-1),
     KOKKOS_LAMBDA(const int p) {
       int m = pi(PGID,p) - gids;
-      int ip = (pr(IPX,p) - size.d_view(m).x1min)/size.d_view(m).dx1 + is;
-      int jp = (pr(IPY,p) - size.d_view(m).x2min)/size.d_view(m).dx2 + js;
+      int ip = (pr(IPX,p) - size.view_device()(m).x1min)/size.view_device()(m).dx1 + is;
+      int jp = (pr(IPY,p) - size.view_device()(m).x2min)/size.view_device()(m).dx2 + js;
       int kp = ks;
       if (three_d) {
-        kp = (pr(IPZ,p) - size.d_view(m).x3min)/size.d_view(m).dx3 + ks;
+        kp = (pr(IPZ,p) - size.view_device()(m).x3min)/size.view_device()(m).dx3 + ks;
       }
       pdens(m,0,kp,jp,ip) += 1.0;
     });

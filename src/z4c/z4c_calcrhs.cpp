@@ -204,7 +204,8 @@ TaskStatus Z4c::CalcRHS(Driver *pdriver, int stage) {
     // Lie derivative of A
     AthenaPointTensor<Real, TensorSymm::SYM2, 3, 2> LA_dd;
 
-    Real idx[] = {1/size.d_view(m).dx1, 1/size.d_view(m).dx2, 1/size.d_view(m).dx3};
+    Real idx[] = {1/size.view_device()(m).dx1, 1/size.view_device()(m).dx2, 1
+        /size.view_device()(m).dx3};
 
     // -----------------------------------------------------------------------------------
     // Initialize everything to zero
@@ -654,12 +655,12 @@ TaskStatus Z4c::CalcRHS(Driver *pdriver, int stage) {
 
     // drift control correction
     if (dc_on) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       Real x1 = CellCenterX(i - is, nx1, x1min, x1max);
       Real x2 = CellCenterX(j - js, nx2, x2min, x2max);
       Real x3 = CellCenterX(k - ks, nx3, x3min, x3max);
@@ -690,7 +691,8 @@ TaskStatus Z4c::CalcRHS(Driver *pdriver, int stage) {
   par_for("K-O Dissipation",
   DevExeSpace(),0,nmb-1,0,nz4c-1,ks,ke,js,je,is,ie,
   KOKKOS_LAMBDA(const int m, const int n, const int k, const int j, const int i) {
-    Real idx[] = {1/size.d_view(m).dx1, 1/size.d_view(m).dx2, 1/size.d_view(m).dx3};
+    Real idx[] = {1/size.view_device()(m).dx1, 1/size.view_device()(m).dx2, 1
+        /size.view_device()(m).dx3};
     for(int a = 0; a < 3; ++a) {
       u_rhs(m,n,k,j,i) += Diss<NGHOST>(a, idx, u0, m, n, k, j, i)*diss;
     }

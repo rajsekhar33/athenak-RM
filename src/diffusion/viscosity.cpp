@@ -455,7 +455,7 @@ void Viscosity::AddViscousFluxHyper4(const DvceArray5D<Real> &w0,
   const int nmb = pmy_pack->nmb_thispack;
   const Real mu = mu_hyper4;
   auto size = pmy_pack->pmb->mb_size;
-  auto mb_bcs = pmy_pack->pmb->mb_bcs.d_view;
+  auto mb_bcs = pmy_pack->pmb->mb_bcs.view_device();
   for (int normal=0; normal<ndim; ++normal) {
     auto flux = normal == 0 ? flx.x1f : (normal == 1 ? flx.x2f : flx.x3f);
     const int ni = (normal == 0), nj = (normal == 1), nk = (normal == 2);
@@ -468,9 +468,9 @@ void Viscosity::AddViscousFluxHyper4(const DvceArray5D<Real> &w0,
           (face_index == outer && mb_bcs(m,2*normal+1) == BoundaryFlag::outflow)) {
         return;
       }
-      const Real inv_dx[3] = {1.0/size.d_view(m).dx1,
-                             ndim > 1 ? 1.0/size.d_view(m).dx2 : 0.0,
-                             ndim > 2 ? 1.0/size.d_view(m).dx3 : 0.0};
+      const Real inv_dx[3] = {1.0/size.view_device()(m).dx1,
+                             ndim > 1 ? 1.0/size.view_device()(m).dx2 : 0.0,
+                             ndim > 2 ? 1.0/size.view_device()(m).dx3 : 0.0};
       Real sf[3][3], sl[3][3], sr[3][3];
       Hyper4Strain(w0, m, k, j, i, ndim, normal, inv_dx, sf);
       Real lap_strain[3] = {};
@@ -534,18 +534,20 @@ void Viscosity::AddViscousFluxIso(const DvceArray5D<Real> &w0, const EOS_Data &e
 
     // Add [2(dVx/dx)-(2/3)dVx/dx, dVy/dx, dVz/dx]
     par_for_inner(member, is, ie+1, [&](const int i) {
-      fvx(i) = 4.0*(w0(m,IVX,k,j,i) - w0(m,IVX,k,j,i-1))/(3.0*size.d_view(m).dx1);
-      fvy(i) =     (w0(m,IVY,k,j,i) - w0(m,IVY,k,j,i-1))/size.d_view(m).dx1;
-      fvz(i) =     (w0(m,IVZ,k,j,i) - w0(m,IVZ,k,j,i-1))/size.d_view(m).dx1;
+      fvx(i) = 4.0*(w0(m,IVX,k,j,i) - w0(m,IVX,k,j,i-1))/(3.0*size.view_device()(m).dx1);
+      fvy(i) =     (w0(m,IVY,k,j,i) - w0(m,IVY,k,j,i-1))/size.view_device()(m).dx1;
+      fvz(i) =     (w0(m,IVZ,k,j,i) - w0(m,IVZ,k,j,i-1))/size.view_device()(m).dx1;
     });
 
     // In 2D/3D Add [(-2/3)dVy/dy, dVx/dy, 0]
     if (multi_d) {
       par_for_inner(member, is, ie+1, [&](const int i) {
         fvx(i) -= ((w0(m,IVY,k,j+1,i) + w0(m,IVY,k,j+1,i-1)) -
-                   (w0(m,IVY,k,j-1,i) + w0(m,IVY,k,j-1,i-1)))/(6.0*size.d_view(m).dx2);
+                   (w0(m,IVY,k,j-1,i) + w0(m,IVY,k,j-1,i-1)))
+                       /(6.0*size.view_device()(m).dx2);
         fvy(i) += ((w0(m,IVX,k,j+1,i) + w0(m,IVX,k,j+1,i-1)) -
-                   (w0(m,IVX,k,j-1,i) + w0(m,IVX,k,j-1,i-1)))/(4.0*size.d_view(m).dx2);
+                   (w0(m,IVX,k,j-1,i) + w0(m,IVX,k,j-1,i-1)))
+                       /(4.0*size.view_device()(m).dx2);
       });
     }
 
@@ -553,9 +555,11 @@ void Viscosity::AddViscousFluxIso(const DvceArray5D<Real> &w0, const EOS_Data &e
     if (three_d) {
       par_for_inner(member, is, ie+1, [&](const int i) {
         fvx(i) -= ((w0(m,IVZ,k+1,j,i) + w0(m,IVZ,k+1,j,i-1)) -
-                   (w0(m,IVZ,k-1,j,i) + w0(m,IVZ,k-1,j,i-1)))/(6.0*size.d_view(m).dx3);
+                   (w0(m,IVZ,k-1,j,i) + w0(m,IVZ,k-1,j,i-1)))
+                       /(6.0*size.view_device()(m).dx3);
         fvz(i) += ((w0(m,IVX,k+1,j,i) + w0(m,IVX,k+1,j,i-1)) -
-                   (w0(m,IVX,k-1,j,i) + w0(m,IVX,k-1,j,i-1)))/(4.0*size.d_view(m).dx3);
+                   (w0(m,IVX,k-1,j,i) + w0(m,IVX,k-1,j,i-1)))
+                       /(4.0*size.view_device()(m).dx3);
       });
     }
 
@@ -588,22 +592,24 @@ void Viscosity::AddViscousFluxIso(const DvceArray5D<Real> &w0, const EOS_Data &e
 
     // Add [(dVx/dy+dVy/dx), 2(dVy/dy)-(2/3)(dVx/dx+dVy/dy), dVz/dy]
     par_for_inner(member, is, ie, [&](const int i) {
-      fvx(i) = (w0(m,IVX,k,j,i  ) - w0(m,IVX,k,j-1,i  ))/size.d_view(m).dx2 +
+      fvx(i) = (w0(m,IVX,k,j,i  ) - w0(m,IVX,k,j-1,i  ))/size.view_device()(m).dx2 +
               ((w0(m,IVY,k,j,i+1) + w0(m,IVY,k,j-1,i+1)) -
-               (w0(m,IVY,k,j,i-1) + w0(m,IVY,k,j-1,i-1)))/(4.0*size.d_view(m).dx1);
-      fvy(i) = (w0(m,IVY,k,j,i) - w0(m,IVY,k,j-1,i))*4.0/(3.0*size.d_view(m).dx2) -
+               (w0(m,IVY,k,j,i-1) + w0(m,IVY,k,j-1,i-1)))/(4.0*size.view_device()(m).dx1);
+      fvy(i) = (w0(m,IVY,k,j,i) - w0(m,IVY,k,j-1,i))*4.0/(3.0*size.view_device()(m).dx2) -
               ((w0(m,IVX,k,j,i+1) + w0(m,IVX,k,j-1,i+1)) -
-               (w0(m,IVX,k,j,i-1) + w0(m,IVX,k,j-1,i-1)))/(6.0*size.d_view(m).dx1);
-      fvz(i) = (w0(m,IVZ,k,j,i  ) - w0(m,IVZ,k,j-1,i  ))/size.d_view(m).dx2;
+               (w0(m,IVX,k,j,i-1) + w0(m,IVX,k,j-1,i-1)))/(6.0*size.view_device()(m).dx1);
+      fvz(i) = (w0(m,IVZ,k,j,i  ) - w0(m,IVZ,k,j-1,i  ))/size.view_device()(m).dx2;
     });
 
     // In 3D Add [0, (-2/3)dVz/dz, dVy/dz]
     if (three_d) {
       par_for_inner(member, is, ie, [&](const int i) {
         fvy(i) -= ((w0(m,IVZ,k+1,j,i) + w0(m,IVZ,k+1,j-1,i)) -
-                   (w0(m,IVZ,k-1,j,i) + w0(m,IVZ,k-1,j-1,i)))/(6.0*size.d_view(m).dx3);
+                   (w0(m,IVZ,k-1,j,i) + w0(m,IVZ,k-1,j-1,i)))
+                       /(6.0*size.view_device()(m).dx3);
         fvz(i) += ((w0(m,IVY,k+1,j,i) + w0(m,IVY,k+1,j-1,i)) -
-                   (w0(m,IVY,k-1,j,i) + w0(m,IVY,k-1,j-1,i)))/(4.0*size.d_view(m).dx3);
+                   (w0(m,IVY,k-1,j,i) + w0(m,IVY,k-1,j-1,i)))
+                       /(4.0*size.view_device()(m).dx3);
       });
     }
 
@@ -636,17 +642,18 @@ void Viscosity::AddViscousFluxIso(const DvceArray5D<Real> &w0, const EOS_Data &e
 
     // Add [(dVx/dz+dVz/dx), (dVy/dz+dVz/dy), 2(dVz/dz)-(2/3)(dVx/dx+dVy/dy+dVz/dz)]
     par_for_inner(member, is, ie, [&](const int i) {
-      fvx(i) = (w0(m,IVX,k,j,i  ) - w0(m,IVX,k-1,j,i  ))/size.d_view(m).dx3 +
+      fvx(i) = (w0(m,IVX,k,j,i  ) - w0(m,IVX,k-1,j,i  ))/size.view_device()(m).dx3 +
               ((w0(m,IVZ,k,j,i+1) + w0(m,IVZ,k-1,j,i+1)) -
-               (w0(m,IVZ,k,j,i-1) + w0(m,IVZ,k-1,j,i-1)))/(4.0*size.d_view(m).dx1);
-      fvy(i) = (w0(m,IVY,k,j,i  ) - w0(m,IVY,k-1,j,i  ))/size.d_view(m).dx3 +
+               (w0(m,IVZ,k,j,i-1) + w0(m,IVZ,k-1,j,i-1)))/(4.0*size.view_device()(m).dx1);
+      fvy(i) = (w0(m,IVY,k,j,i  ) - w0(m,IVY,k-1,j,i  ))/size.view_device()(m).dx3 +
               ((w0(m,IVZ,k,j+1,i) + w0(m,IVZ,k-1,j+1,i)) -
-               (w0(m,IVZ,k,j-1,i) + w0(m,IVZ,k-1,j-1,i)))/(4.0*size.d_view(m).dx2);
-      fvz(i) = (w0(m,IVZ,k,j,i) - w0(m,IVZ,k-1,j,i))*4.0/(3.0*size.d_view(m).dx3) -
+               (w0(m,IVZ,k,j-1,i) + w0(m,IVZ,k-1,j-1,i)))/(4.0*size.view_device()(m).dx2);
+      fvz(i) = (w0(m,IVZ,k,j,i) - w0(m,IVZ,k-1,j,i))*4.0/(3.0*size.view_device()(m).dx3) -
               ((w0(m,IVX,k,j,i+1) + w0(m,IVX,k-1,j,i+1)) -
-               (w0(m,IVX,k,j,i-1) + w0(m,IVX,k-1,j,i-1)))/(6.0*size.d_view(m).dx1) -
+               (w0(m,IVX,k,j,i-1) + w0(m,IVX,k-1,j,i-1)))/(6.0*size.view_device()(m).dx1)
+                   -
               ((w0(m,IVY,k,j+1,i) + w0(m,IVY,k-1,j+1,i)) -
-               (w0(m,IVY,k,j-1,i) + w0(m,IVY,k-1,j-1,i)))/(6.0*size.d_view(m).dx2);
+               (w0(m,IVY,k,j-1,i) + w0(m,IVY,k-1,j-1,i)))/(6.0*size.view_device()(m).dx2);
     });
 
     // Sum viscous fluxes into fluxes of conserved variables; including energy fluxes
@@ -698,7 +705,9 @@ void Viscosity::AddViscousFluxAniso(const DvceArray5D<Real> &w0, const EOS_Data 
       idx.is, idx.ie+(dir == 0),
     KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
       const int il = i-(dir == 0), jl = j-(dir == 1), kl = k-(dir == 2);
-      const Real dx[3] = {size.d_view(m).dx1, size.d_view(m).dx2, size.d_view(m).dx3};
+      const Real dx[3]
+          = {size.view_device()(m).dx1, size.view_device()(m).dx2,
+          size.view_device()(m).dx3};
       Real b[3];
       for (int c=0; c<3; ++c) {
         b[c] = c == dir ? normal_b(m,k,j,i) :
@@ -760,8 +769,8 @@ Real Viscosity::SpitzerTimeStepBound(Real mu_max, Real rho_min) const {
   const auto &size = pmy_pack->pmb->mb_size;
   Real dt = std::numeric_limits<Real>::max();
   for (int m=0; m<pmy_pack->nmb_thispack; ++m) {
-    const Real inv_dx[3] = {1.0/size.h_view(m).dx1, 1.0/size.h_view(m).dx2,
-                           1.0/size.h_view(m).dx3};
+    const Real inv_dx[3] = {1.0/size.view_host()(m).dx1, 1.0/size.view_host()(m).dx2,
+                           1.0/size.view_host()(m).dx3};
     Real sum = 0.0, sum2 = 0.0;
     for (int d=0; d<ndim; ++d) {
       sum += inv_dx[d];
@@ -861,15 +870,15 @@ void Viscosity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_dat
   auto size = pmy_pack->pmb->mb_size;
   int invalid_hyper_dt = 0;
   for (int m=0; m<(pmy_pack->nmb_thispack); ++m) {
-    Real inv_dx2_sum = 1.0/SQR(size.h_view(m).dx1);
+    Real inv_dx2_sum = 1.0/SQR(size.view_host()(m).dx1);
     Real inv_dx2_max = inv_dx2_sum;
     if (pmy_pack->pmesh->multi_d) {
-      Real inv_dx2 = 1.0/SQR(size.h_view(m).dx2);
+      Real inv_dx2 = 1.0/SQR(size.view_host()(m).dx2);
       inv_dx2_sum += inv_dx2;
       inv_dx2_max = std::max(inv_dx2_max, inv_dx2);
     }
     if (pmy_pack->pmesh->three_d) {
-      Real inv_dx2 = 1.0/SQR(size.h_view(m).dx3);
+      Real inv_dx2 = 1.0/SQR(size.view_host()(m).dx3);
       inv_dx2_sum += inv_dx2;
       inv_dx2_max = std::max(inv_dx2_max, inv_dx2);
     }

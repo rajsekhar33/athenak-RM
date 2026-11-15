@@ -83,8 +83,8 @@ MeshRefinement::MeshRefinement(Mesh *pm, ParameterInput *pin) :
 
   // be sure Views are initialized to zero
   for (int m=0; m<(pm->nmb_total); ++m) {
-    refine_flag.h_view(m) = 0;
-    fc_amr_repair.h_view(m) = 0;
+    refine_flag.view_host()(m) = 0;
+    fc_amr_repair.view_host()(m) = 0;
     ncyc_since_ref(m) = pm->restart_amr_age.empty() ? 0 : pm->restart_amr_age[m];
   }
   refine_flag.template modify<HostMemSpace>();
@@ -204,7 +204,7 @@ void MeshRefinement::CheckForRefinement(MeshBlockPack* pmbp) {
   // reallocate and zero refine_flag in host space and sync with device
   Kokkos::realloc(refine_flag, pmy_mesh->nmb_total);
   for (int m=0; m<(pmy_mesh->nmb_total); ++m) {
-    refine_flag.h_view(m) = 0;
+    refine_flag.view_host()(m) = 0;
   }
   refine_flag.template modify<HostMemSpace>();
   refine_flag.template sync<DevExeSpace>();
@@ -253,21 +253,21 @@ void MeshRefinement::CheckForRefinement(MeshBlockPack* pmbp) {
   int mbs = pmy_mesh->gids_eachrank[global_variable::my_rank];
   for (int m=0; m<nmb; ++m) {
     if (pmy_mesh->lloc_eachmb[m+mbs].level == pmy_mesh->max_level) {
-      if (refine_flag.h_view(m+mbs) > 0) {refine_flag.h_view(m+mbs) = 0;}
+      if (refine_flag.view_host()(m+mbs) > 0) {refine_flag.view_host()(m+mbs) = 0;}
     }
     if (pmy_mesh->lloc_eachmb[m+mbs].level == pmy_mesh->root_level) {
-      if (refine_flag.h_view(m+mbs) < 0) {refine_flag.h_view(m+mbs) = 0;}
+      if (refine_flag.view_host()(m+mbs) < 0) {refine_flag.view_host()(m+mbs) = 0;}
     }
   }
   // Turn off (on host) refine/derefine flag for any MB that has been recently refined
   for (int m=0; m<nmb; ++m) {
-    if (ncyc_since_ref(m+mbs) < refinement_interval) {refine_flag.h_view(m+mbs) = 0;}
+    if (ncyc_since_ref(m+mbs) < refinement_interval) {refine_flag.view_host()(m+mbs) = 0;}
   }
 
 #if MPI_PARALLEL_ENABLED
   // Pass (host) refine_flag between all ranks
     MPI_Allgatherv(MPI_IN_PLACE, pmy_mesh->nmb_eachrank[global_variable::my_rank],
-                   MPI_INT, refine_flag.h_view.data(), pmy_mesh->nmb_eachrank,
+                   MPI_INT, refine_flag.view_host().data(), pmy_mesh->nmb_eachrank,
                    pmy_mesh->gids_eachrank, MPI_INT, MPI_COMM_WORLD);
 #endif
   // sync host array with device
@@ -292,8 +292,8 @@ void MeshRefinement::UpdateMeshBlockTree(int &nnew, int &ndel) {
   nderef_eachrank[global_variable::my_rank] = 0;
   int mbs = pmy_mesh->gids_eachrank[global_variable::my_rank];
   for (int i=0; i<(pmy_mesh->nmb_thisrank); ++i) {
-    if (refine_flag.h_view(i+mbs) ==  1) nref_eachrank[global_variable::my_rank]++;
-    if (refine_flag.h_view(i+mbs) == -1) nderef_eachrank[global_variable::my_rank]++;
+    if (refine_flag.view_host()(i+mbs) ==  1) nref_eachrank[global_variable::my_rank]++;
+    if (refine_flag.view_host()(i+mbs) == -1) nderef_eachrank[global_variable::my_rank]++;
   }
 #if MPI_PARALLEL_ENABLED
   MPI_Allgather(MPI_IN_PLACE, 1, MPI_INT, nref_eachrank,   1, MPI_INT, MPI_COMM_WORLD);
@@ -334,10 +334,10 @@ void MeshRefinement::UpdateMeshBlockTree(int &nnew, int &ndel) {
     int iref = nref_rsum[global_variable::my_rank];
     int ideref = nderef_rsum[global_variable::my_rank];
     for (int i=0; i<(pmy_mesh->nmb_thisrank); ++i) {
-      int gid = pmy_mesh->pmb_pack->pmb->mb_gid.h_view(i);
-      if (refine_flag.h_view(i+mbs) ==  1) {
+      int gid = pmy_mesh->pmb_pack->pmb->mb_gid.view_host()(i);
+      if (refine_flag.view_host()(i+mbs) ==  1) {
         llref[iref++] = pmy_mesh->lloc_eachmb[gid];;
-      } else if (refine_flag.h_view(i+mbs) == -1 && tnderef >= nleaf) {
+      } else if (refine_flag.view_host()(i+mbs) == -1 && tnderef >= nleaf) {
         llderef[ideref++] = pmy_mesh->lloc_eachmb[gid];
       }
     }
@@ -507,11 +507,11 @@ void MeshRefinement::RedistAndRefineMeshBlocks(ParameterInput *pin, int nnew, in
     LogicalLocation &old_lloc = pmy_mesh->lloc_eachmb[oldm];
     LogicalLocation &new_lloc = new_lloc_eachmb[newm];
     if (old_lloc.level > new_lloc.level) {          // old MB was de-refined
-      refine_flag.h_view(oldm) = -nleaf;
+      refine_flag.view_host()(oldm) = -nleaf;
     } else if (old_lloc.level < new_lloc.level) {   // old MB was refined
-      refine_flag.h_view(oldm) = 1;
+      refine_flag.view_host()(oldm) = 1;
     } else {
-      refine_flag.h_view(oldm) = 0;
+      refine_flag.view_host()(oldm) = 0;
     }
   }
   //  All ranks have copy of refine_flag over all MBs. So just sync host view with device
@@ -610,7 +610,7 @@ void MeshRefinement::RedistAndRefineMeshBlocks(ParameterInput *pin, int nnew, in
   // copy newtoold array to DualView so that it can be accessed in kernel
   DualArray1D<int> new_to_old("newtoold",new_nmb_total);
   for (int m=0; m<new_nmb_total; ++m) {
-    new_to_old.h_view(m) = newtoold[m];
+    new_to_old.view_host()(m) = newtoold[m];
   }
   new_to_old.template modify<HostMemSpace>();
   new_to_old.template sync<DevExeSpace>();
@@ -653,7 +653,7 @@ void MeshRefinement::RedistAndRefineMeshBlocks(ParameterInput *pin, int nnew, in
   HostArray1D<int> new_ncyc_since_ref("nnref",new_nmb_total);
   for (int m=0; m<(new_nmb_total); ++m) {
     int oldm = newtoold[m];
-    if (refine_flag.h_view(oldm) != 0) {
+    if (refine_flag.view_host()(oldm) != 0) {
       new_ncyc_since_ref(m) = 0;
     } else {
       new_ncyc_since_ref(m) = ncyc_since_ref(oldm);
@@ -695,7 +695,7 @@ void MeshRefinement::RedistAndRefineMeshBlocks(ParameterInput *pin, int nnew, in
 
   Kokkos::realloc(fc_amr_repair, new_nmb_total);
   for (int m=0; m<new_nmb_total; ++m) {
-    fc_amr_repair.h_view(m) = (refine_flag.h_view(newtoold[m]) != 0) ? 1 : 0;
+    fc_amr_repair.view_host()(m) = (refine_flag.view_host()(newtoold[m]) != 0) ? 1 : 0;
   }
   fc_amr_repair.template modify<HostMemSpace>();
   fc_amr_repair.template sync<DevExeSpace>();
@@ -748,7 +748,7 @@ void MeshRefinement::DerefineCCSameRank(DvceArray5D<Real> &a, DvceArray5D<Real> 
   int ombs = pmy_mesh->gids_eachrank[global_variable::my_rank];
   int ombe = ombs + pmy_mesh->nmb_eachrank[global_variable::my_rank] - 1;
   for (int oldm=ombs; oldm<=ombe; ++oldm) {
-    if (refine_flag.h_view(oldm) < -1) {  // only derefine if nleaf blocks flagged
+    if (refine_flag.view_host()(oldm) < -1) {  // only derefine if nleaf blocks flagged
       int newm = oldtonew[oldm];
       if ((oldm > 0) && (oldtonew[oldm-1] == newm)) continue;
       // only copy data if target MB stays on this rank
@@ -805,7 +805,7 @@ void MeshRefinement::DerefineFCSameRank(DvceFaceFld4D<Real> &b, DvceFaceFld4D<Re
   int ombs = pmy_mesh->gids_eachrank[global_variable::my_rank];
   int ombe = ombs + pmy_mesh->nmb_eachrank[global_variable::my_rank] - 1;
   for (int oldm=ombs; oldm<=ombe; ++oldm) {
-    if (refine_flag.h_view(oldm) < -1) {  // only derefine if nleaf blocks flagged
+    if (refine_flag.view_host()(oldm) < -1) {  // only derefine if nleaf blocks flagged
       int newm = oldtonew[oldm];
       if ((oldm > 0) && (oldtonew[oldm-1] == newm)) continue;
       // only copy data if target MB stays on this rank
@@ -974,7 +974,7 @@ void MeshRefinement::CopyForRefinementCC(DvceArray5D<Real> &a, DvceArray5D<Real>
   int nmbe = nmbs + new_nmb_eachrank[global_variable::my_rank] - 1;
   for (int newm=nmbs; newm<=nmbe; ++newm) {
     int oldm = newtoold[newm];
-    if (refine_flag.h_view(oldm) > 0) {
+    if (refine_flag.view_host()(oldm) > 0) {
       // only copy if old and new location of MB on this rank
       if ((new_rank_eachmb[oldtonew[oldm]] == global_variable::my_rank) &&
           (new_rank_eachmb[newm] == global_variable::my_rank)) {
@@ -1029,7 +1029,7 @@ void MeshRefinement::CopyForRefinementFC(DvceFaceFld4D<Real> &b,DvceFaceFld4D<Re
   int nmbe = nmbs + new_nmb_eachrank[global_variable::my_rank] - 1;
   for (int newm=nmbs; newm<=nmbe; ++newm) {
     int oldm = newtoold[newm];
-    if (refine_flag.h_view(oldm) > 0) {
+    if (refine_flag.view_host()(oldm) > 0) {
       // only copy if old and new location of MB on this rank
       if ((new_rank_eachmb[oldtonew[oldm]] == global_variable::my_rank) &&
           (new_rank_eachmb[newm] == global_variable::my_rank)) {
@@ -1094,7 +1094,7 @@ void MeshRefinement::RefineCC(DualArray1D<int> &n2o, DvceArray5D<Real> &a,
     const int m = (tmember.league_rank())/nvar;
     const int v = (tmember.league_rank() - m*nvar);
 
-    if (refine_flag_.d_view(n2o.d_view(m+ngids_)) > 0) {
+    if (refine_flag_.view_device()(n2o.view_device()(m+ngids_)) > 0) {
       const int ni = cie - cis + 1;
       const int nj = cje - cjs + 1;
       const int nk = cke - cks + 1;
@@ -1156,7 +1156,7 @@ bool MeshRefinement::RefineHydroPositive(DualArray1D<int> &n2o, DvceArray5D<Real
       Kokkos::RangePolicy<>(DevExeSpace(), 0, nmb*ncells),
       KOKKOS_LAMBDA(const int idx, int &bad) {
     const int m = idx/ncells;
-    if (flags.d_view(n2o.d_view(m+gid0)) <= 0) return;
+    if (flags.view_device()(n2o.view_device()(m+gid0)) <= 0) return;
     const int i = idx%ni+indcs.cis;
     const int j = (idx/ni)%nj+indcs.cjs;
     const int k = (idx/(ni*nj))%nk+indcs.cks;
@@ -1243,7 +1243,7 @@ void MeshRefinement::RefineFC(DualArray1D<int> &n2o, DvceFaceFld4D<Real> &b,
   // Prolongate x1f
   par_for("RefineFC1",DevExeSpace(), 0,(new_nmb-1), cks,cke, cjs,cje, cis,cie+1,
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
-    if (refine_flag_.d_view(n2o.d_view(m+ngids_)) > 0) {
+    if (refine_flag_.view_device()(n2o.view_device()(m+ngids_)) > 0) {
       // fine indices refer to target array
       int fi = (i - cis)*2 + is;                   // fine i
       int fj = (multi_d)? ((j - cjs)*2 + js) : j;  // fine j
@@ -1255,7 +1255,7 @@ void MeshRefinement::RefineFC(DualArray1D<int> &n2o, DvceFaceFld4D<Real> &b,
   // Prolongate x2f
   par_for("RefineFC2",DevExeSpace(), 0,(new_nmb-1), cks,cke, cjs,cje+1, cis,cie,
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
-    if (refine_flag_.d_view(n2o.d_view(m+ngids_)) > 0) {
+    if (refine_flag_.view_device()(n2o.view_device()(m+ngids_)) > 0) {
       // fine indices refer to target array
       int fi = (i - cis)*2 + is;                   // fine i
       int fj = (multi_d)? ((j - cjs)*2 + js) : j;  // fine j
@@ -1267,7 +1267,7 @@ void MeshRefinement::RefineFC(DualArray1D<int> &n2o, DvceFaceFld4D<Real> &b,
   // Prolongate x3f
   par_for("RefineFC3",DevExeSpace(), 0,(new_nmb-1), cks,cke+1, cjs,cje, cis,cie,
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
-    if (refine_flag_.d_view(n2o.d_view(m+ngids_)) > 0) {
+    if (refine_flag_.view_device()(n2o.view_device()(m+ngids_)) > 0) {
       // fine indices refer to target array
       int fi = (i - cis)*2 + is;                   // fine i
       int fj = (multi_d)? ((j - cjs)*2 + js) : j;  // fine j
@@ -1281,7 +1281,7 @@ void MeshRefinement::RefineFC(DualArray1D<int> &n2o, DvceFaceFld4D<Real> &b,
   bool &one_d = pmy_mesh->one_d;
   par_for("RefineFC-int",DevExeSpace(), 0,(new_nmb-1), cks,cke, cjs,cje, cis,cie,
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
-    if (refine_flag_.d_view(n2o.d_view(m+ngids_)) > 0) {
+    if (refine_flag_.view_device()(n2o.view_device()(m+ngids_)) > 0) {
       // fine indices refer to target array
       int fi = (i - cis)*2 + is;   // fine i
       int fj = (j - cjs)*2 + js;   // fine j
@@ -1322,7 +1322,7 @@ void MeshRefinement::RepairAMRFC(DvceFaceFld4D<Real> &b) {
 
   par_for("RepairAMRFC",DevExeSpace(), 0,(nmb-1), cks,cke, cjs,cje, cis,cie,
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
-    if (repair.d_view(m + mbs) != 0) {
+    if (repair.view_device()(m + mbs) != 0) {
       int fi = (i - cis)*2 + is;
       int fj = (j - cjs)*2 + js;
       int fk = (k - cks)*2 + ks;
@@ -1523,18 +1523,18 @@ void MeshRefinement::InitInterpWghts() {
   for (int k = 0; k < 3; k++) {
     for (int j = 0; j < 3; j++) {
       for (int i = 0; i < 3; i++) {
-        pro_2nd.h_view(k,j,i) = wght2[k]*wght2[j]*wght2[i];
+        pro_2nd.view_host()(k,j,i) = wght2[k]*wght2[j]*wght2[i];
       }
     }
   }
-  /*pro_2nd.h_view(0) = 0.15625;
-  pro_2nd.h_view(1) = 0.9375;
-  pro_2nd.h_view(2) = -0.09375;*/
+  /*pro_2nd.view_host()(0) = 0.15625;
+  pro_2nd.view_host()(1) = 0.9375;
+  pro_2nd.view_host()(2) = -0.09375;*/
 
   // 2nd order restriction weights
-  res_2nd.h_view(0) = 0.375;
-  res_2nd.h_view(1) = 0.75;
-  res_2nd.h_view(2) = -0.125;
+  res_2nd.view_host()(0) = 0.375;
+  res_2nd.view_host()(1) = 0.75;
+  res_2nd.view_host()(2) = -0.125;
 
   // 4th order prolongation weights
   const Real wght4[5] = {-0.02197265625, 0.205078125, 0.9228515625,
@@ -1542,29 +1542,29 @@ void MeshRefinement::InitInterpWghts() {
   for (int k = 0; k < 5; k++) {
     for (int j = 0; j < 5; j++) {
       for (int i = 0; i < 5; i++) {
-        pro_4th.h_view(k,j,i) = wght4[k]*wght4[j]*wght4[i];
+        pro_4th.view_host()(k,j,i) = wght4[k]*wght4[j]*wght4[i];
       }
     }
   }
-  /*pro_4th.h_view(0) = -0.02197265625;
-  pro_4th.h_view(1) = 0.205078125;
-  pro_4th.h_view(2) = 0.9228515625;
-  pro_4th.h_view(3) = -0.123046875;
-  pro_4th.h_view(4) = 0.01708984375;*/
+  /*pro_4th.view_host()(0) = -0.02197265625;
+  pro_4th.view_host()(1) = 0.205078125;
+  pro_4th.view_host()(2) = 0.9228515625;
+  pro_4th.view_host()(3) = -0.123046875;
+  pro_4th.view_host()(4) = 0.01708984375;*/
 
   // 4th order restriction weights
-  res_4th.h_view(0) = -0.0390625;
-  res_4th.h_view(1) = 0.46875;
-  res_4th.h_view(2) = 0.703125;
-  res_4th.h_view(3) = -0.15625;
-  res_4th.h_view(4) = 0.0234375;
+  res_4th.view_host()(0) = -0.0390625;
+  res_4th.view_host()(1) = 0.46875;
+  res_4th.view_host()(2) = 0.703125;
+  res_4th.view_host()(3) = -0.15625;
+  res_4th.view_host()(4) = 0.0234375;
 
   // 4th order restriction weights at edge
-  res_4th_e.h_view(0) = 0.2734375;
-  res_4th_e.h_view(1) = 1.09375;
-  res_4th_e.h_view(2) = -0.546875;
-  res_4th_e.h_view(3) = 0.21875;
-  res_4th_e.h_view(4) = -0.0390625;
+  res_4th_e.view_host()(0) = 0.2734375;
+  res_4th_e.view_host()(1) = 1.09375;
+  res_4th_e.view_host()(2) = -0.546875;
+  res_4th_e.view_host()(3) = 0.21875;
+  res_4th_e.view_host()(4) = -0.0390625;
 
   // sync dual arrays
   pro_2nd.template modify<HostMemSpace>();

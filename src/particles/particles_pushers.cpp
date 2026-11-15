@@ -111,16 +111,18 @@ void Particles::PushDrift() {
       return;
     }
 
-    int ip = (pr(IPX,p) - mbsize.d_view(m).x1min)/mbsize.d_view(m).dx1 + is;
+    int ip = (pr(IPX,p) - mbsize.view_device()(m).x1min)/mbsize.view_device()(m).dx1 + is;
     pr(IPX,p) += 0.5*dt_*pr(IPVX,p);
 
     if (multi_d) {
-      int jp = (pr(IPY,p) - mbsize.d_view(m).x2min)/mbsize.d_view(m).dx2 + js;
+      int jp = (pr(IPY,p) - mbsize.view_device()(m).x2min)/mbsize.view_device()(m).dx2
+          + js;
       pr(IPY,p) += 0.5*dt_*pr(IPVY,p);
     }
 
     if (three_d) {
-      int kp = (pr(IPZ,p) - mbsize.d_view(m).x3min)/mbsize.d_view(m).dx3 + ks;
+      int kp = (pr(IPZ,p) - mbsize.view_device()(m).x3min)/mbsize.view_device()(m).dx3
+          + ks;
       pr(IPZ,p) += 0.5*dt_*pr(IPVZ,p);
     }
   });
@@ -165,7 +167,7 @@ void Particles::PushLagrangianTracer() {
     // cloud-in-cell weights: locate the particle relative to the surrounding cell
     // centers (not cell edges), clamped to the active zone so a particle near a
     // boundary doesn't read ghost data from the wrong side
-    Real xidx = (pr(IPX,p) - mbsize.d_view(m).x1min)/mbsize.d_view(m).dx1 +
+    Real xidx = (pr(IPX,p) - mbsize.view_device()(m).x1min)/mbsize.view_device()(m).dx1 +
                 static_cast<Real>(is) - 0.5;
     int i0 = static_cast<int>(xidx);
     Real wx = xidx - static_cast<Real>(i0);
@@ -180,7 +182,8 @@ void Particles::PushLagrangianTracer() {
     int j0 = js;
     Real wy = 0.0;
     if (multi_d) {
-      Real yidx = (pr(IPY,p) - mbsize.d_view(m).x2min)/mbsize.d_view(m).dx2 +
+      Real yidx = (pr(IPY,p) - mbsize.view_device()(m).x2min)/mbsize.view_device()(m).dx2
+          +
                   static_cast<Real>(js) - 0.5;
       j0 = static_cast<int>(yidx);
       wy = yidx - static_cast<Real>(j0);
@@ -196,7 +199,8 @@ void Particles::PushLagrangianTracer() {
     int k0 = ks;
     Real wz = 0.0;
     if (three_d) {
-      Real zidx = (pr(IPZ,p) - mbsize.d_view(m).x3min)/mbsize.d_view(m).dx3 +
+      Real zidx = (pr(IPZ,p) - mbsize.view_device()(m).x3min)/mbsize.view_device()(m).dx3
+          +
                   static_cast<Real>(ks) - 0.5;
       k0 = static_cast<int>(zidx);
       wz = zidx - static_cast<Real>(k0);
@@ -238,7 +242,7 @@ void Particles::PushLagrangianTracer() {
     if (three_d) {
       pr(IPZ,p) += dt_*vz;
     }
-    pi(PLASTLEVEL,p) = mblev.d_view(m);
+    pi(PLASTLEVEL,p) = mblev.view_device()(m);
     pi(PLASTMOVE,p) = 0;
   });
 }
@@ -287,16 +291,17 @@ void Particles::PushLagrangianMC() {
         return;
       }
 
-      int ip = (pr(IPX,p) - mbsize.d_view(m).x1min)/mbsize.d_view(m).dx1 + is;
+      int ip = (pr(IPX,p) - mbsize.view_device()(m).x1min)/mbsize.view_device()(m).dx1
+          + is;
       int jp = js;
       int kp = ks;
 
       if (multi_d) {
-        jp = (pr(IPY,p) - mbsize.d_view(m).x2min)/mbsize.d_view(m).dx2 + js;
+        jp = (pr(IPY,p) - mbsize.view_device()(m).x2min)/mbsize.view_device()(m).dx2 + js;
       }
 
       if (three_d) {
-        kp = (pr(IPZ,p) - mbsize.d_view(m).x3min)/mbsize.d_view(m).dx3 + ks;
+        kp = (pr(IPZ,p) - mbsize.view_device()(m).x3min)/mbsize.view_device()(m).dx3 + ks;
       }
 
       // Minimal bounds check to prevent out-of-bounds flux array access
@@ -340,7 +345,7 @@ void Particles::PushLagrangianMC() {
       raw3R = raw3R < flx_eps ? 0.0 : raw3R;
 
       // save refinement level of current zone
-      pi(PLASTLEVEL,p) = mblev.d_view(m);
+      pi(PLASTLEVEL,p) = mblev.view_device()(m);
 
       // save parity of current zone stored as (i_isodd,j_isodd,k_isodd) * 8
       pi(PLASTMOVE,p) = 32 * (ip % 2) + 16 * (jp % 2) + 8 * (kp % 2);
@@ -379,22 +384,22 @@ void Particles::PushLagrangianMC() {
       }
 
       if (move_dir == 1) {
-        pr(IPX,p) -= mbsize.d_view(m).dx1;
+        pr(IPX,p) -= mbsize.view_device()(m).dx1;
         pi(PLASTMOVE,p) += 1;
       } else if (move_dir == 2) {
-        pr(IPX,p) += mbsize.d_view(m).dx1;
+        pr(IPX,p) += mbsize.view_device()(m).dx1;
         pi(PLASTMOVE,p) += 2;
       } else if (move_dir == 3) {
-        pr(IPY,p) -= mbsize.d_view(m).dx2;
+        pr(IPY,p) -= mbsize.view_device()(m).dx2;
         pi(PLASTMOVE,p) += 3;
       } else if (move_dir == 4) {
-        pr(IPY,p) += mbsize.d_view(m).dx2;
+        pr(IPY,p) += mbsize.view_device()(m).dx2;
         pi(PLASTMOVE,p) += 4;
       } else if (move_dir == 5) {
-        pr(IPZ,p) -= mbsize.d_view(m).dx3;
+        pr(IPZ,p) -= mbsize.view_device()(m).dx3;
         pi(PLASTMOVE,p) += 5;
       } else if (move_dir == 6) {
-        pr(IPZ,p) += mbsize.d_view(m).dx3;
+        pr(IPZ,p) += mbsize.view_device()(m).dx3;
         pi(PLASTMOVE,p) += 6;
       }
     }
@@ -460,7 +465,7 @@ void Particles::PushIto2() {
     // cell-centered hydro primitives are. So clamp the LOWER corner to [is, ie-1]
     // (one cell tighter than PushLagrangianTracer's [is-1, ie]) to guarantee both
     // corners, and both faces each corner needs, stay inside the active zone.
-    Real xidx = (pr(IPX,p) - mbsize.d_view(m).x1min)/mbsize.d_view(m).dx1 +
+    Real xidx = (pr(IPX,p) - mbsize.view_device()(m).x1min)/mbsize.view_device()(m).dx1 +
                 static_cast<Real>(is) - 0.5;
     int i0 = static_cast<int>(xidx);
     Real wx = xidx - static_cast<Real>(i0);
@@ -475,7 +480,8 @@ void Particles::PushIto2() {
     int j0 = js;
     Real wy = 0.0;
     if (multi_d) {
-      Real yidx = (pr(IPY,p) - mbsize.d_view(m).x2min)/mbsize.d_view(m).dx2 +
+      Real yidx = (pr(IPY,p) - mbsize.view_device()(m).x2min)/mbsize.view_device()(m).dx2
+          +
                   static_cast<Real>(js) - 0.5;
       j0 = static_cast<int>(yidx);
       wy = yidx - static_cast<Real>(j0);
@@ -491,7 +497,8 @@ void Particles::PushIto2() {
     int k0 = ks;
     Real wz = 0.0;
     if (three_d) {
-      Real zidx = (pr(IPZ,p) - mbsize.d_view(m).x3min)/mbsize.d_view(m).dx3 +
+      Real zidx = (pr(IPZ,p) - mbsize.view_device()(m).x3min)/mbsize.view_device()(m).dx3
+          +
                   static_cast<Real>(ks) - 0.5;
       k0 = static_cast<int>(zidx);
       wz = zidx - static_cast<Real>(k0);
@@ -612,20 +619,20 @@ void Particles::PushIto2() {
       Real xi1 = sqrt3*(2.0*StatelessUniform01(pi(PTAG,p), ncycle, rseed,
                                                 1*10000 + isub) - 1.0);
       disp1_total += Ito2DisplacementFromMoments(cminus1_sub, variance1_sub,
-                                                  mbsize.d_view(m).dx1, xi1);
+                                                  mbsize.view_device()(m).dx1, xi1);
 
       if (multi_d) {
         Real xi2 = sqrt3*(2.0*StatelessUniform01(pi(PTAG,p), ncycle, rseed,
                                                   2*10000 + isub) - 1.0);
         disp2_total += Ito2DisplacementFromMoments(cminus2_sub, variance2_sub,
-                                                    mbsize.d_view(m).dx2, xi2);
+                                                    mbsize.view_device()(m).dx2, xi2);
       }
 
       if (three_d) {
         Real xi3 = sqrt3*(2.0*StatelessUniform01(pi(PTAG,p), ncycle, rseed,
                                                   3*10000 + isub) - 1.0);
         disp3_total += Ito2DisplacementFromMoments(cminus3_sub, variance3_sub,
-                                                    mbsize.d_view(m).dx3, xi3);
+                                                    mbsize.view_device()(m).dx3, xi3);
       }
     }
 
@@ -637,7 +644,7 @@ void Particles::PushIto2() {
       pr(IPZ,p) += disp3_total;
     }
 
-    pi(PLASTLEVEL,p) = mblev.d_view(m);
+    pi(PLASTLEVEL,p) = mblev.view_device()(m);
     pi(PLASTMOVE,p) = 0;
   });
 }
@@ -682,7 +689,7 @@ TaskStatus Particles::AdjustMeshRefinement(Driver *pdriver, int stage) {
         return;
       }
 
-      int level = mblev.d_view(m);
+      int level = mblev.view_device()(m);
 
       int lastlevel = pi(PLASTLEVEL,p);
       int lastmove = pi(PLASTMOVE,p);
@@ -701,9 +708,9 @@ TaskStatus Particles::AdjustMeshRefinement(Driver *pdriver, int stage) {
       //   6 -> "right" x3 face was chosen
       lastmove = lastmove % 8;
 
-      Real dx1 = mbsize.d_view(m).dx1;
-      Real dx2 = multi_d ? mbsize.d_view(m).dx2 : 0.;
-      Real dx3 = three_d ? mbsize.d_view(m).dx3 : 0.;
+      Real dx1 = mbsize.view_device()(m).dx1;
+      Real dx2 = multi_d ? mbsize.view_device()(m).dx2 : 0.;
+      Real dx3 = three_d ? mbsize.view_device()(m).dx3 : 0.;
 
       if (level > lastlevel) {
         // this is a higher refinement level, i.e., the zones are smaller now
@@ -746,16 +753,19 @@ TaskStatus Particles::AdjustMeshRefinement(Driver *pdriver, int stage) {
           pr(IPY,p) -= dx2/2;
         }
 
-        int ip = (pr(IPX,p) - mbsize.d_view(m).x1min)/mbsize.d_view(m).dx1 + is;
+        int ip = (pr(IPX,p) - mbsize.view_device()(m).x1min)/mbsize.view_device()(m).dx1
+            + is;
         int jp = js;
         int kp = ks;
 
         if (multi_d) {
-          jp = (pr(IPY,p) - mbsize.d_view(m).x2min)/mbsize.d_view(m).dx2 + js;
+          jp = (pr(IPY,p) - mbsize.view_device()(m).x2min)/mbsize.view_device()(m).dx2
+              + js;
         }
 
         if (three_d) {
-          kp = (pr(IPZ,p) - mbsize.d_view(m).x3min)/mbsize.d_view(m).dx3 + ks;
+          kp = (pr(IPZ,p) - mbsize.view_device()(m).x3min)/mbsize.view_device()(m).dx3
+              + ks;
         }
 
         // Bounds check: unlike PushLagrangianMC/PushIto2 (which both check this
@@ -858,30 +868,30 @@ TaskStatus Particles::AdjustMeshRefinement(Driver *pdriver, int stage) {
 
         if (lastmove == 1 || lastmove == 2) {
           if (target_zone == 2) {
-            pr(IPY,p) += mbsize.d_view(m).dx2;
+            pr(IPY,p) += mbsize.view_device()(m).dx2;
           } else if (target_zone == 3) {
-            pr(IPZ,p) += mbsize.d_view(m).dx3;
+            pr(IPZ,p) += mbsize.view_device()(m).dx3;
           } else if (target_zone == 4) {
-            pr(IPY,p) += mbsize.d_view(m).dx2;
-            pr(IPZ,p) += mbsize.d_view(m).dx3;
+            pr(IPY,p) += mbsize.view_device()(m).dx2;
+            pr(IPZ,p) += mbsize.view_device()(m).dx3;
           }
         } else if (lastmove == 3 || lastmove == 4) {
           if (target_zone == 2) {
-            pr(IPX,p) += mbsize.d_view(m).dx1;
+            pr(IPX,p) += mbsize.view_device()(m).dx1;
           } else if (target_zone == 3) {
-            pr(IPZ,p) += mbsize.d_view(m).dx3;
+            pr(IPZ,p) += mbsize.view_device()(m).dx3;
           } else if (target_zone == 4) {
-            pr(IPX,p) += mbsize.d_view(m).dx1;
-            pr(IPZ,p) += mbsize.d_view(m).dx3;
+            pr(IPX,p) += mbsize.view_device()(m).dx1;
+            pr(IPZ,p) += mbsize.view_device()(m).dx3;
           }
         } else if (lastmove == 5 || lastmove == 6) {
           if (target_zone == 2) {
-            pr(IPX,p) += mbsize.d_view(m).dx1;
+            pr(IPX,p) += mbsize.view_device()(m).dx1;
           } else if (target_zone == 3) {
-            pr(IPY,p) += mbsize.d_view(m).dx2;
+            pr(IPY,p) += mbsize.view_device()(m).dx2;
           } else if (target_zone == 4) {
-            pr(IPX,p) += mbsize.d_view(m).dx1;
-            pr(IPY,p) += mbsize.d_view(m).dx2;
+            pr(IPX,p) += mbsize.view_device()(m).dx1;
+            pr(IPY,p) += mbsize.view_device()(m).dx2;
           }
         }
 
@@ -891,43 +901,43 @@ TaskStatus Particles::AdjustMeshRefinement(Driver *pdriver, int stage) {
         // the center of the new zone
 
         if (i_parity) {
-          pr(IPX,p) -= mbsize.d_view(m).dx1/4;
+          pr(IPX,p) -= mbsize.view_device()(m).dx1/4;
         } else {
-          pr(IPX,p) += mbsize.d_view(m).dx1/4;
+          pr(IPX,p) += mbsize.view_device()(m).dx1/4;
         }
         if (multi_d) {
           if (j_parity) {
-            pr(IPY,p) -= mbsize.d_view(m).dx2/4;
+            pr(IPY,p) -= mbsize.view_device()(m).dx2/4;
           } else {
-            pr(IPY,p) += mbsize.d_view(m).dx2/4;
+            pr(IPY,p) += mbsize.view_device()(m).dx2/4;
           }
         }
         if (three_d) {
           if (k_parity) {
-            pr(IPZ,p) -= mbsize.d_view(m).dx3/4;
+            pr(IPZ,p) -= mbsize.view_device()(m).dx3/4;
           } else {
-            pr(IPZ,p) += mbsize.d_view(m).dx3/4;
+            pr(IPZ,p) += mbsize.view_device()(m).dx3/4;
           }
         }
 
         if (lastmove == 1) {
           // came from zone to right (dx--)
-          pr(IPX,p) -= mbsize.d_view(m).dx1/2;
+          pr(IPX,p) -= mbsize.view_device()(m).dx1/2;
         } else if (lastmove == 2) {
           // came from zone to left (dx++)
-          pr(IPX,p) += mbsize.d_view(m).dx1/2;
+          pr(IPX,p) += mbsize.view_device()(m).dx1/2;
         } else if (lastmove == 3) {
           // came from zone above (dy--)
-          pr(IPY,p) -= mbsize.d_view(m).dx2/2;
+          pr(IPY,p) -= mbsize.view_device()(m).dx2/2;
         } else if (lastmove == 4) {
           // came from zone below (dy++)
-          pr(IPY,p) += mbsize.d_view(m).dx2/2;
+          pr(IPY,p) += mbsize.view_device()(m).dx2/2;
         } else if (lastmove == 5) {
           // came from zone in front (dz--)
-          pr(IPZ,p) -= mbsize.d_view(m).dx3/2;
+          pr(IPZ,p) -= mbsize.view_device()(m).dx3/2;
         } else if (lastmove == 6) {
           // came from zone behind (dz++)
-          pr(IPZ,p) += mbsize.d_view(m).dx3/2;
+          pr(IPZ,p) += mbsize.view_device()(m).dx3/2;
         }
       }
     }

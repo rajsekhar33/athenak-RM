@@ -77,7 +77,7 @@ void BCHelperMHD(MeshBlockPack *ppack, DualArray2D<Real> b_in, DvceFaceFld4D<Rea
     par_for("bfield-bc_x1", DevExeSpace(), 0,(nmb-1),0,(n3-1),0,(n2-1),
     KOKKOS_LAMBDA(int m, int k, int j) {
       // apply physical boundaries to inner_x1
-      switch (mb_bcs.d_view(m,BoundaryFace::inner_x1)) {
+      switch (mb_bcs.view_device()(m,BoundaryFace::inner_x1)) {
         case BoundaryFlag::reflect:
           for (int i=0; i<ng; ++i) {
             b0.x1f(m,k,j,is-i-1) = -b0.x1f(m,k,j,is+i+1);
@@ -100,14 +100,14 @@ void BCHelperMHD(MeshBlockPack *ppack, DualArray2D<Real> b_in, DvceFaceFld4D<Rea
           break;
         case BoundaryFlag::inflow:
           for (int i=0; i<ng; ++i) {
-            b0.x1f(m,k,j,is-i-1) = b_in.d_view(IBX,BoundaryFace::inner_x1);
-            b0.x2f(m,k,j,is-i-1) = b_in.d_view(IBY,BoundaryFace::inner_x1);
+            b0.x1f(m,k,j,is-i-1) = b_in.view_device()(IBX,BoundaryFace::inner_x1);
+            b0.x2f(m,k,j,is-i-1) = b_in.view_device()(IBY,BoundaryFace::inner_x1);
             if (j == n2-1) {
-              b0.x2f(m,k,j+1,is-i-1) = b_in.d_view(IBY,BoundaryFace::inner_x1);
+              b0.x2f(m,k,j+1,is-i-1) = b_in.view_device()(IBY,BoundaryFace::inner_x1);
             }
-            b0.x3f(m,k,j,is-i-1) = b_in.d_view(IBZ,BoundaryFace::inner_x1);
+            b0.x3f(m,k,j,is-i-1) = b_in.view_device()(IBZ,BoundaryFace::inner_x1);
             if (k == n3-1) {
-              b0.x3f(m,k+1,j,is-i-1) = b_in.d_view(IBZ,BoundaryFace::inner_x1);
+              b0.x3f(m,k+1,j,is-i-1) = b_in.view_device()(IBZ,BoundaryFace::inner_x1);
             }
           }
           break;
@@ -116,7 +116,7 @@ void BCHelperMHD(MeshBlockPack *ppack, DualArray2D<Real> b_in, DvceFaceFld4D<Rea
       }
 
       // apply physical boundaries to outer_x1
-      switch (mb_bcs.d_view(m,BoundaryFace::outer_x1)) {
+      switch (mb_bcs.view_device()(m,BoundaryFace::outer_x1)) {
         case BoundaryFlag::reflect:
           for (int i=0; i<ng; ++i) {
             b0.x1f(m,k,j,ie+i+2) = -b0.x1f(m,k,j,ie-i);
@@ -139,14 +139,14 @@ void BCHelperMHD(MeshBlockPack *ppack, DualArray2D<Real> b_in, DvceFaceFld4D<Rea
           break;
         case BoundaryFlag::inflow:
           for (int i=0; i<ng; ++i) {
-            b0.x1f(m,k,j,ie+i+2) = b_in.d_view(IBX,BoundaryFace::outer_x1);
-            b0.x2f(m,k,j,ie+i+1) = b_in.d_view(IBY,BoundaryFace::outer_x1);
+            b0.x1f(m,k,j,ie+i+2) = b_in.view_device()(IBX,BoundaryFace::outer_x1);
+            b0.x2f(m,k,j,ie+i+1) = b_in.view_device()(IBY,BoundaryFace::outer_x1);
             if (j == n2-1) {
-              b0.x2f(m,k,j+1,ie+i+1) = b_in.d_view(IBY,BoundaryFace::outer_x1);
+              b0.x2f(m,k,j+1,ie+i+1) = b_in.view_device()(IBY,BoundaryFace::outer_x1);
             }
-            b0.x3f(m,k,j,ie+i+1) = b_in.d_view(IBZ,BoundaryFace::outer_x1);
+            b0.x3f(m,k,j,ie+i+1) = b_in.view_device()(IBZ,BoundaryFace::outer_x1);
             if (k == n3-1) {
-              b0.x3f(m,k+1,j,ie+i+1) = b_in.d_view(IBZ,BoundaryFace::outer_x1);
+              b0.x3f(m,k+1,j,ie+i+1) = b_in.view_device()(IBZ,BoundaryFace::outer_x1);
             }
           }
           break;
@@ -162,7 +162,7 @@ void BCHelperMHD(MeshBlockPack *ppack, DualArray2D<Real> b_in, DvceFaceFld4D<Rea
     par_for("bfield-bc_x2", DevExeSpace(), 0,(nmb-1),0,(n3-1),0,(n1-1),
     KOKKOS_LAMBDA(int m, int k, int i) {
       // apply physical boundaries to inner_x2
-      switch (mb_bcs.d_view(m,BoundaryFace::inner_x2)) {
+      switch (mb_bcs.view_device()(m,BoundaryFace::inner_x2)) {
         case BoundaryFlag::reflect:
           for (int j=0; j<ng; ++j) {
             b0.x1f(m,k,js-j-1,i) =  b0.x1f(m,k,js+j,i);
@@ -185,14 +185,14 @@ void BCHelperMHD(MeshBlockPack *ppack, DualArray2D<Real> b_in, DvceFaceFld4D<Rea
           break;
         case BoundaryFlag::inflow:
           for (int j=0; j<ng; ++j) {
-            b0.x1f(m,k,js-j-1,i) = b_in.d_view(IBX,BoundaryFace::inner_x2);
+            b0.x1f(m,k,js-j-1,i) = b_in.view_device()(IBX,BoundaryFace::inner_x2);
             if (i == n1-1) {
-              b0.x1f(m,k,js-j-1,i+1) = b_in.d_view(IBX,BoundaryFace::inner_x2);
+              b0.x1f(m,k,js-j-1,i+1) = b_in.view_device()(IBX,BoundaryFace::inner_x2);
             }
-            b0.x2f(m,k,js-j-1,i) = b_in.d_view(IBY,BoundaryFace::inner_x2);
-            b0.x3f(m,k,js-j-1,i) = b_in.d_view(IBZ,BoundaryFace::inner_x2);
+            b0.x2f(m,k,js-j-1,i) = b_in.view_device()(IBY,BoundaryFace::inner_x2);
+            b0.x3f(m,k,js-j-1,i) = b_in.view_device()(IBZ,BoundaryFace::inner_x2);
             if (k == n3-1) {
-              b0.x3f(m,k+1,js-j-1,i) = b_in.d_view(IBZ,BoundaryFace::inner_x2);
+              b0.x3f(m,k+1,js-j-1,i) = b_in.view_device()(IBZ,BoundaryFace::inner_x2);
             }
           }
           break;
@@ -201,7 +201,7 @@ void BCHelperMHD(MeshBlockPack *ppack, DualArray2D<Real> b_in, DvceFaceFld4D<Rea
       }
 
       // apply physical boundaries to outer_x2
-      switch (mb_bcs.d_view(m,BoundaryFace::outer_x2)) {
+      switch (mb_bcs.view_device()(m,BoundaryFace::outer_x2)) {
         case BoundaryFlag::reflect:
           for (int j=0; j<ng; ++j) {
             b0.x1f(m,k,je+j+1,i) =  b0.x1f(m,k,je-j,i);
@@ -224,14 +224,14 @@ void BCHelperMHD(MeshBlockPack *ppack, DualArray2D<Real> b_in, DvceFaceFld4D<Rea
           break;
         case BoundaryFlag::inflow:
           for (int j=0; j<ng; ++j) {
-            b0.x1f(m,k,je+j+1,i) = b_in.d_view(IBX,BoundaryFace::outer_x2);
+            b0.x1f(m,k,je+j+1,i) = b_in.view_device()(IBX,BoundaryFace::outer_x2);
             if (i == n1-1) {
-              b0.x1f(m,k,je+j+1,i+1) = b_in.d_view(IBX,BoundaryFace::outer_x2);
+              b0.x1f(m,k,je+j+1,i+1) = b_in.view_device()(IBX,BoundaryFace::outer_x2);
             }
-            b0.x2f(m,k,je+j+2,i) = b_in.d_view(IBY,BoundaryFace::outer_x2);
-            b0.x3f(m,k,je+j+1,i) = b_in.d_view(IBZ,BoundaryFace::outer_x2);
+            b0.x2f(m,k,je+j+2,i) = b_in.view_device()(IBY,BoundaryFace::outer_x2);
+            b0.x3f(m,k,je+j+1,i) = b_in.view_device()(IBZ,BoundaryFace::outer_x2);
             if (k == n3-1) {
-              b0.x3f(m,k+1,je+j+1,i) = b_in.d_view(IBZ,BoundaryFace::outer_x2);
+              b0.x3f(m,k+1,je+j+1,i) = b_in.view_device()(IBZ,BoundaryFace::outer_x2);
             }
           }
           break;
@@ -247,7 +247,7 @@ void BCHelperMHD(MeshBlockPack *ppack, DualArray2D<Real> b_in, DvceFaceFld4D<Rea
   par_for("bfield-bc_x3", DevExeSpace(), 0,(nmb-1),0,(n2-1),0,(n1-1),
   KOKKOS_LAMBDA(int m, int j, int i) {
     // apply physical boundaries to inner_x3
-    switch (mb_bcs.d_view(m,BoundaryFace::inner_x3)) {
+    switch (mb_bcs.view_device()(m,BoundaryFace::inner_x3)) {
       case BoundaryFlag::reflect:
         for (int k=0; k<ng; ++k) {
           b0.x1f(m,ks-k-1,j,i) =  b0.x1f(m,ks+k,j,i);
@@ -270,15 +270,15 @@ void BCHelperMHD(MeshBlockPack *ppack, DualArray2D<Real> b_in, DvceFaceFld4D<Rea
         break;
       case BoundaryFlag::inflow:
         for (int k=0; k<ng; ++k) {
-          b0.x1f(m,ks-k-1,j,i) = b_in.d_view(IBX,BoundaryFace::inner_x3);
+          b0.x1f(m,ks-k-1,j,i) = b_in.view_device()(IBX,BoundaryFace::inner_x3);
           if (i == n1-1) {
-            b0.x1f(m,ks-k-1,j,i+1) = b_in.d_view(IBX,BoundaryFace::inner_x3);
+            b0.x1f(m,ks-k-1,j,i+1) = b_in.view_device()(IBX,BoundaryFace::inner_x3);
           }
-          b0.x2f(m,ks-k-1,j,i) = b_in.d_view(IBY,BoundaryFace::inner_x3);
+          b0.x2f(m,ks-k-1,j,i) = b_in.view_device()(IBY,BoundaryFace::inner_x3);
           if (j == n2-1) {
-            b0.x2f(m,ks-k-1,j+1,i) = b_in.d_view(IBY,BoundaryFace::inner_x3);
+            b0.x2f(m,ks-k-1,j+1,i) = b_in.view_device()(IBY,BoundaryFace::inner_x3);
           }
-          b0.x3f(m,ks-k-1,j,i) = b_in.d_view(IBZ,BoundaryFace::inner_x3);
+          b0.x3f(m,ks-k-1,j,i) = b_in.view_device()(IBZ,BoundaryFace::inner_x3);
         }
         break;
       default:
@@ -286,7 +286,7 @@ void BCHelperMHD(MeshBlockPack *ppack, DualArray2D<Real> b_in, DvceFaceFld4D<Rea
     }
 
     // apply physical boundaries to outer_x3
-    switch (mb_bcs.d_view(m,BoundaryFace::outer_x3)) {
+    switch (mb_bcs.view_device()(m,BoundaryFace::outer_x3)) {
       case BoundaryFlag::reflect:
         for (int k=0; k<ng; ++k) {
           b0.x1f(m,ke+k+1,j,i) =  b0.x1f(m,ke-k,j,i);
@@ -309,15 +309,15 @@ void BCHelperMHD(MeshBlockPack *ppack, DualArray2D<Real> b_in, DvceFaceFld4D<Rea
         break;
       case BoundaryFlag::inflow:
         for (int k=0; k<ng; ++k) {
-          b0.x1f(m,ke+k+1,j,i) = b_in.d_view(IBX,BoundaryFace::outer_x3);
+          b0.x1f(m,ke+k+1,j,i) = b_in.view_device()(IBX,BoundaryFace::outer_x3);
           if (i == n1-1) {
-            b0.x1f(m,ke+k+1,j,i+1) = b_in.d_view(IBX,BoundaryFace::outer_x3);
+            b0.x1f(m,ke+k+1,j,i+1) = b_in.view_device()(IBX,BoundaryFace::outer_x3);
           }
-          b0.x2f(m,ke+k+1,j,i) = b_in.d_view(IBY,BoundaryFace::outer_x3);
+          b0.x2f(m,ke+k+1,j,i) = b_in.view_device()(IBY,BoundaryFace::outer_x3);
           if (j == n2-1) {
-            b0.x2f(m,ke+k+1,j+1,i) = b_in.d_view(IBY,BoundaryFace::outer_x3);
+            b0.x2f(m,ke+k+1,j+1,i) = b_in.view_device()(IBY,BoundaryFace::outer_x3);
           }
-          b0.x3f(m,ke+k+2,j,i) = b_in.d_view(IBZ,BoundaryFace::outer_x3);
+          b0.x3f(m,ke+k+2,j,i) = b_in.view_device()(IBZ,BoundaryFace::outer_x3);
         }
         break;
       default:

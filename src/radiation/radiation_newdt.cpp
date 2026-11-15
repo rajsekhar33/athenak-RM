@@ -73,14 +73,14 @@ TaskStatus Radiation::NewTimeStep(Driver *pdriver, int stage) {
     if (angular_fluxes_) {
       for (int n=0; n<=nang1; ++n) {
         // find position at angle center
-        Real x = nh_c_.d_view(n,1);
-        Real y = nh_c_.d_view(n,2);
-        Real z = nh_c_.d_view(n,3);
-        for (int nb=0; nb<numn.d_view(n); ++nb) {
+        Real x = nh_c_.view_device()(n,1);
+        Real y = nh_c_.view_device()(n,2);
+        Real z = nh_c_.view_device()(n,3);
+        for (int nb=0; nb<numn.view_device()(n); ++nb) {
           // find position at neighbor's angle center
-          Real xn = nh_c_.d_view(indn.d_view(n,nb),1);
-          Real yn = nh_c_.d_view(indn.d_view(n,nb),2);
-          Real zn = nh_c_.d_view(indn.d_view(n,nb),3);
+          Real xn = nh_c_.view_device()(indn.view_device()(n,nb),1);
+          Real yn = nh_c_.view_device()(indn.view_device()(n,nb),2);
+          Real zn = nh_c_.view_device()(indn.view_device()(n,nb),3);
           // compute timestep limitation
           Real n0 = tet_c_(m,0,0,k,j,i);
           Real adt = fmin(tmp_min_dta,(acos(x*xn+y*yn+z*zn)/fabs(na_(m,n,k,j,i,nb)/n0)));
@@ -93,9 +93,9 @@ TaskStatus Radiation::NewTimeStep(Driver *pdriver, int stage) {
         }
       }
     }
-    min_dt1 = fmin((size.d_view(m).dx1), min_dt1);
-    min_dt2 = fmin((size.d_view(m).dx2), min_dt2);
-    min_dt3 = fmin((size.d_view(m).dx3), min_dt3);
+    min_dt1 = fmin((size.view_device()(m).dx1), min_dt1);
+    min_dt2 = fmin((size.view_device()(m).dx2), min_dt2);
+    min_dt3 = fmin((size.view_device()(m).dx3), min_dt3);
     min_dta = fmin((tmp_min_dta),        min_dta);
   }, Kokkos::Min<Real>(dt1),  Kokkos::Min<Real>(dt2), Kokkos::Min<Real>(dt3),
      Kokkos::Min<Real>(dta));

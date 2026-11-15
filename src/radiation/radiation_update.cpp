@@ -62,12 +62,12 @@ TaskStatus Radiation::RKUpdate(Driver *pdriver, int stage) {
   par_for("r_update",DevExeSpace(),0,nmb1,0,nang1,ks,ke,js,je,is,ie,
   KOKKOS_LAMBDA(int m, int n, int k, int j, int i) {
     // spatial fluxes
-    Real divf_s = (flx1(m,n,k,j,i+1) - flx1(m,n,k,j,i))/mbsize.d_view(m).dx1;
+    Real divf_s = (flx1(m,n,k,j,i+1) - flx1(m,n,k,j,i))/mbsize.view_device()(m).dx1;
     if (multi_d) {
-      divf_s += (flx2(m,n,k,j+1,i) - flx2(m,n,k,j,i))/mbsize.d_view(m).dx2;
+      divf_s += (flx2(m,n,k,j+1,i) - flx2(m,n,k,j,i))/mbsize.view_device()(m).dx2;
     }
     if (three_d) {
-      divf_s += (flx3(m,n,k+1,j,i) - flx3(m,n,k,j,i))/mbsize.d_view(m).dx3;
+      divf_s += (flx3(m,n,k+1,j,i) - flx3(m,n,k,j,i))/mbsize.view_device()(m).dx3;
     }
     i0_(m,n,k,j,i) = gam0*i0_(m,n,k,j,i)+gam1*i1_(m,n,k,j,i)-beta_dt*divf_s;
 
@@ -76,8 +76,10 @@ TaskStatus Radiation::RKUpdate(Driver *pdriver, int stage) {
 
     // zero intensity if negative
     Real n0  = tt(m,0,0,k,j,i);
-    Real n_0 = tc(m,0,0,k,j,i)*nh_c_.d_view(n,0) + tc(m,1,0,k,j,i)*nh_c_.d_view(n,1) +
-               tc(m,2,0,k,j,i)*nh_c_.d_view(n,2) + tc(m,3,0,k,j,i)*nh_c_.d_view(n,3);
+    Real n_0 = tc(m,0,0,k,j,i)*nh_c_.view_device()(n,0) + tc(m,1,0,k,j,i)
+        *nh_c_.view_device()(n,1) +
+               tc(m,2,0,k,j,i)*nh_c_.view_device()(n,2) + tc(m,3,0,k,j,i)
+                   *nh_c_.view_device()(n,3);
     i0_(m,n,k,j,i) = n0*n_0*fmax((i0_(m,n,k,j,i)/(n0*n_0)), 0.0);
 
     // handle excision

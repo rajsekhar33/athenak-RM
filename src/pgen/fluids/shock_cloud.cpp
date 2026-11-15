@@ -57,9 +57,9 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
   // set inflow state in BoundaryValues, sync to device
   auto &u_in = pmbp->phydro->pbval_u->u_in;
-  u_in.h_view(IDN,BoundaryFace::inner_x1) = dl;
-  u_in.h_view(IM1,BoundaryFace::inner_x1) = dl*ul;
-  u_in.h_view(IEN,BoundaryFace::inner_x1) = pl/gm1 + 0.5*dl*(ul*ul);
+  u_in.view_host()(IDN,BoundaryFace::inner_x1) = dl;
+  u_in.view_host()(IM1,BoundaryFace::inner_x1) = dl*ul;
+  u_in.view_host()(IEN,BoundaryFace::inner_x1) = pl/gm1 + 0.5*dl*(ul*ul);
   u_in.template modify<HostMemSpace>();
   u_in.template sync<DevExeSpace>();
 
@@ -75,18 +75,18 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     auto &u0 = pmbp->phydro->u0;
     par_for("pgen_cloud1", DevExeSpace(),0,(pmbp->nmb_thispack-1),ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m,int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       int nx1 = indcs.nx1;
       Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
 
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
       int nx2 = indcs.nx2;
       Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
 
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       int nx3 = indcs.nx3;
       Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
 

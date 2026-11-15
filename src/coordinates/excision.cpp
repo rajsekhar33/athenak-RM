@@ -52,12 +52,12 @@ void Coordinates::SetExcisionMasks(DvceArray4D<bool> &excision_floor,
     // NOTE(@pdmullen): In some instances, calls to x? will access coordinate information
     // for which there is *no corresponding logical counterpart*, however, the
     // LeftEdgeX/CellCenterX functions can handle "out-of-range" queries.
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
 
     Real x1v   = CellCenterX(i  -is, indcs.nx1, x1min, x1max);
     Real x1vm1 = CellCenterX(i-1-is, indcs.nx1, x1min, x1max);
@@ -207,11 +207,14 @@ void Coordinates::UpdateExcisionMasks() {
 
     // fill horizon arrays on host
     for (int h = 0; h < hsize; ++h) {
-      hcenter.h_view(h,0) = pmy_pack->pz4c->pfastflow[h]->center[0]; // center x-coord.
-      hcenter.h_view(h,1) = pmy_pack->pz4c->pfastflow[h]->center[1]; // center y-coord.
-      hcenter.h_view(h,2) = pmy_pack->pz4c->pfastflow[h]->center[2]; // center z-coord.
-      hradius.h_view(h,0) = pmy_pack->pz4c->pfastflow[h]->rr_min; // minimum radius
-      hfound.h_view(h,0) = pmy_pack->pz4c->pfastflow[h]->ah_found; // found/not found
+      hcenter.view_host()(h,0) = pmy_pack->pz4c->pfastflow[h]->center[0];
+      // center x-coord.
+      hcenter.view_host()(h,1) = pmy_pack->pz4c->pfastflow[h]->center[1];
+      // center y-coord.
+      hcenter.view_host()(h,2) = pmy_pack->pz4c->pfastflow[h]->center[2];
+      // center z-coord.
+      hradius.view_host()(h,0) = pmy_pack->pz4c->pfastflow[h]->rr_min; // minimum radius
+      hfound.view_host()(h,0) = pmy_pack->pz4c->pfastflow[h]->ah_found; // found/not found
     }
 
     // sync to device
@@ -225,12 +228,12 @@ void Coordinates::UpdateExcisionMasks() {
     par_for("set_excision_horizon", DevExeSpace(),0,nmb1,0,(n3-1),0,(n2-1),0,(n1-1),
     KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
       // Set MB specifics
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
 
       Real x1 = CellCenterX(i - is, indcs.nx1, x1min, x1max);
       Real x2 = CellCenterX(j - js, indcs.nx2, x2min, x2max);
@@ -238,13 +241,13 @@ void Coordinates::UpdateExcisionMasks() {
 
       bool excise = false;
       for (int h = 0; h < hsize; ++h) {
-        if (!hfound.d_view(h,0)) continue;
+        if (!hfound.view_device()(h,0)) continue;
 
-        const Real r2 = SQR(x1 - hcenter.d_view(h,0)) +
-                        SQR(x2 - hcenter.d_view(h,1)) +
-                        SQR(x3 - hcenter.d_view(h,2));
+        const Real r2 = SQR(x1 - hcenter.view_device()(h,0)) +
+                        SQR(x2 - hcenter.view_device()(h,1)) +
+                        SQR(x3 - hcenter.view_device()(h,2));
 
-        if (r2 < SQR(hradius.d_view(h,0) * horizon_factor)) {
+        if (r2 < SQR(hradius.view_device()(h,0) * horizon_factor)) {
           excise = true;
           break;
         }

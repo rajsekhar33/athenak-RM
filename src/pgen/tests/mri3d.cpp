@@ -133,13 +133,13 @@ void ProblemGenerator::MRI3d(ParameterInput *pin, const bool restart) {
   auto b0 = pmbp->pmhd->b0;
   par_for("mri3d", DevExeSpace(), 0,(pmbp->nmb_thispack-1),ks,ke,js,je,is,ie,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     int nx1 = indcs.nx1;
     Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     int nx3 = indcs.nx3;
     Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
 
@@ -186,8 +186,8 @@ void ProblemGenerator::MRI3d(ParameterInput *pin, const bool restart) {
     auto rand_gen = rand_pool64.get_state();  // get random number state this thread
     Real rval;
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     int nx3 = indcs.nx3;
     Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
 
@@ -287,7 +287,8 @@ void MRIHistory(HistoryData *pdata, Mesh *pm) {
     k += ks;
     j += js;
 
-    Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+    Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2
+        *size.view_device()(m).dx3;
 
     // MHD conserved variables:
     array_sum::GlobalSum hvars;
@@ -362,9 +363,9 @@ void StratifiedVerticalBCs(Mesh *pm) {
   par_for("stratbc_u", DevExeSpace(), 0,(nmb-1),0,(n2-1),0,(n1-1),
   KOKKOS_LAMBDA(int m, int j, int i) {
     // only set boundaries for MBs at edge of domain
-    if (mb_bcs.d_view(m,BoundaryFace::inner_x3) == BoundaryFlag::user) {
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+    if (mb_bcs.view_device()(m,BoundaryFace::inner_x3) == BoundaryFlag::user) {
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       int nx3 = indcs.nx3;
       Real x3ks = CellCenterX(0, nx3, x3min, x3max);
 
@@ -387,9 +388,9 @@ void StratifiedVerticalBCs(Mesh *pm) {
       }
     }
 
-    if (mb_bcs.d_view(m,BoundaryFace::outer_x3) == BoundaryFlag::user) {
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+    if (mb_bcs.view_device()(m,BoundaryFace::outer_x3) == BoundaryFlag::user) {
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       int nx3 = indcs.nx3;
       Real x3ke = CellCenterX(ke-ks, nx3, x3min, x3max);
 
@@ -417,7 +418,7 @@ void StratifiedVerticalBCs(Mesh *pm) {
   par_for("stratbc_b", DevExeSpace(), 0,(nmb-1),0,(n2-1),0,(n1-1),
   KOKKOS_LAMBDA(int m, int j, int i) {
     // only set boundaries for MBs at edge of domain
-    if (mb_bcs.d_view(m,BoundaryFace::inner_x3) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::inner_x3) == BoundaryFlag::user) {
       // apply boundaries to inner_x3
       for (int k=0; k<ng; ++k) {
         b0.x1f(m,ks-k-1,j,i) = b0.x1f(m,ks,j,i);
@@ -428,7 +429,7 @@ void StratifiedVerticalBCs(Mesh *pm) {
       }
     }
 
-    if (mb_bcs.d_view(m,BoundaryFace::outer_x3) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::outer_x3) == BoundaryFlag::user) {
       // apply boundaries to outer_x3
       for (int k=0; k<ng; ++k) {
         b0.x1f(m,ke+k+1,j,i) = b0.x1f(m,ke,j,i);

@@ -40,16 +40,16 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   auto &u_in = pmbp->phydro->pbval_u->u_in;
   auto &i_in = pmbp->prad->pbval_i->i_in;
   int nang1 = (pmbp->prad->prgeo->nangles-1);
-  u_in.h_view(IDN,BoundaryFace::inner_x1) = 1.0;
-  u_in.h_view(IM1,BoundaryFace::inner_x1) = 0.0;
-  u_in.h_view(IM2,BoundaryFace::inner_x1) = 0.0;
-  u_in.h_view(IM3,BoundaryFace::inner_x1) = 0.0;
-  u_in.h_view(IEN,BoundaryFace::inner_x1) = -1.0;
+  u_in.view_host()(IDN,BoundaryFace::inner_x1) = 1.0;
+  u_in.view_host()(IM1,BoundaryFace::inner_x1) = 0.0;
+  u_in.view_host()(IM2,BoundaryFace::inner_x1) = 0.0;
+  u_in.view_host()(IM3,BoundaryFace::inner_x1) = 0.0;
+  u_in.view_host()(IEN,BoundaryFace::inner_x1) = -1.0;
   for (int n=0; n<=nang1; ++n) {
     if (n==2 || n==5) {
-      i_in.h_view(n,BoundaryFace::inner_x1) = -100.0;
+      i_in.view_host()(n,BoundaryFace::inner_x1) = -100.0;
     } else {
-      i_in.h_view(n,BoundaryFace::inner_x1) = 0.0;
+      i_in.view_host()(n,BoundaryFace::inner_x1) = 0.0;
     }
   }
   u_in.template modify<HostMemSpace>();
@@ -92,13 +92,13 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   auto &w0 = pmbp->phydro->w0;
   par_for("pgen_shadow1",DevExeSpace(),0,nmb1,0,(n3-1),0,(n2-1),0,(n1-1),
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     int nx1 = indcs.nx1;
     Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     int nx2 = indcs.nx2;
     Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
 

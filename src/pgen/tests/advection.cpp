@@ -30,11 +30,11 @@ void ParticleAMRRefinement(MeshBlockPack *pack) {
   const bool refine = mesh->ncycle > 0 &&
       ((mesh->ncycle-1)/particle_amr_period)%2 == 0;
   for (int m=0; m<pack->nmb_thispack; ++m) {
-    const auto &sz = pack->pmb->mb_size.h_view(m);
+    const auto &sz = pack->pmb->mb_size.view_host()(m);
     const bool region = sz.x1min < 0.5*(mesh->mesh_size.x1min+mesh->mesh_size.x1max) &&
                        sz.x2min < 0.5*(mesh->mesh_size.x2min+mesh->mesh_size.x2max) &&
         (!mesh->three_d || sz.x3min < 0.5*(mesh->mesh_size.x3min+mesh->mesh_size.x3max));
-    flag.h_view(pack->gids+m) = refine && region ? 1 : -1;
+    flag.view_host()(pack->gids+m) = refine && region ? 1 : -1;
   }
   flag.template modify<HostMemSpace>();
   flag.template sync<DevExeSpace>();
@@ -111,18 +111,18 @@ void ProblemGenerator::Advection(ParameterInput *pin, const bool restart) {
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
       Real r; // coordinate that will span [0->1]
       if (flow_dir == 1) {
-        Real &x1min = size.d_view(m).x1min;
-        Real &x1max = size.d_view(m).x1max;
+        Real &x1min = size.view_device()(m).x1min;
+        Real &x1max = size.view_device()(m).x1max;
         int nx1 = indcs.nx1;
         r = (CellCenterX(i-is, nx1, x1min, x1max) - x1mesh)/length;
       } else if (flow_dir == 2) {
-        Real &x2min = size.d_view(m).x2min;
-        Real &x2max = size.d_view(m).x2max;
+        Real &x2min = size.view_device()(m).x2min;
+        Real &x2max = size.view_device()(m).x2max;
         int nx2 = indcs.nx2;
         r = (CellCenterX(j-js, nx2, x2min, x2max) - x2mesh)/length;
       } else {
-        Real &x3min = size.d_view(m).x3min;
-        Real &x3max = size.d_view(m).x3max;
+        Real &x3min = size.view_device()(m).x3min;
+        Real &x3max = size.view_device()(m).x3max;
         int nx3 = indcs.nx3;
         r = (CellCenterX(k-ks, nx3, x3min, x3max) - x3mesh)/length;
       }
@@ -188,18 +188,18 @@ void ProblemGenerator::Advection(ParameterInput *pin, const bool restart) {
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
       Real r; // coordinate that will span [0->1]
       if (flow_dir == 1) {
-        Real &x1min = size.d_view(m).x1min;
-        Real &x1max = size.d_view(m).x1max;
+        Real &x1min = size.view_device()(m).x1min;
+        Real &x1max = size.view_device()(m).x1max;
         int nx1 = indcs.nx1;
         r = (CellCenterX(i-is, nx1, x1min, x1max) - x1mesh)/length;
       } else if (flow_dir == 2) {
-        Real &x2min = size.d_view(m).x2min;
-        Real &x2max = size.d_view(m).x2max;
+        Real &x2min = size.view_device()(m).x2min;
+        Real &x2max = size.view_device()(m).x2max;
         int nx2 = indcs.nx2;
         r = (CellCenterX(j-js, nx2, x2min, x2max) - x2mesh)/length;
       } else {
-        Real &x3min = size.d_view(m).x3min;
-        Real &x3max = size.d_view(m).x3max;
+        Real &x3min = size.view_device()(m).x3min;
+        Real &x3max = size.view_device()(m).x3max;
         int nx3 = indcs.nx3;
         r = (CellCenterX(k-ks, nx3, x3min, x3max) - x3mesh)/length;
       }

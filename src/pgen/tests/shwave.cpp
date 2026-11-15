@@ -120,12 +120,12 @@ void ProblemGenerator::Shwave(ParameterInput *pin, const bool restart) {
       auto sv = shw_var;
       par_for("shwave2", DevExeSpace(), 0,(pmbp->nmb_thispack-1),ks,ke,js,je,is,ie,
       KOKKOS_LAMBDA(int m, int k, int j, int i) {
-        Real &x1min = size.d_view(m).x1min;
-        Real &x1max = size.d_view(m).x1max;
+        Real &x1min = size.view_device()(m).x1min;
+        Real &x1max = size.view_device()(m).x1max;
         Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-        Real &x2min = size.d_view(m).x2min;
-        Real &x2max = size.d_view(m).x2max;
+        Real &x2min = size.view_device()(m).x2min;
+        Real &x2max = size.view_device()(m).x2max;
         Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
         Real rvx = amp*sin(sv.kx*x1v + sv.ky*x2v);
@@ -146,12 +146,12 @@ void ProblemGenerator::Shwave(ParameterInput *pin, const bool restart) {
       auto sv = shw_var;
       par_for("shwave3", DevExeSpace(), 0,(pmbp->nmb_thispack-1),ks,ke,js,je,is,ie,
       KOKKOS_LAMBDA(int m, int k, int j, int i) {
-        Real &x1min = size.d_view(m).x1min;
-        Real &x1max = size.d_view(m).x1max;
+        Real &x1min = size.view_device()(m).x1min;
+        Real &x1max = size.view_device()(m).x1max;
         Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-        Real &x2min = size.d_view(m).x2min;
-        Real &x2max = size.d_view(m).x2max;
+        Real &x2min = size.view_device()(m).x2min;
+        Real &x2max = size.view_device()(m).x2max;
         Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
         Real rvx = amp*cos(sv.kx*x1v + sv.ky*x2v);
@@ -207,18 +207,18 @@ void ProblemGenerator::Shwave(ParameterInput *pin, const bool restart) {
 
     par_for("shwave4", DevExeSpace(), 0,(pmbp->nmb_thispack-1),ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       int nx1 = indcs.nx1;
       Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
 
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
       int nx2 = indcs.nx2;
       Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
 
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       int nx3 = indcs.nx3;
       Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
 
@@ -244,16 +244,16 @@ void ProblemGenerator::Shwave(ParameterInput *pin, const bool restart) {
 
     par_for("shwave3_a1", DevExeSpace(), 0,(pmbp->nmb_thispack-1),ks,ke+1,js,je+1,is,ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       Real x1v    = CellCenterX(i-is, nx1, x1min, x1max);
 
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
       Real x2f    = LeftEdgeX(j-js, nx2, x2min, x2max);
 
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       Real x3f    = LeftEdgeX(k-ks, nx3, x3min, x3max);
 
       Real temp = cf2/k2*std::sin(sv.kx*x1v+sv.ky*x2f+sv.kz*x3f);
@@ -262,16 +262,16 @@ void ProblemGenerator::Shwave(ParameterInput *pin, const bool restart) {
 
     par_for("shwave3_a2", DevExeSpace(), 0,(pmbp->nmb_thispack-1),ks,ke+1,js,je,is,ie+1,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       Real x1f    = LeftEdgeX(i-is, nx1, x1min, x1max);
 
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
       Real x2v    = CellCenterX(j-js, nx2, x2min, x2max);
 
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       Real x3f    = LeftEdgeX(k-ks, nx3, x3min, x3max);
 
       Real temp = cf2/k2*std::sin(sv.kx*x1f+sv.ky*x2v+sv.kz*x3f);
@@ -280,16 +280,16 @@ void ProblemGenerator::Shwave(ParameterInput *pin, const bool restart) {
 
     par_for("shwave3_a3", DevExeSpace(), 0,(pmbp->nmb_thispack-1),ks,ke,js,je+1,is,ie+1,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       Real x1f    = LeftEdgeX(i-is, nx1, x1min, x1max);
 
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
       Real x2f    = LeftEdgeX(j-js, nx2, x2min, x2max);
 
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       Real x3v    = CellCenterX(k-ks, nx3, x3min, x3max);
 
       Real temp = cf2/k2*std::sin(sv.kx*x1f+sv.ky*x2f+sv.kz*x3v);
@@ -299,8 +299,8 @@ void ProblemGenerator::Shwave(ParameterInput *pin, const bool restart) {
     // Compute face-centered fields from curl(A)
     par_for("shwave3_b1", DevExeSpace(), 0,(pmbp->nmb_thispack-1),ks,ke,js,je,is,ie+1,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real dx2 = size.d_view(m).dx2;
-      Real dx3 = size.d_view(m).dx3;
+      Real dx2 = size.view_device()(m).dx2;
+      Real dx3 = size.view_device()(m).dx3;
 
       b0.x1f(m,k,j,i) = rbx
                         +(a3(m,k,j+1,i) - a3(m,k,j,i))/dx2
@@ -308,8 +308,8 @@ void ProblemGenerator::Shwave(ParameterInput *pin, const bool restart) {
     });
     par_for("shwave3_b2", DevExeSpace(), 0,(pmbp->nmb_thispack-1),ks,ke,js,je+1,is,ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real dx1 = size.d_view(m).dx1;
-      Real dx3 = size.d_view(m).dx3;
+      Real dx1 = size.view_device()(m).dx1;
+      Real dx3 = size.view_device()(m).dx3;
 
       b0.x2f(m,k,j,i) = rby
                         +(a1(m,k+1,j,i) - a1(m,k,j,i))/dx3
@@ -317,8 +317,8 @@ void ProblemGenerator::Shwave(ParameterInput *pin, const bool restart) {
     });
     par_for("shwave3_b3", DevExeSpace(), 0,(pmbp->nmb_thispack-1),ks,ke+1,js,je,is,ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real dx1 = size.d_view(m).dx1;
-      Real dx2 = size.d_view(m).dx2;
+      Real dx1 = size.view_device()(m).dx1;
+      Real dx2 = size.view_device()(m).dx2;
 
       b0.x3f(m,k,j,i) = rbz
                         +(a2(m,k,j,i+1) - a2(m,k,j,i))/dx1
@@ -385,22 +385,23 @@ void ShwaveHistory(HistoryData *pdata, Mesh *pm) {
     k += ks;
     j += js;
 
-    Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+    Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2
+        *size.view_device()(m).dx3;
 
     // summed variables:
     array_sum::GlobalSum hvars;
 
     // calculate dVyc
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
     if (is_mhd) {

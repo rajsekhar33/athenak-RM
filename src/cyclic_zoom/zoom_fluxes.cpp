@@ -128,9 +128,12 @@ void ZoomData::CorrectEFieldsFromFiner(int zm, int m, int zmf, DvceEdgeFld4D<Rea
   // update coarse electric fields
   par_for("zoom_finer_efld1",DevExeSpace(), ccks, ccke+1, ccjs, ccje+1, ccis, ccie,
   KOKKOS_LAMBDA(const int ck, const int cj, const int ci) {
-    Real x1v = CellCenterX(ci-cis, cnx1, size.d_view(m).x1min, size.d_view(m).x1max);
-    Real x2f = LeftEdgeX  (cj-cjs, cnx2, size.d_view(m).x2min, size.d_view(m).x2max);
-    Real x3f = LeftEdgeX  (ck-cks, cnx3, size.d_view(m).x3min, size.d_view(m).x3max);
+    Real x1v = CellCenterX(ci-cis, cnx1, size.view_device()(m).x1min,
+        size.view_device()(m).x1max);
+    Real x2f = LeftEdgeX  (cj-cjs, cnx2, size.view_device()(m).x2min,
+        size.view_device()(m).x2max);
+    Real x3f = LeftEdgeX  (ck-cks, cnx3, size.view_device()(m).x3min,
+        size.view_device()(m).x3max);
     if (zregion.IsInRegion(x1v, x2f, x3f)) {
       int fi = 2*(ci - ccis) + cis;
       int fj = 2*(cj - ccjs) + cjs;
@@ -143,9 +146,12 @@ void ZoomData::CorrectEFieldsFromFiner(int zm, int m, int zmf, DvceEdgeFld4D<Rea
   });
   par_for("zoom_finer_efld2",DevExeSpace(), ccks, ccke+1, ccjs, ccje, ccis, ccie+1,
   KOKKOS_LAMBDA(const int ck, const int cj, const int ci) {
-    Real x1f = LeftEdgeX  (ci-cis, cnx1, size.d_view(m).x1min, size.d_view(m).x1max);
-    Real x2v = CellCenterX(cj-cjs, cnx2, size.d_view(m).x2min, size.d_view(m).x2max);
-    Real x3f = LeftEdgeX  (ck-cks, cnx3, size.d_view(m).x3min, size.d_view(m).x3max);
+    Real x1f = LeftEdgeX  (ci-cis, cnx1, size.view_device()(m).x1min,
+        size.view_device()(m).x1max);
+    Real x2v = CellCenterX(cj-cjs, cnx2, size.view_device()(m).x2min,
+        size.view_device()(m).x2max);
+    Real x3f = LeftEdgeX  (ck-cks, cnx3, size.view_device()(m).x3min,
+        size.view_device()(m).x3max);
     if (zregion.IsInRegion(x1f, x2v, x3f)) {
       int fi = 2*(ci - ccis) + cis;
       int fj = 2*(cj - ccjs) + cjs;
@@ -158,9 +164,12 @@ void ZoomData::CorrectEFieldsFromFiner(int zm, int m, int zmf, DvceEdgeFld4D<Rea
   });
   par_for("zoom_finer_efld3",DevExeSpace(), ccks, ccke, ccjs, ccje+1, ccis, ccie+1,
   KOKKOS_LAMBDA(const int ck, const int cj, const int ci) {
-    Real x1f = LeftEdgeX  (ci-cis, cnx1, size.d_view(m).x1min, size.d_view(m).x1max);
-    Real x2f = LeftEdgeX  (cj-cjs, cnx2, size.d_view(m).x2min, size.d_view(m).x2max);
-    Real x3v = CellCenterX(ck-cks, cnx3, size.d_view(m).x3min, size.d_view(m).x3max);
+    Real x1f = LeftEdgeX  (ci-cis, cnx1, size.view_device()(m).x1min,
+        size.view_device()(m).x1max);
+    Real x2f = LeftEdgeX  (cj-cjs, cnx2, size.view_device()(m).x2min,
+        size.view_device()(m).x2max);
+    Real x3v = CellCenterX(ck-cks, cnx3, size.view_device()(m).x3min,
+        size.view_device()(m).x3max);
     if (zregion.IsInRegion(x1f, x2f, x3v)) {
       int fi = 2*(ci - ccis) + cis;
       int fj = 2*(cj - ccjs) + cjs;

@@ -345,7 +345,7 @@ Real ProlongInterpolation(const int m, const int v, int k, int j, int i,
         int wghti = (offseti) ? NGHOST-ii : ii;
         int wghtj = (offsetj) ? NGHOST-jj : jj;
         int wghtk = (offsetk) ? NGHOST-kk : kk;
-        ivals += weights.d_view(wghtk,wghtj,wghti)*ca(m,v,
+        ivals += weights.view_device()(wghtk,wghtj,wghti)*ca(m,v,
                     k-NGHOST/2+kk,j-NGHOST/2+jj,i-NGHOST/2+ii);
       }
     }

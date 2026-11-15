@@ -6,6 +6,8 @@
 //! \file ideal_mhd.cpp
 //! \brief derived class that implements ideal gas EOS in nonrelativistic mhd
 
+#include <cfloat>
+
 #include "athena.hpp"
 #include "mhd/mhd.hpp"
 #include "eos.hpp"

@@ -92,39 +92,39 @@ class TabulatedEOS {
     test_field(table.HasField("nb"), "nb");
     Real * table_nb = table["nb"];
     for (size_t in = 0; in < m_nn; in++) {
-      //m_log_rho.h_view(in) = log(table_nb[in]*mb*ener_to_geo);
-      m_log_rho.h_view(in) = log(table_nb[in]*mb*
+      //m_log_rho.view_host()(in) = log(table_nb[in]*mb*ener_to_geo);
+      m_log_rho.view_host()(in) = log(table_nb[in]*mb*
                                  unit_nuc.MassDensityConversion(unit_geo));
     }
-    dlrho = m_log_rho.h_view(1)-m_log_rho.h_view(0);
-    lrho_min = m_log_rho.h_view(0);
-    lrho_max = m_log_rho.h_view(m_nn-1);
+    dlrho = m_log_rho.view_host()(1)-m_log_rho.view_host()(0);
+    lrho_min = m_log_rho.view_host()(0);
+    lrho_max = m_log_rho.view_host()(m_nn-1);
 
     // Read pressure
     test_field(table.HasField("Q1"), "Q1");
     Real * table_Q1 = table["Q1"];
     for (size_t in = 0; in < m_nn; in++) {
-      m_log_p.h_view(in) = log(table_Q1[in]*table_nb[in]*
+      m_log_p.view_host()(in) = log(table_Q1[in]*table_nb[in]*
                                 unit_nuc.EnergyDensityConversion(unit_geo));
     }
-    lP_min = m_log_p.h_view(0);
-    lP_max = m_log_p.h_view(m_nn-1);
+    lP_min = m_log_p.view_host()(0);
+    lP_max = m_log_p.view_host()(m_nn-1);
 
     // Read energy
     test_field(table.HasField("Q7"), "Q7");
     Real * table_Q7 = table["Q7"];
     for (size_t in = 0; in < m_nn; in++) {
-      m_log_e.h_view(in) = log(mb*(table_Q7[in] + 1.)*table_nb[in]*
+      m_log_e.view_host()(in) = log(mb*(table_Q7[in] + 1.)*table_nb[in]*
                                     unit_nuc.EnergyDensityConversion(unit_geo));
     }
-    le_min = m_log_e.h_view(0);
-    le_max = m_log_e.h_view(m_nn-1);
+    le_min = m_log_e.view_host()(0);
+    le_max = m_log_e.view_host()(m_nn-1);
 
     // Read electron fraction (optional)
     if (has_ye) {
       Real * table_ye = table["Y[e]"];
       for (size_t in = 0; in < m_nn; in++) {
-        m_ye.h_view(in) = table_ye[in];
+        m_ye.view_host()(in) = table_ye[in];
       }
     }
 
@@ -218,9 +218,9 @@ class TabulatedEOS {
   KOKKOS_INLINE_FUNCTION
   auto& GetView(const DualArray1D<Real>& arr) const {
     if constexpr (loc == LocationTag::Host) {
-      return arr.h_view;
+      return arr.view_host();
     } else {
-      return arr.d_view;
+      return arr.view_device();
     }
   }
 

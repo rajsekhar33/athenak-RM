@@ -157,20 +157,20 @@ TaskStatus Hydro::STSUpdate(Driver *pdrive, int stage) {
     ScrArray1D<Real> divf(member.team_scratch(scr_level), ncells1);
 
     par_for_inner(member, is, ie, [&](const int i) {
-      divf(i) = (flx1(m,n,k,j,i+1) - flx1(m,n,k,j,i))/mbsize.d_view(m).dx1;
+      divf(i) = (flx1(m,n,k,j,i+1) - flx1(m,n,k,j,i))/mbsize.view_device()(m).dx1;
     });
     member.team_barrier();
 
     if (multi_d) {
       par_for_inner(member, is, ie, [&](const int i) {
-        divf(i) += (flx2(m,n,k,j+1,i) - flx2(m,n,k,j,i))/mbsize.d_view(m).dx2;
+        divf(i) += (flx2(m,n,k,j+1,i) - flx2(m,n,k,j,i))/mbsize.view_device()(m).dx2;
       });
       member.team_barrier();
     }
 
     if (three_d) {
       par_for_inner(member, is, ie, [&](const int i) {
-        divf(i) += (flx3(m,n,k+1,j,i) - flx3(m,n,k,j,i))/mbsize.d_view(m).dx3;
+        divf(i) += (flx3(m,n,k+1,j,i) - flx3(m,n,k,j,i))/mbsize.view_device()(m).dx3;
       });
       member.team_barrier();
     }

@@ -333,9 +333,9 @@ TaskStatus MHD::SaveFlux(Driver *pdrive, int stage) {
       // save dF1/dx1
       if (j <= je && k <= ke)  {
         if (stage == 1) {
-          flxidn1(m,k,j,i) = flx1(m,IDN,k,j,i) / mbsize.d_view(m).dx1 * dtfactor;
+          flxidn1(m,k,j,i) = flx1(m,IDN,k,j,i) / mbsize.view_device()(m).dx1 * dtfactor;
         } else {
-          flxidn1(m,k,j,i) += flx1(m,IDN,k,j,i) / mbsize.d_view(m).dx1 * dtfactor;
+          flxidn1(m,k,j,i) += flx1(m,IDN,k,j,i) / mbsize.view_device()(m).dx1 * dtfactor;
         }
       }
 
@@ -348,18 +348,18 @@ TaskStatus MHD::SaveFlux(Driver *pdrive, int stage) {
       // save dF2/dx2
       if (multi_d && i <= ie && k <= ke) {
         if (stage == 1) {
-          flxidn2(m,k,j,i) = flx2(m,IDN,k,j,i) / mbsize.d_view(m).dx2 * dtfactor;
+          flxidn2(m,k,j,i) = flx2(m,IDN,k,j,i) / mbsize.view_device()(m).dx2 * dtfactor;
         } else {
-          flxidn2(m,k,j,i) += flx2(m,IDN,k,j,i) / mbsize.d_view(m).dx2 * dtfactor;
+          flxidn2(m,k,j,i) += flx2(m,IDN,k,j,i) / mbsize.view_device()(m).dx2 * dtfactor;
         }
       }
 
       // save dF3/dx3
       if (three_d && i <= ie && j <= je) {
         if (stage == 1) {
-          flxidn3(m,k,j,i) = flx3(m,IDN,k,j,i) / mbsize.d_view(m).dx3 * dtfactor;
+          flxidn3(m,k,j,i) = flx3(m,IDN,k,j,i) / mbsize.view_device()(m).dx3 * dtfactor;
         } else {
-          flxidn3(m,k,j,i) += flx3(m,IDN,k,j,i) / mbsize.d_view(m).dx3 * dtfactor;
+          flxidn3(m,k,j,i) += flx3(m,IDN,k,j,i) / mbsize.view_device()(m).dx3 * dtfactor;
         }
       }
     });

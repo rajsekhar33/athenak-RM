@@ -70,9 +70,9 @@ void MHD::FOFC(Driver *pdriver, int stage) {
     // Estimate updated conserved variables and cell-centered fields
     par_for("FOFC-newu", DevExeSpace(), 0, nmb-1, kl, ku, jl, ju, il, iu,
     KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
-      Real dtodx1 = beta_dt/size.d_view(m).dx1;
-      Real dtodx2 = beta_dt/size.d_view(m).dx2;
-      Real dtodx3 = beta_dt/size.d_view(m).dx3;
+      Real dtodx1 = beta_dt/size.view_device()(m).dx1;
+      Real dtodx2 = beta_dt/size.view_device()(m).dx2;
+      Real dtodx3 = beta_dt/size.view_device()(m).dx3;
 
       // Estimate conserved variables
       for (int n=0; n<nmhd_; ++n) {
@@ -169,16 +169,16 @@ void MHD::FOFC(Driver *pdriver, int stage) {
         Real bxi = b0_.x1f(m,k,j,i);
         MHDCons1D flux;
         if (is_gr) {
-          Real &x1min = size.d_view(m).x1min;
-          Real &x1max = size.d_view(m).x1max;
+          Real &x1min = size.view_device()(m).x1min;
+          Real &x1max = size.view_device()(m).x1max;
           Real x1v = LeftEdgeX(i-is, nx1, x1min, x1max);
 
-          Real &x2min = size.d_view(m).x2min;
-          Real &x2max = size.d_view(m).x2max;
+          Real &x2min = size.view_device()(m).x2min;
+          Real &x2max = size.view_device()(m).x2max;
           Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
 
-          Real &x3min = size.d_view(m).x3min;
-          Real &x3max = size.d_view(m).x3max;
+          Real &x3min = size.view_device()(m).x3min;
+          Real &x3max = size.view_device()(m).x3max;
           Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
           SingleStateLLF_GRMHD(wim1, wi, bxi, x1v, x2v, x3v, IVX, coord, eos, flux);
         } else if (is_sr) {
@@ -222,16 +222,16 @@ void MHD::FOFC(Driver *pdriver, int stage) {
         Real bxi = b0_.x2f(m,k,j,i);
         MHDCons1D flux;
         if (is_gr) {
-          Real &x1min = size.d_view(m).x1min;
-          Real &x1max = size.d_view(m).x1max;
+          Real &x1min = size.view_device()(m).x1min;
+          Real &x1max = size.view_device()(m).x1max;
           Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
 
-          Real &x2min = size.d_view(m).x2min;
-          Real &x2max = size.d_view(m).x2max;
+          Real &x2min = size.view_device()(m).x2min;
+          Real &x2max = size.view_device()(m).x2max;
           Real x2v = LeftEdgeX(j-js, nx2, x2min, x2max);
 
-          Real &x3min = size.d_view(m).x3min;
-          Real &x3max = size.d_view(m).x3max;
+          Real &x3min = size.view_device()(m).x3min;
+          Real &x3max = size.view_device()(m).x3max;
           Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
           SingleStateLLF_GRMHD(wjm1, wj, bxi, x1v, x2v, x3v, IVY, coord, eos, flux);
         } else if (is_sr) {
@@ -275,16 +275,16 @@ void MHD::FOFC(Driver *pdriver, int stage) {
         Real bxi = b0_.x3f(m,k,j,i);
         MHDCons1D flux;
         if (is_gr) {
-          Real &x1min = size.d_view(m).x1min;
-          Real &x1max = size.d_view(m).x1max;
+          Real &x1min = size.view_device()(m).x1min;
+          Real &x1max = size.view_device()(m).x1max;
           Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
 
-          Real &x2min = size.d_view(m).x2min;
-          Real &x2max = size.d_view(m).x2max;
+          Real &x2min = size.view_device()(m).x2min;
+          Real &x2max = size.view_device()(m).x2max;
           Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
 
-          Real &x3min = size.d_view(m).x3min;
-          Real &x3max = size.d_view(m).x3max;
+          Real &x3min = size.view_device()(m).x3min;
+          Real &x3max = size.view_device()(m).x3max;
           Real x3v = LeftEdgeX(k-ks, nx3, x3min, x3max);
           SingleStateLLF_GRMHD(wkm1, wk, bxi, x1v, x2v, x3v, IVZ, coord, eos, flux);
         } else if (is_sr) {
@@ -346,16 +346,16 @@ void MHD::FOFC(Driver *pdriver, int stage) {
         Real bxi = b0_.x1f(m,k,j,i+1);
         MHDCons1D flux;
         if (is_gr) {
-          Real &x1min = size.d_view(m).x1min;
-          Real &x1max = size.d_view(m).x1max;
+          Real &x1min = size.view_device()(m).x1min;
+          Real &x1max = size.view_device()(m).x1max;
           Real x1v = LeftEdgeX(i+1-is, nx1, x1min, x1max);
 
-          Real &x2min = size.d_view(m).x2min;
-          Real &x2max = size.d_view(m).x2max;
+          Real &x2min = size.view_device()(m).x2min;
+          Real &x2max = size.view_device()(m).x2max;
           Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
 
-          Real &x3min = size.d_view(m).x3min;
-          Real &x3max = size.d_view(m).x3max;
+          Real &x3min = size.view_device()(m).x3min;
+          Real &x3max = size.view_device()(m).x3max;
           Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
           SingleStateLLF_GRMHD(wi, wip1, bxi, x1v, x2v, x3v, IVX, coord, eos, flux);
         } else if (is_sr) {
@@ -399,16 +399,16 @@ void MHD::FOFC(Driver *pdriver, int stage) {
         Real bxi = b0_.x2f(m,k,j+1,i);
         MHDCons1D flux;
         if (is_gr) {
-          Real &x1min = size.d_view(m).x1min;
-          Real &x1max = size.d_view(m).x1max;
+          Real &x1min = size.view_device()(m).x1min;
+          Real &x1max = size.view_device()(m).x1max;
           Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
 
-          Real &x2min = size.d_view(m).x2min;
-          Real &x2max = size.d_view(m).x2max;
+          Real &x2min = size.view_device()(m).x2min;
+          Real &x2max = size.view_device()(m).x2max;
           Real x2v = LeftEdgeX(j+1-js, nx2, x2min, x2max);
 
-          Real &x3min = size.d_view(m).x3min;
-          Real &x3max = size.d_view(m).x3max;
+          Real &x3min = size.view_device()(m).x3min;
+          Real &x3max = size.view_device()(m).x3max;
           Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
           SingleStateLLF_GRMHD(wj, wjp1, bxi, x1v, x2v, x3v, IVY, coord, eos, flux);
         } else if (is_sr) {
@@ -452,16 +452,16 @@ void MHD::FOFC(Driver *pdriver, int stage) {
         Real bxi = b0_.x3f(m,k+1,j,i);
         MHDCons1D flux;
         if (is_gr) {
-          Real &x1min = size.d_view(m).x1min;
-          Real &x1max = size.d_view(m).x1max;
+          Real &x1min = size.view_device()(m).x1min;
+          Real &x1max = size.view_device()(m).x1max;
           Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
 
-          Real &x2min = size.d_view(m).x2min;
-          Real &x2max = size.d_view(m).x2max;
+          Real &x2min = size.view_device()(m).x2min;
+          Real &x2max = size.view_device()(m).x2max;
           Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
 
-          Real &x3min = size.d_view(m).x3min;
-          Real &x3max = size.d_view(m).x3max;
+          Real &x3min = size.view_device()(m).x3min;
+          Real &x3max = size.view_device()(m).x3max;
           Real x3v = LeftEdgeX(k+1-ks, nx3, x3min, x3max);
           SingleStateLLF_GRMHD(wk, wkp1, bxi, x1v, x2v, x3v, IVZ, coord, eos, flux);
         } else if (is_sr) {
