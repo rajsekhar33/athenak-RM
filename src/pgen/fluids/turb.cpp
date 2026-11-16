@@ -115,32 +115,24 @@ void ProblemGenerator::Turbulence(ParameterInput *pin, const bool restart) {
       u0(m,IM2,k,j,i) = 0.0;
       u0(m,IM3,k,j,i) = 0.0;
 
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       int nx1 = indcs.nx1;
       Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
 
-      if (ifield == 1) {
-        // zero-net-flux Bz
-        b0.x1f(m,k,j,i) = 0.0;
-        b0.x2f(m,k,j,i) = 0.0;
-        b0.x3f(m,k,j,i) = B0*std::sin(kx*x1v);
-        if (i==ie) {b0.x1f(m,k,j,i+1) = 0.0;}
-        if (j==je) {b0.x2f(m,k,j+1,i) = 0.0;}
-        if (k==ke) {b0.x3f(m,k+1,j,i) = B0*std::sin(kx*x1v);}
-      } else if (ifield == 2) {
-        // constant Bz
-        b0.x1f(m,k,j,i) = 0.0;
-        b0.x2f(m,k,j,i) = 0.0;
-        b0.x3f(m,k,j,i) = B0;
-        if (i==ie) {b0.x1f(m,k,j,i+1) = 0.0;}
-        if (j==je) {b0.x2f(m,k,j+1,i) = 0.0;}
-        if (k==ke) {b0.x3f(m,k+1,j,i) = B0;}
-      }
+      // ifield = 1: zero-net-flux Bz; ifield = 2: constant Bz. Bz depends only on x1,
+      // so both x3 faces of a cell hold the same value. Use that value for the cell
+      // energy: the k+1 face is written by another iteration of this loop.
+      const Real bz = (ifield == 1) ? B0*std::sin(kx*x1v) : B0;
+      b0.x1f(m,k,j,i) = 0.0;
+      b0.x2f(m,k,j,i) = 0.0;
+      b0.x3f(m,k,j,i) = bz;
+      if (i==ie) {b0.x1f(m,k,j,i+1) = 0.0;}
+      if (j==je) {b0.x2f(m,k,j+1,i) = 0.0;}
+      if (k==ke) {b0.x3f(m,k+1,j,i) = bz;}
 
       if (eos.is_ideal) {
-        Real bz_cc = 0.5*(b0.x3f(m,k,j,i) + b0.x3f(m,k+1,j,i));
-        u0(m,IEN,k,j,i) = p0/gm1 + 0.5*bz_cc*bz_cc +
+        u0(m,IEN,k,j,i) = p0/gm1 + 0.5*bz*bz +
            0.5*(SQR(u0(m,IM1,k,j,i)) + SQR(u0(m,IM2,k,j,i)) +
            SQR(u0(m,IM3,k,j,i)))/u0(m,IDN,k,j,i);
       }
@@ -180,32 +172,24 @@ void ProblemGenerator::Turbulence(ParameterInput *pin, const bool restart) {
       u0(m,IM2,k,j,i) = 0.0;
       u0(m,IM3,k,j,i) = 0.0;
 
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       int nx1 = indcs.nx1;
       Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
 
-      if (ifield == 1) {
-        // zero-net-flux Bz
-        b0.x1f(m,k,j,i) = 0.0;
-        b0.x2f(m,k,j,i) = 0.0;
-        b0.x3f(m,k,j,i) = B0*std::sin(kx*x1v);
-        if (i==ie) {b0.x1f(m,k,j,i+1) = 0.0;}
-        if (j==je) {b0.x2f(m,k,j+1,i) = 0.0;}
-        if (k==ke) {b0.x3f(m,k+1,j,i) = B0*std::sin(kx*x1v);}
-      } else if (ifield == 2) {
-        // constant Bz
-        b0.x1f(m,k,j,i) = 0.0;
-        b0.x2f(m,k,j,i) = 0.0;
-        b0.x3f(m,k,j,i) = B0;
-        if (i==ie) {b0.x1f(m,k,j,i+1) = 0.0;}
-        if (j==je) {b0.x2f(m,k,j+1,i) = 0.0;}
-        if (k==ke) {b0.x3f(m,k+1,j,i) = B0;}
-      }
+      // ifield = 1: zero-net-flux Bz; ifield = 2: constant Bz. Bz depends only on x1,
+      // so both x3 faces of a cell hold the same value. Use that value for the cell
+      // energy: the k+1 face is written by another iteration of this loop.
+      const Real bz = (ifield == 1) ? B0*std::sin(kx*x1v) : B0;
+      b0.x1f(m,k,j,i) = 0.0;
+      b0.x2f(m,k,j,i) = 0.0;
+      b0.x3f(m,k,j,i) = bz;
+      if (i==ie) {b0.x1f(m,k,j,i+1) = 0.0;}
+      if (j==je) {b0.x2f(m,k,j+1,i) = 0.0;}
+      if (k==ke) {b0.x3f(m,k+1,j,i) = bz;}
 
       if (eos.is_ideal) {
-        Real bz_cc = 0.5*(b0.x3f(m,k,j,i) + b0.x3f(m,k+1,j,i));
-        u0(m,IEN,k,j,i) = p0/gm1 + 0.5*bz_cc*bz_cc +
+        u0(m,IEN,k,j,i) = p0/gm1 + 0.5*bz*bz +
            0.5*(SQR(u0(m,IM1,k,j,i)) + SQR(u0(m,IM2,k,j,i)) +
            SQR(u0(m,IM3,k,j,i)))/u0(m,IDN,k,j,i);
       }
@@ -307,8 +291,9 @@ void TurbulentHistory(HistoryData *pdata, Mesh *pm) {
     k += ks;
     j += js;
 
-    Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
-    Real dx_squared = size.d_view(m).dx1 * size.d_view(m).dx1;
+    Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2
+        *size.view_device()(m).dx3;
+    Real dx_squared = size.view_device()(m).dx1 * size.view_device()(m).dx1;
 
     // MHD conserved variables:
     array_sum::GlobalSum hvars;

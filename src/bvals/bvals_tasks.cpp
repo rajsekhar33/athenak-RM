@@ -115,8 +115,8 @@ TaskStatus MeshBoundaryValues::ClearFluxRecv() {
   // wait for all non-blocking receives for fluxes to finish before continuing
   for (int m=0; m<nmb; ++m) {
     for (int n=0; n<nnghbr; ++n) {
-      if ( (nghbr.h_view(m,n).gid >= 0) &&
-           (nghbr.h_view(m,n).rank != global_variable::my_rank) &&
+      if ( (nghbr.view_host()(m,n).gid >= 0) &&
+           (nghbr.view_host()(m,n).rank != global_variable::my_rank) &&
            (recvbuf[n].flux_req[m] != MPI_REQUEST_NULL) ) {
         int ierr = MPI_Wait(&(recvbuf[n].flux_req[m]), MPI_STATUS_IGNORE);
         if (ierr != MPI_SUCCESS) {no_errors=false;}
@@ -144,8 +144,8 @@ TaskStatus MeshBoundaryValues::ClearFluxSend() {
   // wait for all non-blocking sends for fluxes to finish before continuing
   for (int m=0; m<nmb; ++m) {
     for (int n=0; n<nnghbr; ++n) {
-      if ( (nghbr.h_view(m,n).gid >= 0) &&
-           (nghbr.h_view(m,n).rank != global_variable::my_rank) &&
+      if ( (nghbr.view_host()(m,n).gid >= 0) &&
+           (nghbr.view_host()(m,n).rank != global_variable::my_rank) &&
            (sendbuf[n].flux_req[m] != MPI_REQUEST_NULL) ) {
         int ierr = MPI_Wait(&(sendbuf[n].flux_req[m]), MPI_STATUS_IGNORE);
         if (ierr != MPI_SUCCESS) {no_errors=false;}

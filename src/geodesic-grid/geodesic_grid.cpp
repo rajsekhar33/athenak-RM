@@ -195,37 +195,38 @@ GeodesicGrid::GeodesicGrid(int nlev, bool rotate, bool fluxes) :
       SolidAngleAndArcLengths(n,omega,arcs);
 
       // store in corresponding arrays
-      numn.h_view(n) = num_nghbr;
-      solid_angles.h_view(n) = omega;
+      numn.view_host()(n) = num_nghbr;
+      solid_angles.view_host()(n) = omega;
       for (int nb=0; nb<6; ++nb) {
-        indn.h_view(n,nb) = neighbors[nb];
-        arcl.h_view(n,nb) = arcs[nb];
+        indn.view_host()(n,nb) = neighbors[nb];
+        arcl.view_host()(n,nb) = arcs[nb];
       }
     }
 
     // set up arrays for neighbor edge indexing
     auto &indne = ind_neighbors_edges;
     for (int n=0; n<nangles; ++n) {
-      int nn = numn.h_view(n);
+      int nn = numn.view_host()(n);
       for (int nb=0; nb<nn; ++nb) {
-        for (int nnb=0; nnb<numn.h_view(indn.h_view(n,nb)); ++nnb) {
-          if (n==indn.h_view(indn.h_view(n,nb),nnb)) {
-            indne.h_view(n,nb) = nnb;
+        for (int nnb=0; nnb<numn.view_host()(indn.view_host()(n,nb)); ++nnb) {
+          if (n==indn.view_host()(indn.view_host()(n,nb),nnb)) {
+            indne.view_host()(n,nb) = nnb;
           }
         }
       }
       if (nn==5) {
-        indne.h_view(n,5) = (INT_MAX);
+        indne.view_host()(n,5) = (INT_MAX);
       }
     }
 
     // correct for round-off error level diff in arc lengths among shared edges
     for (int n=0; n<nangles; ++n) {
-      for (int nb=0; nb<numn.h_view(n); ++nb) {
-        Real arc_avg = 0.5*(arcl.h_view(n,nb) +
-                            arcl.h_view(indn.h_view(n,nb),indne.h_view(n,nb)));
-        arcl.h_view(n,nb) = arc_avg;
-        arcl.h_view(indn.h_view(n,nb),indne.h_view(n,nb)) = arc_avg;
+      for (int nb=0; nb<numn.view_host()(n); ++nb) {
+        Real arc_avg = 0.5*(arcl.view_host()(n,nb) +
+                            arcl.view_host()(indn.view_host()(n,nb),
+                                indne.view_host()(n,nb)));
+        arcl.view_host()(n,nb) = arc_avg;
+        arcl.view_host()(indn.view_host()(n,nb),indne.view_host()(n,nb)) = arc_avg;
       }
     }
 
@@ -240,37 +241,38 @@ GeodesicGrid::GeodesicGrid(int nlev, bool rotate, bool fluxes) :
     for (int n=0; n<nangles; ++n) {
       Real x, y, z;
       GridCartPosition(n,x,y,z);
-      cart_pos.h_view(n,0) = x;
-      cart_pos.h_view(n,1) = y;
-      cart_pos.h_view(n,2) = z;
-      int nn = num_neighbors.h_view(n);
+      cart_pos.view_host()(n,0) = x;
+      cart_pos.view_host()(n,1) = y;
+      cart_pos.view_host()(n,2) = z;
+      int nn = num_neighbors.view_host()(n);
       for (int nb=0; nb<nn; ++nb) {
         Real xm, ym, zm;
-        GridCartPositionMid(n,ind_neighbors.h_view(n,nb),xm,ym,zm);
-        cart_pos_mid.h_view(n,nb,0) = xm;
-        cart_pos_mid.h_view(n,nb,1) = ym;
-        cart_pos_mid.h_view(n,nb,2) = zm;
+        GridCartPositionMid(n,ind_neighbors.view_host()(n,nb),xm,ym,zm);
+        cart_pos_mid.view_host()(n,nb,0) = xm;
+        cart_pos_mid.view_host()(n,nb,1) = ym;
+        cart_pos_mid.view_host()(n,nb,2) = zm;
       }
       if (nn==5) {
-        cart_pos_mid.h_view(n,5,0) = (FLT_MAX);
-        cart_pos_mid.h_view(n,5,1) = (FLT_MAX);
-        cart_pos_mid.h_view(n,5,2) = (FLT_MAX);
+        cart_pos_mid.view_host()(n,5,0) = (FLT_MAX);
+        cart_pos_mid.view_host()(n,5,1) = (FLT_MAX);
+        cart_pos_mid.view_host()(n,5,2) = (FLT_MAX);
       }
     }
 
     // set polar coordinate positions
     for (int n=0; n<nangles; ++n) {
-      polar_pos.h_view(n,0) = acos(cart_pos.h_view(n,2));
-      polar_pos.h_view(n,1) = atan2(cart_pos.h_view(n,1), cart_pos.h_view(n,0));
-      int nn = num_neighbors.h_view(n);
+      polar_pos.view_host()(n,0) = acos(cart_pos.view_host()(n,2));
+      polar_pos.view_host()(n,1)
+          = atan2(cart_pos.view_host()(n,1), cart_pos.view_host()(n,0));
+      int nn = num_neighbors.view_host()(n);
       for (int nb=0; nb<nn; ++nb) {
-        polar_pos_mid.h_view(n,nb,0) = acos(cart_pos_mid.h_view(n,nb,2));
-        polar_pos_mid.h_view(n,nb,1) = atan2(cart_pos_mid.h_view(n,nb,1),
-                                             cart_pos_mid.h_view(n,nb,0));
+        polar_pos_mid.view_host()(n,nb,0) = acos(cart_pos_mid.view_host()(n,nb,2));
+        polar_pos_mid.view_host()(n,nb,1) = atan2(cart_pos_mid.view_host()(n,nb,1),
+                                             cart_pos_mid.view_host()(n,nb,0));
       }
       if (nn==5) {
-        polar_pos_mid.h_view(n,5,0) = (FLT_MAX);
-        polar_pos_mid.h_view(n,5,1) = (FLT_MAX);
+        polar_pos_mid.view_host()(n,5,0) = (FLT_MAX);
+        polar_pos_mid.view_host()(n,5,1) = (FLT_MAX);
       }
     }
 
@@ -284,31 +286,35 @@ GeodesicGrid::GeodesicGrid(int nlev, bool rotate, bool fluxes) :
         GridCartPosition(n,x,y,z);
         Real zetav = acos(z);
         Real psiv  = atan2(y,x);
-        for (int nb=0; nb<num_neighbors.h_view(n); ++nb) {
+        for (int nb=0; nb<num_neighbors.view_host()(n); ++nb) {
           Real xm, ym, zm;
-          GridCartPositionMid(n,ind_neighbors.h_view(n,nb),xm,ym,zm);
+          GridCartPositionMid(n,ind_neighbors.view_host()(n,nb),xm,ym,zm);
           Real zetaf = acos(zm);
           Real psif  = atan2(ym,xm);
           Real unit_zeta, unit_psi;
           UnitFluxDir(zetav,psiv,zetaf,psif,unit_zeta,unit_psi);
-          unit_flux.h_view(n,nb,0) = unit_zeta;
-          unit_flux.h_view(n,nb,1) = unit_psi;
+          unit_flux.view_host()(n,nb,0) = unit_zeta;
+          unit_flux.view_host()(n,nb,1) = unit_psi;
         }
       }
       // correct for round-off error level diff in unit vectors among shared edges
       for (int n=0; n<nangles; ++n) {
-        for (int nb=0; nb<numn.h_view(n); ++nb) {
-          Real tuzeta = unit_flux.h_view(n,nb,0);
-          Real tupsi  = unit_flux.h_view(n,nb,1);
-          Real nuzeta = unit_flux.h_view(indn.h_view(n,nb),indne.h_view(n,nb),0);
-          Real nupsi  = unit_flux.h_view(indn.h_view(n,nb),indne.h_view(n,nb),1);
+        for (int nb=0; nb<numn.view_host()(n); ++nb) {
+          Real tuzeta = unit_flux.view_host()(n,nb,0);
+          Real tupsi  = unit_flux.view_host()(n,nb,1);
+          Real nuzeta = unit_flux.view_host()(indn.view_host()(n,nb),
+              indne.view_host()(n,nb),0);
+          Real nupsi  = unit_flux.view_host()(indn.view_host()(n,nb),
+              indne.view_host()(n,nb),1);
           Real uzeta_avg = 0.5*(fabs(tuzeta) + fabs(nuzeta));
           Real upsi_avg  = 0.5*(fabs(tupsi ) + fabs(nupsi ));
-          unit_flux.h_view(n,nb,0) = copysign(uzeta_avg, tuzeta);
-          unit_flux.h_view(n,nb,1) = copysign(upsi_avg, tupsi);
-          unit_flux.h_view(indn.h_view(n,nb),indne.h_view(n,nb),0) = copysign(uzeta_avg,
+          unit_flux.view_host()(n,nb,0) = copysign(uzeta_avg, tuzeta);
+          unit_flux.view_host()(n,nb,1) = copysign(upsi_avg, tupsi);
+          unit_flux.view_host()(indn.view_host()(n,nb),indne.view_host()(n,nb),0)
+              = copysign(uzeta_avg,
                                                                               nuzeta);
-          unit_flux.h_view(indn.h_view(n,nb),indne.h_view(n,nb),1) = copysign(upsi_avg,
+          unit_flux.view_host()(indn.view_host()(n,nb),indne.view_host()(n,nb),1)
+              = copysign(upsi_avg,
                                                                               nupsi);
         }
       }
@@ -362,10 +368,10 @@ GeodesicGrid::GeodesicGrid(int nlev, bool rotate, bool fluxes) :
     Real psiv[4] = {M_PI/4.0, 3.0*M_PI/4.0, 5.0*M_PI/4.0, 7.0*M_PI/4.0};
     for (int z=0, n=0; z<2; ++z) {
       for (int p=0; p<4; ++p, ++n) {
-        solid_angles.h_view(n) = 4.0*M_PI/nangles;
-        cart_pos.h_view(n,0) = sin(zetav[z])*cos(psiv[p])*sqrt(4.0/3.0);
-        cart_pos.h_view(n,1) = sin(zetav[z])*sin(psiv[p])*sqrt(4.0/3.0);
-        cart_pos.h_view(n,2) = cos(zetav[z])*sqrt(2.0/3.0);
+        solid_angles.view_host()(n) = 4.0*M_PI/nangles;
+        cart_pos.view_host()(n,0) = sin(zetav[z])*cos(psiv[p])*sqrt(4.0/3.0);
+        cart_pos.view_host()(n,1) = sin(zetav[z])*sin(psiv[p])*sqrt(4.0/3.0);
+        cart_pos.view_host()(n,2) = cos(zetav[z])*sqrt(2.0/3.0);
       }
     }
 

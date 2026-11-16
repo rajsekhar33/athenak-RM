@@ -65,16 +65,16 @@ void ProblemGenerator::RadiationBeam(ParameterInput *pin, const bool restart) {
     }
 
     if (!(excised)) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
       Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
       Real glower[4][4], gupper[4][4];
@@ -139,12 +139,12 @@ void ZeroIntensity(Mesh *pm) {
     // Set X1-BCs on i0 if Meshblock face is at the edge of computational domain
     par_for("noinflow_rad_x1", DevExeSpace(),0,(nmb-1),0,nang1,0,(n3-1),0,(n2-1),
     KOKKOS_LAMBDA(int m, int n, int k, int j) {
-      if (mb_bcs.d_view(m,BoundaryFace::inner_x1) == BoundaryFlag::user) {
+      if (mb_bcs.view_device()(m,BoundaryFace::inner_x1) == BoundaryFlag::user) {
         for (int i=0; i<ng; ++i) {
           i0_(m,n,k,j,is-i-1) = 0.0;
         }
       }
-      if (mb_bcs.d_view(m,BoundaryFace::outer_x1) == BoundaryFlag::user) {
+      if (mb_bcs.view_device()(m,BoundaryFace::outer_x1) == BoundaryFlag::user) {
         for (int i=0; i<ng; ++i) {
           i0_(m,n,k,j,ie+i+1) = 0.0;
         }
@@ -157,12 +157,12 @@ void ZeroIntensity(Mesh *pm) {
     // Set X2-BCs on i0 if Meshblock face is at the edge of computational domain
     par_for("noinflow_rad_x2", DevExeSpace(),0,(nmb-1),0,nang1,0,(n3-1),0,(n1-1),
     KOKKOS_LAMBDA(int m, int n, int k, int i) {
-      if (mb_bcs.d_view(m,BoundaryFace::inner_x2) == BoundaryFlag::user) {
+      if (mb_bcs.view_device()(m,BoundaryFace::inner_x2) == BoundaryFlag::user) {
         for (int j=0; j<ng; ++j) {
           i0_(m,n,k,js-j-1,i) = 0.0;
         }
       }
-      if (mb_bcs.d_view(m,BoundaryFace::outer_x2) == BoundaryFlag::user) {
+      if (mb_bcs.view_device()(m,BoundaryFace::outer_x2) == BoundaryFlag::user) {
         for (int j=0; j<ng; ++j) {
           i0_(m,n,k,je+j+1,i) = 0.0;
         }
@@ -175,12 +175,12 @@ void ZeroIntensity(Mesh *pm) {
     // Set x3-BCs on i0 if Meshblock face is at the edge of computational domain
     par_for("noinflow_rad_x3", DevExeSpace(),0,(nmb-1),0,nang1,0,(n2-1),0,(n1-1),
     KOKKOS_LAMBDA(int m, int n, int j, int i) {
-      if (mb_bcs.d_view(m,BoundaryFace::inner_x3) == BoundaryFlag::user) {
+      if (mb_bcs.view_device()(m,BoundaryFace::inner_x3) == BoundaryFlag::user) {
         for (int k=0; k<ng; ++k) {
           i0_(m,n,ks-k-1,j,i) = 0.0;
         }
       }
-      if (mb_bcs.d_view(m,BoundaryFace::outer_x3) == BoundaryFlag::user) {
+      if (mb_bcs.view_device()(m,BoundaryFace::outer_x3) == BoundaryFlag::user) {
         for (int k=0; k<ng; ++k) {
           i0_(m,n,ke+k+1,j,i) = 0.0;
         }

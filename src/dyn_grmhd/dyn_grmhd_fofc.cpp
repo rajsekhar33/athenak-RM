@@ -6,6 +6,7 @@
 //! \file mhd_fofc.cpp
 //! \brief Implements functions for first-order flux correction (FOFC) algorithm.
 
+#include <cfloat>
 #include <limits>
 
 #include "athena.hpp"
@@ -100,9 +101,9 @@ void DynGRMHDPS<EOSPolicy, ErrorPolicy>::FOFC(Driver *pdriver, int stage) {
     // Estimate updated conserved variables and cell-centered fields
     par_for("FOFC-newu", DevExeSpace(), 0, nmb-1, kl, ku, jl, ju, il, iu,
     KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
-      Real dtodx1 = beta_dt/size.d_view(m).dx1;
-      Real dtodx2 = beta_dt/size.d_view(m).dx2;
-      Real dtodx3 = beta_dt/size.d_view(m).dx3;
+      Real dtodx1 = beta_dt/size.view_device()(m).dx1;
+      Real dtodx2 = beta_dt/size.view_device()(m).dx2;
+      Real dtodx3 = beta_dt/size.view_device()(m).dx3;
 
       // Estimate conserved variables
       for (int n=0; n<nmhd_ + nscal_; ++n) {
@@ -544,7 +545,7 @@ void DynGRMHDPS<EOSPolicy, ErrorPolicy>::FOFC(Driver *pdriver, int stage) {
     // Positivity Presserving Limiter for scalar
     par_for("FOFC-flx", DevExeSpace(), 0, nmb-1, kl, ku, jl, ju, il, iu,
     KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
-      Real dtodx1 = beta_dt/size.d_view(m).dx1;
+      Real dtodx1 = beta_dt/size.view_device()(m).dx1;
 
       Real bet_pp = alp_pp * dtodx1;
       Real bet_ppi = 1.0 / bet_pp;
@@ -612,7 +613,7 @@ void DynGRMHDPS<EOSPolicy, ErrorPolicy>::FOFC(Driver *pdriver, int stage) {
       }
 
       if (multi_d) {
-        Real dtodx2 = beta_dt/size.d_view(m).dx2;
+        Real dtodx2 = beta_dt/size.view_device()(m).dx2;
         bet_pp = alp_pp * dtodx2;
         bet_ppi = 1.0 / bet_pp;
 
@@ -672,7 +673,7 @@ void DynGRMHDPS<EOSPolicy, ErrorPolicy>::FOFC(Driver *pdriver, int stage) {
       }
 
       if (three_d) {
-        Real dtodx3 = beta_dt/size.d_view(m).dx3;
+        Real dtodx3 = beta_dt/size.view_device()(m).dx3;
         bet_pp = alp_pp * dtodx3;
         bet_ppi = 1.0 / bet_pp;
 

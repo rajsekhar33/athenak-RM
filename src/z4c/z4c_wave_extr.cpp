@@ -88,11 +88,11 @@ void Z4c::WaveExtr(MeshBlockPack *pmbp) {
         Real psilmR = 0.0;
         Real psilmI = 0.0;
           for (int ip = 0; ip < grids[g]->nangles; ++ip) {
-            Real theta = grids[g]->polar_pos.h_view(ip,0);
-            Real phi = grids[g]->polar_pos.h_view(ip,1);
-            Real datareal = grids[g]->interp_vals.h_view(ip,0);
-            Real dataim = grids[g]->interp_vals.h_view(ip,1);
-            Real weight = grids[g]->solid_angles.h_view(ip);
+            Real theta = grids[g]->polar_pos.view_host()(ip,0);
+            Real phi = grids[g]->polar_pos.view_host()(ip,1);
+            Real datareal = grids[g]->interp_vals.view_host()(ip,0);
+            Real dataim = grids[g]->interp_vals.view_host()(ip,1);
+            Real weight = grids[g]->solid_angles.view_host()(ip);
             swsh(&ylmR,&ylmI,l,m,theta,phi);
             // The spherical harmonics transform as
             // Y^s_{l m}( Pi-th, ph ) = (-1)^{l+s} Y^s_{l -m}(th, ph)

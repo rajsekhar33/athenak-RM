@@ -85,12 +85,12 @@ void Z4c_AMR::RefineTracker(MeshBlockPack *pmbp) {
     int level = pmesh->lloc_eachmb[m + mbs].level - pmesh->root_level;
 
     // extract MeshBlock bounds
-    Real &x1min = size.h_view(m).x1min;
-    Real &x1max = size.h_view(m).x1max;
-    Real &x2min = size.h_view(m).x2min;
-    Real &x2max = size.h_view(m).x2max;
-    Real &x3min = size.h_view(m).x3min;
-    Real &x3max = size.h_view(m).x3max;
+    Real &x1min = size.view_host()(m).x1min;
+    Real &x1max = size.view_host()(m).x1max;
+    Real &x2min = size.view_host()(m).x2min;
+    Real &x2max = size.view_host()(m).x2max;
+    Real &x3min = size.view_host()(m).x3min;
+    Real &x3max = size.view_host()(m).x3max;
 
     flag.clear();
     for (auto &pt : pmbp->pz4c->ptracker) {
@@ -121,7 +121,7 @@ void Z4c_AMR::RefineTracker(MeshBlockPack *pmbp) {
         flag.push_back(-1);
       }
     }
-    refine_flag.h_view(m + mbs) = *std::max_element(flag.begin(), flag.end());
+    refine_flag.view_host()(m + mbs) = *std::max_element(flag.begin(), flag.end());
   }
 
   // sync host and device
@@ -163,10 +163,10 @@ void Z4c_AMR::RefineChiMin(MeshBlockPack *pmbp) {
         Kokkos::Min<Real>(team_dmin));
 
       if (team_dmin < chi_thresh) {
-        refine_flag.d_view(m + mbs) = 1;
+        refine_flag.view_device()(m + mbs) = 1;
       }
       if (team_dmin > 1.25 * chi_thresh) {
-        refine_flag.d_view(m + mbs) = -1;
+        refine_flag.view_device()(m + mbs) = -1;
       }
     });
 
@@ -212,10 +212,10 @@ void Z4c_AMR::RefineDchiMax(MeshBlockPack *pmbp) {
         Kokkos::Max<Real>(team_dmax));
 
       if (team_dmax > dchi_thresh) {
-        refine_flag.d_view(m + mbs) = 1;
+        refine_flag.view_device()(m + mbs) = 1;
       }
       if (team_dmax < 0.5 * dchi_thresh) {
-        refine_flag.d_view(m + mbs) = -1;
+        refine_flag.view_device()(m + mbs) = -1;
       }
     });
 
@@ -237,12 +237,12 @@ void Z4c_AMR::RefineRadii(MeshBlockPack *pmbp) {
     int level = pmesh->lloc_eachmb[m + mbs].level - pmesh->root_level;
 
     // extract MeshBlock bounds
-    Real &x1min = size.h_view(m).x1min;
-    Real &x1max = size.h_view(m).x1max;
-    Real &x2min = size.h_view(m).x2min;
-    Real &x2max = size.h_view(m).x2max;
-    Real &x3min = size.h_view(m).x3min;
-    Real &x3max = size.h_view(m).x3max;
+    Real &x1min = size.view_host()(m).x1min;
+    Real &x1max = size.view_host()(m).x1max;
+    Real &x2min = size.view_host()(m).x2min;
+    Real &x2max = size.view_host()(m).x2max;
+    Real &x3min = size.view_host()(m).x3min;
+    Real &x3max = size.view_host()(m).x3max;
 
     Real r2[8] = {
       SQ(x1min) + SQ(x2min) + SQ(x3min),
@@ -259,9 +259,9 @@ void Z4c_AMR::RefineRadii(MeshBlockPack *pmbp) {
     for (size_t ir = 0; ir < radius.size(); ++ir) {
       if (rmin2 < SQ(radius[ir])) {
         if (level < reflevel[ir]) {
-          refine_flag.h_view(m + mbs) = 1;
-        } else if (level == reflevel[ir] && refine_flag.h_view(m + mbs) == -1) {
-          refine_flag.h_view(m + mbs) = 0;
+          refine_flag.view_host()(m + mbs) = 1;
+        } else if (level == reflevel[ir] && refine_flag.view_host()(m + mbs) == -1) {
+          refine_flag.view_host()(m + mbs) = 0;
         }
       }
     }

@@ -123,16 +123,16 @@ TaskStatus Radiation::RadFluidCoupling(Driver *pdriver, int stage) {
   // compute implicit source term
   par_for("radiation_source",DevExeSpace(),0,nmb1,ks,ke,js,je,is,ie,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
     // compute metric and inverse
@@ -190,11 +190,15 @@ TaskStatus Radiation::RadFluidCoupling(Driver *pdriver, int stage) {
     Real suma1 = 0.0;
     Real suma2 = 0.0;
     for (int n=0; n<=nang1; ++n) {
-      Real n_0 = tc(m,0,0,k,j,i)*nh_c_.d_view(n,0) + tc(m,1,0,k,j,i)*nh_c_.d_view(n,1) +
-                 tc(m,2,0,k,j,i)*nh_c_.d_view(n,2) + tc(m,3,0,k,j,i)*nh_c_.d_view(n,3);
-      Real n0_cm = (u_tet[0]*nh_c_.d_view(n,0) - u_tet[1]*nh_c_.d_view(n,1) -
-                    u_tet[2]*nh_c_.d_view(n,2) - u_tet[3]*nh_c_.d_view(n,3));
-      Real omega_cm = solid_angles_.d_view(n)/SQR(n0_cm);
+      Real n_0 = tc(m,0,0,k,j,i)*nh_c_.view_device()(n,0) + tc(m,1,0,k,j,i)
+          *nh_c_.view_device()(n,1) +
+                 tc(m,2,0,k,j,i)*nh_c_.view_device()(n,2) + tc(m,3,0,k,j,i)
+                     *nh_c_.view_device()(n,3);
+      Real n0_cm = (u_tet[0]*nh_c_.view_device()(n,0) - u_tet[1]*nh_c_.view_device()(n,1)
+          -
+                    u_tet[2]*nh_c_.view_device()(n,2) - u_tet[3]
+                        *nh_c_.view_device()(n,3));
+      Real omega_cm = solid_angles_.view_device()(n)/SQR(n0_cm);
       Real intensity_cm = 4.0*M_PI*(i0_(m,n,k,j,i)/(n0*n_0))*SQR(SQR(n0_cm));
       Real vncsigma = 1.0/(n0 + (dtcsiga + dtcsigs)*n0_cm);
       Real vncsigma2 = n0_cm*vncsigma;
@@ -234,24 +238,34 @@ TaskStatus Radiation::RadFluidCoupling(Driver *pdriver, int stage) {
       Real m_old[4] = {0.0}; Real m_new[4] = {0.0};
       for (int n=0; n<=nang1; ++n) {
         // compute coordinate normal components
-        Real n_0 = tc(m,0,0,k,j,i)*nh_c_.d_view(n,0) + tc(m,1,0,k,j,i)*nh_c_.d_view(n,1)
-                 + tc(m,2,0,k,j,i)*nh_c_.d_view(n,2) + tc(m,3,0,k,j,i)*nh_c_.d_view(n,3);
-        Real n_1 = tc(m,0,1,k,j,i)*nh_c_.d_view(n,0) + tc(m,1,1,k,j,i)*nh_c_.d_view(n,1)
-                 + tc(m,2,1,k,j,i)*nh_c_.d_view(n,2) + tc(m,3,1,k,j,i)*nh_c_.d_view(n,3);
-        Real n_2 = tc(m,0,2,k,j,i)*nh_c_.d_view(n,0) + tc(m,1,2,k,j,i)*nh_c_.d_view(n,1)
-                 + tc(m,2,2,k,j,i)*nh_c_.d_view(n,2) + tc(m,3,2,k,j,i)*nh_c_.d_view(n,3);
-        Real n_3 = tc(m,0,3,k,j,i)*nh_c_.d_view(n,0) + tc(m,1,3,k,j,i)*nh_c_.d_view(n,1)
-                 + tc(m,2,3,k,j,i)*nh_c_.d_view(n,2) + tc(m,3,3,k,j,i)*nh_c_.d_view(n,3);
+        Real n_0 = tc(m,0,0,k,j,i)*nh_c_.view_device()(n,0) + tc(m,1,0,k,j,i)
+            *nh_c_.view_device()(n,1)
+                 + tc(m,2,0,k,j,i)*nh_c_.view_device()(n,2) + tc(m,3,0,k,j,i)
+                     *nh_c_.view_device()(n,3);
+        Real n_1 = tc(m,0,1,k,j,i)*nh_c_.view_device()(n,0) + tc(m,1,1,k,j,i)
+            *nh_c_.view_device()(n,1)
+                 + tc(m,2,1,k,j,i)*nh_c_.view_device()(n,2) + tc(m,3,1,k,j,i)
+                     *nh_c_.view_device()(n,3);
+        Real n_2 = tc(m,0,2,k,j,i)*nh_c_.view_device()(n,0) + tc(m,1,2,k,j,i)
+            *nh_c_.view_device()(n,1)
+                 + tc(m,2,2,k,j,i)*nh_c_.view_device()(n,2) + tc(m,3,2,k,j,i)
+                     *nh_c_.view_device()(n,3);
+        Real n_3 = tc(m,0,3,k,j,i)*nh_c_.view_device()(n,0) + tc(m,1,3,k,j,i)
+            *nh_c_.view_device()(n,1)
+                 + tc(m,2,3,k,j,i)*nh_c_.view_device()(n,2) + tc(m,3,3,k,j,i)
+                     *nh_c_.view_device()(n,3);
 
         // compute moments before coupling
-        m_old[0] += (    i0_(m,n,k,j,i)    *solid_angles_.d_view(n));
-        m_old[1] += (n_1*i0_(m,n,k,j,i)/n_0*solid_angles_.d_view(n));
-        m_old[2] += (n_2*i0_(m,n,k,j,i)/n_0*solid_angles_.d_view(n));
-        m_old[3] += (n_3*i0_(m,n,k,j,i)/n_0*solid_angles_.d_view(n));
+        m_old[0] += (    i0_(m,n,k,j,i)    *solid_angles_.view_device()(n));
+        m_old[1] += (n_1*i0_(m,n,k,j,i)/n_0*solid_angles_.view_device()(n));
+        m_old[2] += (n_2*i0_(m,n,k,j,i)/n_0*solid_angles_.view_device()(n));
+        m_old[3] += (n_3*i0_(m,n,k,j,i)/n_0*solid_angles_.view_device()(n));
 
         // update intensity
-        Real n0_cm = (u_tet[0]*nh_c_.d_view(n,0) - u_tet[1]*nh_c_.d_view(n,1) -
-                      u_tet[2]*nh_c_.d_view(n,2) - u_tet[3]*nh_c_.d_view(n,3));
+        Real n0_cm = (u_tet[0]*nh_c_.view_device()(n,0) - u_tet[1]
+            *nh_c_.view_device()(n,1) -
+                      u_tet[2]*nh_c_.view_device()(n,2) - u_tet[3]
+                          *nh_c_.view_device()(n,3));
         Real intensity_cm = 4.0*M_PI*(i0_(m,n,k,j,i)/(n0*n_0))*SQR(SQR(n0_cm));
         Real vncsigma = 1.0/(n0 + (dtcsiga + dtcsigs)*n0_cm);
         Real vncsigma2 = n0_cm*vncsigma;
@@ -262,10 +276,10 @@ TaskStatus Radiation::RadFluidCoupling(Driver *pdriver, int stage) {
                                      di_cm/(4.0*M_PI*SQR(SQR(n0_cm))), 0.0);
 
         // compute moments after coupling
-        m_new[0] += (    i0_(m,n,k,j,i)    *solid_angles_.d_view(n));
-        m_new[1] += (n_1*i0_(m,n,k,j,i)/n_0*solid_angles_.d_view(n));
-        m_new[2] += (n_2*i0_(m,n,k,j,i)/n_0*solid_angles_.d_view(n));
-        m_new[3] += (n_3*i0_(m,n,k,j,i)/n_0*solid_angles_.d_view(n));
+        m_new[0] += (    i0_(m,n,k,j,i)    *solid_angles_.view_device()(n));
+        m_new[1] += (n_1*i0_(m,n,k,j,i)/n_0*solid_angles_.view_device()(n));
+        m_new[2] += (n_2*i0_(m,n,k,j,i)/n_0*solid_angles_.view_device()(n));
+        m_new[3] += (n_3*i0_(m,n,k,j,i)/n_0*solid_angles_.view_device()(n));
 
         // handle excision
         // NOTE(@pdmullen): The below zeroes all intensities within rks <= r_excision and
@@ -296,11 +310,15 @@ TaskStatus Radiation::RadFluidCoupling(Driver *pdriver, int stage) {
       suma1 = 0.0;
       Real jr_cm = 0.0;
       for (int n=0; n<=nang1; ++n) {
-        Real n_0 = tc(m,0,0,k,j,i)*nh_c_.d_view(n,0) + tc(m,1,0,k,j,i)*nh_c_.d_view(n,1) +
-                   tc(m,2,0,k,j,i)*nh_c_.d_view(n,2) + tc(m,3,0,k,j,i)*nh_c_.d_view(n,3);
-        Real n0_cm = (u_tet[0]*nh_c_.d_view(n,0) - u_tet[1]*nh_c_.d_view(n,1) -
-                      u_tet[2]*nh_c_.d_view(n,2) - u_tet[3]*nh_c_.d_view(n,3));
-        Real wght_cm = solid_angles_.d_view(n)/SQR(n0_cm)/wght_sum;
+        Real n_0 = tc(m,0,0,k,j,i)*nh_c_.view_device()(n,0) + tc(m,1,0,k,j,i)
+            *nh_c_.view_device()(n,1) +
+                   tc(m,2,0,k,j,i)*nh_c_.view_device()(n,2) + tc(m,3,0,k,j,i)
+                       *nh_c_.view_device()(n,3);
+        Real n0_cm = (u_tet[0]*nh_c_.view_device()(n,0) - u_tet[1]
+            *nh_c_.view_device()(n,1) -
+                      u_tet[2]*nh_c_.view_device()(n,2) - u_tet[3]
+                          *nh_c_.view_device()(n,3));
+        Real wght_cm = solid_angles_.view_device()(n)/SQR(n0_cm)/wght_sum;
         Real intensity_cm = 4.0*M_PI*(i0_(m,n,k,j,i)/(n0*n_0))*SQR(SQR(n0_cm));
         Real ir_weight = intensity_cm*wght_cm;
         jr_cm += ir_weight;
@@ -331,33 +349,43 @@ TaskStatus Radiation::RadFluidCoupling(Driver *pdriver, int stage) {
         Real m_old[4] = {0.0}; Real m_new[4] = {0.0};
         for (int n=0; n<=nang1; ++n) {
           // compute coordinate normal components
-          Real n_0 = tc(m,0,0,k,j,i)*nh_c_.d_view(n,0)+tc(m,1,0,k,j,i)*nh_c_.d_view(n,1)
-                   + tc(m,2,0,k,j,i)*nh_c_.d_view(n,2)+tc(m,3,0,k,j,i)*nh_c_.d_view(n,3);
-          Real n_1 = tc(m,0,1,k,j,i)*nh_c_.d_view(n,0)+tc(m,1,1,k,j,i)*nh_c_.d_view(n,1)
-                   + tc(m,2,1,k,j,i)*nh_c_.d_view(n,2)+tc(m,3,1,k,j,i)*nh_c_.d_view(n,3);
-          Real n_2 = tc(m,0,2,k,j,i)*nh_c_.d_view(n,0)+tc(m,1,2,k,j,i)*nh_c_.d_view(n,1)
-                   + tc(m,2,2,k,j,i)*nh_c_.d_view(n,2)+tc(m,3,2,k,j,i)*nh_c_.d_view(n,3);
-          Real n_3 = tc(m,0,3,k,j,i)*nh_c_.d_view(n,0)+tc(m,1,3,k,j,i)*nh_c_.d_view(n,1)
-                   + tc(m,2,3,k,j,i)*nh_c_.d_view(n,2)+tc(m,3,3,k,j,i)*nh_c_.d_view(n,3);
+          Real n_0 = tc(m,0,0,k,j,i)*nh_c_.view_device()(n,0)+tc(m,1,0,k,j,i)
+              *nh_c_.view_device()(n,1)
+                   + tc(m,2,0,k,j,i)*nh_c_.view_device()(n,2)+tc(m,3,0,k,j,i)
+                       *nh_c_.view_device()(n,3);
+          Real n_1 = tc(m,0,1,k,j,i)*nh_c_.view_device()(n,0)+tc(m,1,1,k,j,i)
+              *nh_c_.view_device()(n,1)
+                   + tc(m,2,1,k,j,i)*nh_c_.view_device()(n,2)+tc(m,3,1,k,j,i)
+                       *nh_c_.view_device()(n,3);
+          Real n_2 = tc(m,0,2,k,j,i)*nh_c_.view_device()(n,0)+tc(m,1,2,k,j,i)
+              *nh_c_.view_device()(n,1)
+                   + tc(m,2,2,k,j,i)*nh_c_.view_device()(n,2)+tc(m,3,2,k,j,i)
+                       *nh_c_.view_device()(n,3);
+          Real n_3 = tc(m,0,3,k,j,i)*nh_c_.view_device()(n,0)+tc(m,1,3,k,j,i)
+              *nh_c_.view_device()(n,1)
+                   + tc(m,2,3,k,j,i)*nh_c_.view_device()(n,2)+tc(m,3,3,k,j,i)
+                       *nh_c_.view_device()(n,3);
 
           // compute moments before coupling
-          m_old[0] += (    i0_(m,n,k,j,i)    *solid_angles_.d_view(n));
-          m_old[1] += (n_1*i0_(m,n,k,j,i)/n_0*solid_angles_.d_view(n));
-          m_old[2] += (n_2*i0_(m,n,k,j,i)/n_0*solid_angles_.d_view(n));
-          m_old[3] += (n_3*i0_(m,n,k,j,i)/n_0*solid_angles_.d_view(n));
+          m_old[0] += (    i0_(m,n,k,j,i)    *solid_angles_.view_device()(n));
+          m_old[1] += (n_1*i0_(m,n,k,j,i)/n_0*solid_angles_.view_device()(n));
+          m_old[2] += (n_2*i0_(m,n,k,j,i)/n_0*solid_angles_.view_device()(n));
+          m_old[3] += (n_3*i0_(m,n,k,j,i)/n_0*solid_angles_.view_device()(n));
 
           // update intensity
-          Real n0_cm = (u_tet[0]*nh_c_.d_view(n,0) - u_tet[1]*nh_c_.d_view(n,1) -
-                        u_tet[2]*nh_c_.d_view(n,2) - u_tet[3]*nh_c_.d_view(n,3));
+          Real n0_cm = (u_tet[0]*nh_c_.view_device()(n,0) - u_tet[1]
+              *nh_c_.view_device()(n,1) -
+                        u_tet[2]*nh_c_.view_device()(n,2) - u_tet[3]
+                            *nh_c_.view_device()(n,3));
           Real di_cm = (n0_cm/n0)*dtcsigs*4.0*jr_cm*inv_t_electron_*(tgasnew - tradnew);
           i0_(m,n,k,j,i) = n0*n_0*fmax(i0_(m,n,k,j,i)/(n0*n_0) +
                                        di_cm/(4.0*M_PI*SQR(SQR(n0_cm))), 0.0);
 
           // compute moments after coupling
-          m_new[0] += (    i0_(m,n,k,j,i)    *solid_angles_.d_view(n));
-          m_new[1] += (n_1*i0_(m,n,k,j,i)/n_0*solid_angles_.d_view(n));
-          m_new[2] += (n_2*i0_(m,n,k,j,i)/n_0*solid_angles_.d_view(n));
-          m_new[3] += (n_3*i0_(m,n,k,j,i)/n_0*solid_angles_.d_view(n));
+          m_new[0] += (    i0_(m,n,k,j,i)    *solid_angles_.view_device()(n));
+          m_new[1] += (n_1*i0_(m,n,k,j,i)/n_0*solid_angles_.view_device()(n));
+          m_new[2] += (n_2*i0_(m,n,k,j,i)/n_0*solid_angles_.view_device()(n));
+          m_new[3] += (n_3*i0_(m,n,k,j,i)/n_0*solid_angles_.view_device()(n));
 
           // handle excision (see notes above)
           if (excise) {
@@ -378,10 +406,10 @@ TaskStatus Radiation::RadFluidCoupling(Driver *pdriver, int stage) {
         // was encountered.. apply excision
         if (excise) {
           for (int n=0; n<=nang1; ++n) {
-            Real n_0 = tc(m,0,0,k,j,i)*nh_c_.d_view(n,0)+
-                       tc(m,1,0,k,j,i)*nh_c_.d_view(n,1)+
-                       tc(m,2,0,k,j,i)*nh_c_.d_view(n,2)+
-                       tc(m,3,0,k,j,i)*nh_c_.d_view(n,3);
+            Real n_0 = tc(m,0,0,k,j,i)*nh_c_.view_device()(n,0)+
+                       tc(m,1,0,k,j,i)*nh_c_.view_device()(n,1)+
+                       tc(m,2,0,k,j,i)*nh_c_.view_device()(n,2)+
+                       tc(m,3,0,k,j,i)*nh_c_.view_device()(n,3);
             if (rad_mask_(m,k,j,i) || fabs(n_0) < n_0_floor_) { i0_(m,n,k,j,i) = 0.0; }
           }
         }

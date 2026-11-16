@@ -31,12 +31,12 @@ void LLF_GR(const EOS_Data &eos, const RegionIndcs &indcs,
 
 
   // Extract position of interface
-  Real &x1min = size.d_view(m).x1min;
-  Real &x1max = size.d_view(m).x1max;
-  Real &x2min = size.d_view(m).x2min;
-  Real &x2max = size.d_view(m).x2max;
-  Real &x3min = size.d_view(m).x3min;
-  Real &x3max = size.d_view(m).x3max;
+  Real &x1min = size.view_device()(m).x1min;
+  Real &x1max = size.view_device()(m).x1max;
+  Real &x2min = size.view_device()(m).x2min;
+  Real &x2max = size.view_device()(m).x2max;
+  Real &x3min = size.view_device()(m).x3min;
+  Real &x3max = size.view_device()(m).x3max;
   Real x1v,x2v,x3v;
   if (ivx == IVX) {
     x1v = LeftEdgeX  (i-is, indcs.nx1, x1min, x1max);

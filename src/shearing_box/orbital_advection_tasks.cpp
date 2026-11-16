@@ -35,9 +35,9 @@ TaskStatus OrbitalAdvection::InitRecv() {
       // indices of x2-face buffers in nghbr view
       int nnghbr;
       if (n==0) {nnghbr=8;} else {nnghbr=12;}
-      if (nghbr.h_view(m,nnghbr).gid >= 0) {
+      if (nghbr.view_host()(m,nnghbr).gid >= 0) {
         // rank of neighboring MeshBlock sending data
-        int srank = nghbr.h_view(m,nnghbr).rank;
+        int srank = nghbr.view_host()(m,nnghbr).rank;
 
         // post non-blocking receive if neighboring MeshBlock on a different rank
         if (srank != global_variable::my_rank) {
@@ -84,8 +84,8 @@ TaskStatus OrbitalAdvection::ClearRecv() {
       // indices of x2-face buffers in nghbr view
       int nnghbr;
       if (n==0) {nnghbr=8;} else {nnghbr=12;}
-      if ( (nghbr.h_view(m,nnghbr).gid >= 0) &&
-           (nghbr.h_view(m,nnghbr).rank != global_variable::my_rank) ) {
+      if ( (nghbr.view_host()(m,nnghbr).gid >= 0) &&
+           (nghbr.view_host()(m,nnghbr).rank != global_variable::my_rank) ) {
         int ierr = MPI_Wait(&(recvbuf[n].vars_req[m]), MPI_STATUS_IGNORE);
         if (ierr != MPI_SUCCESS) {no_errors=false;}
       }
@@ -118,8 +118,8 @@ TaskStatus OrbitalAdvection::ClearSend() {
       // indices of x2-face buffers in nghbr view
       int nnghbr;
       if (n==0) {nnghbr=8;} else {nnghbr=12;}
-      if ( (nghbr.h_view(m,nnghbr).gid >= 0) &&
-           (nghbr.h_view(m,nnghbr).rank != global_variable::my_rank) ) {
+      if ( (nghbr.view_host()(m,nnghbr).gid >= 0) &&
+           (nghbr.view_host()(m,nnghbr).rank != global_variable::my_rank) ) {
         int ierr = MPI_Wait(&(sendbuf[n].vars_req[m]), MPI_STATUS_IGNORE);
         if (ierr != MPI_SUCCESS) {no_errors=false;}
       }

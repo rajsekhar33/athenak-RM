@@ -84,7 +84,7 @@ TaskStatus OrbitalAdvectionFC::PackAndSendFC(DvceFaceFld4D<Real> &b) {
     if (n==0) {nnghbr=8;} else {nnghbr=12;}
 
     // only load buffers when neighbor exists
-    if (nghbr.d_view(m,nnghbr).gid >= 0) {
+    if (nghbr.view_device()(m,nnghbr).gid >= 0) {
       // neighbor must always be at same level, so use same indices to pack buffer
       // Note j-range of indices extended by shear
       int il = is;
@@ -107,7 +107,7 @@ TaskStatus OrbitalAdvectionFC::PackAndSendFC(DvceFaceFld4D<Real> &b) {
 
       // index of recv'ing (destination) MB and buffer [0,1]: MB IDs are stored
       // sequentially in MeshBlockPacks, so array index equals (target_id - first_id)
-      int dm = nghbr.d_view(m,nnghbr).gid - mbgid.d_view(0);
+      int dm = nghbr.view_device()(m,nnghbr).gid - mbgid.view_device()(0);
       int dn = (n+1) % 2;
 
       // Middle loop over k,j,i
@@ -119,7 +119,7 @@ TaskStatus OrbitalAdvectionFC::PackAndSendFC(DvceFaceFld4D<Real> &b) {
         j += jl;
 
         // copy B1/B3 directly into recv buffer if MeshBlocks on same rank
-        if (nghbr.d_view(m,nnghbr).rank == my_rank) {
+        if (nghbr.view_device()(m,nnghbr).rank == my_rank) {
           rbuf[dn].vars(dm,0,(k-kl),(j-jl),(i-il)) = b.x3f(m,k,j,i);
           rbuf[dn].vars(dm,1,(k-kl),(j-jl),(i-il)) = b.x1f(m,k,j,i);
         // else copy B1/B3 into send buffer for MPI communication below
@@ -140,13 +140,15 @@ TaskStatus OrbitalAdvectionFC::PackAndSendFC(DvceFaceFld4D<Real> &b) {
       // indices of x2-face buffers in nghbr view
       int nnghbr;
       if (n==0) {nnghbr=8;} else {nnghbr=12;}
-      if (nghbr.h_view(m,nnghbr).gid >= 0) {  // neighbor exists and not a physical bndry
+      if (nghbr.view_host()(m,nnghbr).gid >= 0) {
+      // neighbor exists and not a physical bndry
         // index and rank of destination Neighbor
-        int dn = nghbr.h_view(m,nnghbr).dest;
-        int drank = nghbr.h_view(m,nnghbr).rank;
+        int dn = nghbr.view_host()(m,nnghbr).dest;
+        int drank = nghbr.view_host()(m,nnghbr).rank;
         if (drank != my_rank) {
           // create tag using local ID and buffer index of *receiving* MeshBlock
-          int lid = nghbr.h_view(m,nnghbr).gid - pmy_pack->pmesh->gids_eachrank[drank];
+          int lid = nghbr.view_host()(m,nnghbr).gid
+              - pmy_pack->pmesh->gids_eachrank[drank];
           int tag = CreateBvals_MPI_Tag(lid, dn);
 
           // get ptr to send buffer when neighbor is at coarser/same/fine level
@@ -195,8 +197,9 @@ TaskStatus OrbitalAdvectionFC::RecvAndUnpackFC(DvceFaceFld4D<Real> &b0,
       // indices of x2-face buffers in nghbr view
       int nnghbr;
       if (n==0) {nnghbr=8;} else {nnghbr=12;}
-      if (nghbr.h_view(m,nnghbr).gid >= 0) { // neighbor exists and not a physical bndry
-        if (nghbr.h_view(m,nnghbr).rank != global_variable::my_rank) {
+      if (nghbr.view_host()(m,nnghbr).gid >= 0) {
+      // neighbor exists and not a physical bndry
+        if (nghbr.view_host()(m,nnghbr).rank != global_variable::my_rank) {
           int test;
           int ierr = MPI_Test(&(rbuf[n].vars_req[m]), &test, MPI_STATUS_IGNORE);
           if (ierr != MPI_SUCCESS) {no_errors=false;}
@@ -242,8 +245,8 @@ TaskStatus OrbitalAdvectionFC::RecvAndUnpackFC(DvceFaceFld4D<Real> &b0,
     ScrArray1D<Real> b0_(member.team_scratch(scr_lvl), nfx); // 1D slice of data
     ScrArray1D<Real> flx(member.team_scratch(scr_lvl), nfx); // "flux" at faces
 
-    Real &x1min = mbsize.d_view(m).x1min;
-    Real &x1max = mbsize.d_view(m).x1max;
+    Real &x1min = mbsize.view_device()(m).x1min;
+    Real &x1max = mbsize.view_device()(m).x1max;
     int nx1 = indcs.nx1;
 
     Real x1;
@@ -255,7 +258,7 @@ TaskStatus OrbitalAdvectionFC::RecvAndUnpackFC(DvceFaceFld4D<Real> &b0,
       x1 = LeftEdgeX(i-is, nx1, x1min, x1max);
     }
     Real yshear = -(qo)*x1*dt;
-    int joffset = static_cast<int>(yshear/(mbsize.d_view(m).dx2));
+    int joffset = static_cast<int>(yshear/(mbsize.view_device()(m).dx2));
 
     // Load scratch array with no shift
     par_for_inner(member, 0, (nfx-1), [&](const int jf) {
@@ -277,7 +280,7 @@ TaskStatus OrbitalAdvectionFC::RecvAndUnpackFC(DvceFaceFld4D<Real> &b0,
     member.team_barrier();
 
     // Compute x2-fluxes at shifted cell faces
-    Real epsi = fmod(yshear,(mbsize.d_view(m).dx2))/(mbsize.d_view(m).dx2);
+    Real epsi = fmod(yshear,(mbsize.view_device()(m).dx2))/(mbsize.view_device()(m).dx2);
     switch (rcon) {
       case ReconstructionMethod::dc:
         DC_RemapFlx(member, (jfs-joffset), (jfe+1-joffset), epsi, b0_, flx);
@@ -341,10 +344,10 @@ TaskStatus OrbitalAdvectionFC::RecvAndUnpackFC(DvceFaceFld4D<Real> &b0,
   const bool &three_d_ = pmy_pack->pmesh->three_d;
   par_for("oaCT-b2", DevExeSpace(), 0, nmb-1, ks, ke, js, je+1, is, ie,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real dydx = mbsize.d_view(m).dx2/mbsize.d_view(m).dx1;
+    Real dydx = mbsize.view_device()(m).dx2/mbsize.view_device()(m).dx1;
     b0.x2f(m,k,j,i) += dydx*(emfz_(m,k,j,i+1) - emfz_(m,k,j,i));
     if (three_d_) {
-      Real dydz = mbsize.d_view(m).dx2/mbsize.d_view(m).dx3;
+      Real dydz = mbsize.view_device()(m).dx2/mbsize.view_device()(m).dx3;
       b0.x2f(m,k,j,i) -= dydz*(emfx_(m,k+1,j,i) - emfx_(m,k,j,i));
     }
   });

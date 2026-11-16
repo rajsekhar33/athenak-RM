@@ -81,16 +81,16 @@ void IdealGRHydro::ConsToPrim(DvceArray5D<Real> &cons, DvceArray5D<Real> &prim,
     u.e  = cons(m,IEN,k,j,i);
 
     // Extract components of metric
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
     Real glower[4][4], gupper[4][4];
@@ -219,16 +219,16 @@ void IdealGRHydro::PrimToCons(const DvceArray5D<Real> &prim, DvceArray5D<Real> &
   par_for("grhyd_p2c", DevExeSpace(), 0, (nmb-1), kl, ku, jl, ju, il, iu,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
     // Extract components of metric
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
     Real glower[4][4], gupper[4][4];

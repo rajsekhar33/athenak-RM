@@ -93,11 +93,11 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFC(DvceFaceFld4D<Real> &b,
     // scalar loop over neighbors to prevent race condition in overlapping assignments
     for (int n=0; n<nnghbr; ++n) {
       // only load buffers when neighbor exists
-      if (nghbr.d_view(m,n).gid >= 0) {
+      if (nghbr.view_device()(m,n).gid >= 0) {
         // if neighbor is at coarser level, use cindices to pack buffer
         // Note indices can be different for each component of face-centered field.
         int il, iu, jl, ju, kl, ku, ndat;
-        if (nghbr.d_view(m,n).lev < mblev.d_view(m)) {
+        if (nghbr.view_device()(m,n).lev < mblev.view_device()(m)) {
           il = sbuf[n].icoar[v].bis;
           iu = sbuf[n].icoar[v].bie;
           jl = sbuf[n].icoar[v].bjs;
@@ -106,7 +106,7 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFC(DvceFaceFld4D<Real> &b,
           ku = sbuf[n].icoar[v].bke;
           ndat = sbuf[n].icoar_ndat;
         // if neighbor is at same level, use sindices to pack buffer
-        } else if (nghbr.d_view(m,n).lev == mblev.d_view(m)) {
+        } else if (nghbr.view_device()(m,n).lev == mblev.view_device()(m)) {
           il = sbuf[n].isame[v].bis;
           iu = sbuf[n].isame[v].bie;
           jl = sbuf[n].isame[v].bjs;
@@ -131,13 +131,13 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFC(DvceFaceFld4D<Real> &b,
         const int nji  = nj*ni;
 
         // indices of recv'ing MB and buffer: assumes MB IDs are stored sequentially
-        int dm = nghbr.d_view(m,n).gid - mbgid.d_view(0);
-        int dn = nghbr.d_view(m,n).dest;
+        int dm = nghbr.view_device()(m,n).gid - mbgid.view_device()(0);
+        int dn = nghbr.view_device()(m,n).dest;
 
         // copy field components directly into recv buffer if MeshBlocks on same rank
-        if (nghbr.d_view(m,n).rank == my_rank) {
+        if (nghbr.view_device()(m,n).rank == my_rank) {
           // if neighbor is at same or finer level, load data from b0
-          if (nghbr.d_view(m,n).lev >= mblev.d_view(m)) {
+          if (nghbr.view_device()(m,n).lev >= mblev.view_device()(m)) {
             Kokkos::parallel_for(Kokkos::TeamThreadRange<>(tmember, nkji),
             [&](const int idx) {
               int k = (idx)/nji;
@@ -178,7 +178,7 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFC(DvceFaceFld4D<Real> &b,
           // off-rank: write straight into the rank-packed aggregate send buffer
           const int base = sendoff(m*nnghbr + n);
           // if neighbor is at same or finer level, load data from b0
-          if (nghbr.d_view(m,n).lev >= mblev.d_view(m)) {
+          if (nghbr.view_device()(m,n).lev >= mblev.view_device()(m)) {
             Kokkos::parallel_for(Kokkos::TeamThreadRange<>(tmember, nkji),
             [&](const int idx) {
               int k = (idx)/nji;
@@ -214,7 +214,7 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFC(DvceFaceFld4D<Real> &b,
           }
 #else
           // if neighbor is at same or finer level, load data from b0
-          if (nghbr.d_view(m,n).lev >= mblev.d_view(m)) {
+          if (nghbr.view_device()(m,n).lev >= mblev.view_device()(m)) {
             Kokkos::parallel_for(Kokkos::TeamThreadRange<>(tmember, nkji),
             [&](const int idx) {
               int k = (idx)/nji;
@@ -337,10 +337,10 @@ TaskStatus MeshBoundaryValuesFC::RecvAndUnpackFC(DvceFaceFld4D<Real> &b,
     // scalar loop over neighbors to prevent race condition in overlapping assignments
     for (int n=0; n<nnghbr; ++n) {
       // only unpack buffers when neighbor exists
-      if (nghbr.d_view(m,n).gid >= 0) {
+      if (nghbr.view_device()(m,n).gid >= 0) {
         // if neighbor is at coarser level, use cindices to unpack buffer
         int il, iu, jl, ju, kl, ku, ndat;
-        if (nghbr.d_view(m,n).lev < mblev.d_view(m)) {
+        if (nghbr.view_device()(m,n).lev < mblev.view_device()(m)) {
           il = rbuf[n].icoar[v].bis;
           iu = rbuf[n].icoar[v].bie;
           jl = rbuf[n].icoar[v].bjs;
@@ -349,7 +349,7 @@ TaskStatus MeshBoundaryValuesFC::RecvAndUnpackFC(DvceFaceFld4D<Real> &b,
           ku = rbuf[n].icoar[v].bke;
           ndat = rbuf[n].icoar_ndat;
         // if neighbor is at same level, use sindices to unpack buffer
-        } else if (nghbr.d_view(m,n).lev == mblev.d_view(m)) {
+        } else if (nghbr.view_device()(m,n).lev == mblev.view_device()(m)) {
           il = rbuf[n].isame[v].bis;
           iu = rbuf[n].isame[v].bie;
           jl = rbuf[n].isame[v].bjs;
@@ -378,7 +378,7 @@ TaskStatus MeshBoundaryValuesFC::RecvAndUnpackFC(DvceFaceFld4D<Real> &b,
 #endif
 
         // if neighbor is at same or finer level, load data directly into b0
-        if (nghbr.d_view(m,n).lev >= mblev.d_view(m)) {
+        if (nghbr.view_device()(m,n).lev >= mblev.view_device()(m)) {
           Kokkos::parallel_for(Kokkos::TeamThreadRange<>(tmember, nkji),
           [&](const int idx) {
             int k = (idx)/nji;

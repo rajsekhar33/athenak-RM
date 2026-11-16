@@ -188,47 +188,48 @@ void MeshRefinement::InitRecvAMR(int nleaf) {
           int ox1 = ((lloc.lx1 & 1) == 1);
           int ox2 = ((lloc.lx2 & 1) == 1);
           int ox3 = ((lloc.lx3 & 1) == 1);
-          recvbuf.h_view(rb_idx).bis = cis + ox1*cnx1;
-          recvbuf.h_view(rb_idx).bie = cie + ox1*cnx1;
-          recvbuf.h_view(rb_idx).bjs = cjs + ox2*cnx2;
-          recvbuf.h_view(rb_idx).bje = cje + ox2*cnx2;
-          recvbuf.h_view(rb_idx).bks = cks + ox3*cnx3;
-          recvbuf.h_view(rb_idx).bke = cke + ox3*cnx3;
-          recvbuf.h_view(rb_idx).cntcc = cnx1*cnx2*cnx3;
-          recvbuf.h_view(rb_idx).cntfc = 3*cnx1*cnx2*cnx3 + cnx2*cnx3 +
+          recvbuf.view_host()(rb_idx).bis = cis + ox1*cnx1;
+          recvbuf.view_host()(rb_idx).bie = cie + ox1*cnx1;
+          recvbuf.view_host()(rb_idx).bjs = cjs + ox2*cnx2;
+          recvbuf.view_host()(rb_idx).bje = cje + ox2*cnx2;
+          recvbuf.view_host()(rb_idx).bks = cks + ox3*cnx3;
+          recvbuf.view_host()(rb_idx).bke = cke + ox3*cnx3;
+          recvbuf.view_host()(rb_idx).cntcc = cnx1*cnx2*cnx3;
+          recvbuf.view_host()(rb_idx).cntfc = 3*cnx1*cnx2*cnx3 + cnx2*cnx3 +
                                           cnx1*cnx3 + cnx1*cnx2;
-          recvbuf.h_view(rb_idx).cnt   = ncc_tosend*(recvbuf.h_view(rb_idx).cntcc) +
-                                         nfc_tosend*(recvbuf.h_view(rb_idx).cntfc);
-          recvbuf.h_view(rb_idx).lid   = newm - nmbs;
-          recvbuf.h_view(rb_idx).use_coarse = false;
+          recvbuf.view_host()(rb_idx).cnt   = ncc_tosend
+              *(recvbuf.view_host()(rb_idx).cntcc) +
+                                         nfc_tosend*(recvbuf.view_host()(rb_idx).cntfc);
+          recvbuf.view_host()(rb_idx).lid   = newm - nmbs;
+          recvbuf.view_host()(rb_idx).use_coarse = false;
           if (rb_idx > 0) {
-            recvbuf.h_view(rb_idx).offset = recvbuf.h_view((rb_idx-1)).offset +
-                                             recvbuf.h_view((rb_idx-1)).cnt;
+            recvbuf.view_host()(rb_idx).offset = recvbuf.view_host()((rb_idx-1)).offset +
+                                             recvbuf.view_host()((rb_idx-1)).cnt;
           } else {
-            recvbuf.h_view(rb_idx).offset = 0;
+            recvbuf.view_host()(rb_idx).offset = 0;
           }
           rb_idx++;
         }
       }
     } else if (old_lloc.level == new_lloc.level) {   // old MB at same level
       if (pmy_mesh->rank_eachmb[oldm] != global_variable::my_rank) {
-        recvbuf.h_view(rb_idx).bis = is;
-        recvbuf.h_view(rb_idx).bie = ie;
-        recvbuf.h_view(rb_idx).bjs = js;
-        recvbuf.h_view(rb_idx).bje = je;
-        recvbuf.h_view(rb_idx).bks = ks;
-        recvbuf.h_view(rb_idx).bke = ke;
-        recvbuf.h_view(rb_idx).cntcc = nx1*nx2*nx3;
-        recvbuf.h_view(rb_idx).cntfc = 3*nx1*nx2*nx3 + nx2*nx3 + nx1*nx3 + nx1*nx2;
-        recvbuf.h_view(rb_idx).cnt = ncc_tosend*(recvbuf.h_view(rb_idx).cntcc) +
-                                     nfc_tosend*(recvbuf.h_view(rb_idx).cntfc);
-        recvbuf.h_view(rb_idx).lid = newm - nmbs;
-        recvbuf.h_view(rb_idx).use_coarse = false;
+        recvbuf.view_host()(rb_idx).bis = is;
+        recvbuf.view_host()(rb_idx).bie = ie;
+        recvbuf.view_host()(rb_idx).bjs = js;
+        recvbuf.view_host()(rb_idx).bje = je;
+        recvbuf.view_host()(rb_idx).bks = ks;
+        recvbuf.view_host()(rb_idx).bke = ke;
+        recvbuf.view_host()(rb_idx).cntcc = nx1*nx2*nx3;
+        recvbuf.view_host()(rb_idx).cntfc = 3*nx1*nx2*nx3 + nx2*nx3 + nx1*nx3 + nx1*nx2;
+        recvbuf.view_host()(rb_idx).cnt = ncc_tosend*(recvbuf.view_host()(rb_idx).cntcc) +
+                                     nfc_tosend*(recvbuf.view_host()(rb_idx).cntfc);
+        recvbuf.view_host()(rb_idx).lid = newm - nmbs;
+        recvbuf.view_host()(rb_idx).use_coarse = false;
         if (rb_idx > 0) {
-          recvbuf.h_view(rb_idx).offset = recvbuf.h_view((rb_idx-1)).offset +
-                                          recvbuf.h_view((rb_idx-1)).cnt;
+          recvbuf.view_host()(rb_idx).offset = recvbuf.view_host()((rb_idx-1)).offset +
+                                          recvbuf.view_host()((rb_idx-1)).cnt;
         } else {
-          recvbuf.h_view(rb_idx).offset = 0;
+          recvbuf.view_host()(rb_idx).offset = 0;
         }
         rb_idx++;
       }
@@ -236,24 +237,24 @@ void MeshRefinement::InitRecvAMR(int nleaf) {
       // recv whenever refined MB changes rank, or if any leaf on different rank than root
       if ((new_rank_eachmb[oldtonew[oldm]] != global_variable::my_rank) ||
           (pmy_mesh->rank_eachmb[oldm] != global_variable::my_rank)) {
-        recvbuf.h_view(rb_idx).bis = il; // note il:iu etc. includes ghost zones
-        recvbuf.h_view(rb_idx).bie = iu;
-        recvbuf.h_view(rb_idx).bjs = jl;
-        recvbuf.h_view(rb_idx).bje = ju;
-        recvbuf.h_view(rb_idx).bks = kl;
-        recvbuf.h_view(rb_idx).bke = ku;
-        recvbuf.h_view(rb_idx).cntcc = (iu-il+1)*(ju-jl+1)*(ku-kl+1);
-        recvbuf.h_view(rb_idx).cntfc = (iu-il+2)*(ju-jl+1)*(ku-kl+1) +
+        recvbuf.view_host()(rb_idx).bis = il; // note il:iu etc. includes ghost zones
+        recvbuf.view_host()(rb_idx).bie = iu;
+        recvbuf.view_host()(rb_idx).bjs = jl;
+        recvbuf.view_host()(rb_idx).bje = ju;
+        recvbuf.view_host()(rb_idx).bks = kl;
+        recvbuf.view_host()(rb_idx).bke = ku;
+        recvbuf.view_host()(rb_idx).cntcc = (iu-il+1)*(ju-jl+1)*(ku-kl+1);
+        recvbuf.view_host()(rb_idx).cntfc = (iu-il+2)*(ju-jl+1)*(ku-kl+1) +
              (iu-il+1)*(ju-jl+2)*(ku-kl+1) + (iu-il+1)*(ju-jl+1)*(ku-kl+2);
-        recvbuf.h_view(rb_idx).cnt = ncc_tosend*(recvbuf.h_view(rb_idx).cntcc) +
-                                     nfc_tosend*(recvbuf.h_view(rb_idx).cntfc);
-        recvbuf.h_view(rb_idx).lid = newm - nmbs;
-        recvbuf.h_view(rb_idx).use_coarse = true;
+        recvbuf.view_host()(rb_idx).cnt = ncc_tosend*(recvbuf.view_host()(rb_idx).cntcc) +
+                                     nfc_tosend*(recvbuf.view_host()(rb_idx).cntfc);
+        recvbuf.view_host()(rb_idx).lid = newm - nmbs;
+        recvbuf.view_host()(rb_idx).use_coarse = true;
         if (rb_idx > 0) {
-          recvbuf.h_view(rb_idx).offset = recvbuf.h_view((rb_idx-1)).offset +
-                                          recvbuf.h_view((rb_idx-1)).cnt;
+          recvbuf.view_host()(rb_idx).offset = recvbuf.view_host()((rb_idx-1)).offset +
+                                          recvbuf.view_host()((rb_idx-1)).cnt;
         } else {
-          recvbuf.h_view(rb_idx).offset = 0;
+          recvbuf.view_host()(rb_idx).offset = 0;
         }
         rb_idx++;
       }
@@ -282,13 +283,13 @@ void MeshRefinement::InitRecvAMR(int nleaf) {
           int ox1 = ((lloc.lx1 & 1) == 1);
           int ox2 = ((lloc.lx2 & 1) == 1);
           int ox3 = ((lloc.lx3 & 1) == 1);
-          int vs = recvbuf.h_view(rb_idx).offset;
-          int ve = vs + recvbuf.h_view(rb_idx).cnt;
+          int vs = recvbuf.view_host()(rb_idx).offset;
+          int ve = vs + recvbuf.view_host()(rb_idx).cnt;
           auto pdata = Kokkos::subview(recv_data, std::make_pair(vs,ve));
           // create tag using local ID of *receiving* MeshBlock, post receive
           int tag = CreateAMR_MPI_Tag(newm-nmbs, ox1, ox2, ox3);
           // post non-blocking receive
-          int ierr = MPI_Irecv(pdata.data(), recvbuf.h_view(rb_idx).cnt,
+          int ierr = MPI_Irecv(pdata.data(), recvbuf.view_host()(rb_idx).cnt,
                      MPI_ATHENA_REAL, pmy_mesh->rank_eachmb[oldm+l], tag, amr_comm,
                      &(recv_req[rb_idx]));
           if (ierr != MPI_SUCCESS) {no_errors=false;}
@@ -297,13 +298,14 @@ void MeshRefinement::InitRecvAMR(int nleaf) {
       }
     } else if (old_lloc.level == new_lloc.level) {   // old MB at same level
       if (pmy_mesh->rank_eachmb[oldm] != global_variable::my_rank) {
-        int vs = recvbuf.h_view(rb_idx).offset;
-        int ve = vs + recvbuf.h_view(rb_idx).cnt;
+        int vs = recvbuf.view_host()(rb_idx).offset;
+        int ve = vs + recvbuf.view_host()(rb_idx).cnt;
         auto pdata = Kokkos::subview(recv_data, std::make_pair(vs,ve));
         // create tag using local ID of *receiving* MeshBlock, post receive
         int tag = CreateAMR_MPI_Tag(newm-nmbs, 0, 0, 0);
         // post non-blocking receive
-        int ierr = MPI_Irecv(pdata.data(), recvbuf.h_view(rb_idx).cnt, MPI_ATHENA_REAL,
+        int ierr = MPI_Irecv(pdata.data(), recvbuf.view_host()(rb_idx).cnt,
+            MPI_ATHENA_REAL,
                    pmy_mesh->rank_eachmb[oldm], tag, amr_comm,
                    &(recv_req[rb_idx]));
         if (ierr != MPI_SUCCESS) {no_errors=false;}
@@ -313,13 +315,14 @@ void MeshRefinement::InitRecvAMR(int nleaf) {
       // recv whenever refined MB changes rank, or if any leaf on different rank than root
       if ((new_rank_eachmb[oldtonew[oldm]] != global_variable::my_rank) ||
           (pmy_mesh->rank_eachmb[oldm] != global_variable::my_rank)) {
-        int vs = recvbuf.h_view(rb_idx).offset;
-        int ve = vs + recvbuf.h_view(rb_idx).cnt;
+        int vs = recvbuf.view_host()(rb_idx).offset;
+        int ve = vs + recvbuf.view_host()(rb_idx).cnt;
         auto pdata = Kokkos::subview(recv_data, std::make_pair(vs,ve));
         // create tag using local ID of *receiving* MeshBlock, post receive
         int tag = CreateAMR_MPI_Tag(newm-nmbs, 0, 0, 0);
         // post non-blocking receive
-        int ierr = MPI_Irecv(pdata.data(), recvbuf.h_view(rb_idx).cnt, MPI_ATHENA_REAL,
+        int ierr = MPI_Irecv(pdata.data(), recvbuf.view_host()(rb_idx).cnt,
+            MPI_ATHENA_REAL,
                    pmy_mesh->rank_eachmb[oldm], tag, amr_comm,
                    &(recv_req[rb_idx]));
         if (ierr != MPI_SUCCESS) {no_errors=false;}
@@ -440,24 +443,26 @@ void MeshRefinement::PackAndSendAMR(int nleaf) {
           int ox1 = ((lloc.lx1 & 1) == 1);
           int ox2 = ((lloc.lx2 & 1) == 1);
           int ox3 = ((lloc.lx3 & 1) == 1);
-          sendbuf.h_view(sb_idx).bis = il + ox1*cnx1;  // il:iu etc. includes ghost zones
-          sendbuf.h_view(sb_idx).bie = iu + ox1*cnx1;
-          sendbuf.h_view(sb_idx).bjs = jl + ox2*cnx2;
-          sendbuf.h_view(sb_idx).bje = ju + ox2*cnx2;
-          sendbuf.h_view(sb_idx).bks = kl + ox3*cnx3;
-          sendbuf.h_view(sb_idx).bke = ku + ox3*cnx3;
-          sendbuf.h_view(sb_idx).cntcc = (iu-il+1)*(ju-jl+1)*(ku-kl+1);
-          sendbuf.h_view(sb_idx).cntfc = (iu-il+2)*(ju-jl+1)*(ku-kl+1) +
+          sendbuf.view_host()(sb_idx).bis = il + ox1*cnx1;
+          // il:iu etc. includes ghost zones
+          sendbuf.view_host()(sb_idx).bie = iu + ox1*cnx1;
+          sendbuf.view_host()(sb_idx).bjs = jl + ox2*cnx2;
+          sendbuf.view_host()(sb_idx).bje = ju + ox2*cnx2;
+          sendbuf.view_host()(sb_idx).bks = kl + ox3*cnx3;
+          sendbuf.view_host()(sb_idx).bke = ku + ox3*cnx3;
+          sendbuf.view_host()(sb_idx).cntcc = (iu-il+1)*(ju-jl+1)*(ku-kl+1);
+          sendbuf.view_host()(sb_idx).cntfc = (iu-il+2)*(ju-jl+1)*(ku-kl+1) +
                (iu-il+1)*(ju-jl+2)*(ku-kl+1) + (iu-il+1)*(ju-jl+1)*(ku-kl+2);
-          sendbuf.h_view(sb_idx).cnt   = ncc_tosend*(sendbuf.h_view(sb_idx).cntcc) +
-                                         nfc_tosend*(sendbuf.h_view(sb_idx).cntfc);
-          sendbuf.h_view(sb_idx).lid   = oldm - ombs;
-          sendbuf.h_view(sb_idx).use_coarse = false;
+          sendbuf.view_host()(sb_idx).cnt   = ncc_tosend
+              *(sendbuf.view_host()(sb_idx).cntcc) +
+                                         nfc_tosend*(sendbuf.view_host()(sb_idx).cntfc);
+          sendbuf.view_host()(sb_idx).lid   = oldm - ombs;
+          sendbuf.view_host()(sb_idx).use_coarse = false;
           if (sb_idx > 0) {
-            sendbuf.h_view(sb_idx).offset = sendbuf.h_view((sb_idx-1)).offset +
-                                            sendbuf.h_view((sb_idx-1)).cnt;
+            sendbuf.view_host()(sb_idx).offset = sendbuf.view_host()((sb_idx-1)).offset +
+                                            sendbuf.view_host()((sb_idx-1)).cnt;
           } else {
-            sendbuf.h_view(sb_idx).offset = 0;
+            sendbuf.view_host()(sb_idx).offset = 0;
           }
           sb_idx++;
         }
@@ -465,23 +470,24 @@ void MeshRefinement::PackAndSendAMR(int nleaf) {
     } else {   // same level or de-refinement
       if (old_lloc.level == new_lloc.level) { // old MB on same level
         if (new_rank_eachmb[newm] != global_variable::my_rank) {
-          sendbuf.h_view(sb_idx).bis = is;
-          sendbuf.h_view(sb_idx).bie = ie;
-          sendbuf.h_view(sb_idx).bjs = js;
-          sendbuf.h_view(sb_idx).bje = je;
-          sendbuf.h_view(sb_idx).bks = ks;
-          sendbuf.h_view(sb_idx).bke = ke;
-          sendbuf.h_view(sb_idx).cntcc = nx1*nx2*nx3;
-          sendbuf.h_view(sb_idx).cntfc = 3*nx1*nx2*nx3 + nx2*nx3 + nx1*nx3 + nx1*nx2;
-          sendbuf.h_view(sb_idx).cnt = ncc_tosend*(sendbuf.h_view(sb_idx).cntcc) +
-                                       nfc_tosend*(sendbuf.h_view(sb_idx).cntfc);
-          sendbuf.h_view(sb_idx).lid = oldm - ombs;
-          sendbuf.h_view(sb_idx).use_coarse = false;
+          sendbuf.view_host()(sb_idx).bis = is;
+          sendbuf.view_host()(sb_idx).bie = ie;
+          sendbuf.view_host()(sb_idx).bjs = js;
+          sendbuf.view_host()(sb_idx).bje = je;
+          sendbuf.view_host()(sb_idx).bks = ks;
+          sendbuf.view_host()(sb_idx).bke = ke;
+          sendbuf.view_host()(sb_idx).cntcc = nx1*nx2*nx3;
+          sendbuf.view_host()(sb_idx).cntfc = 3*nx1*nx2*nx3 + nx2*nx3 + nx1*nx3 + nx1*nx2;
+          sendbuf.view_host()(sb_idx).cnt = ncc_tosend
+              *(sendbuf.view_host()(sb_idx).cntcc) +
+                                       nfc_tosend*(sendbuf.view_host()(sb_idx).cntfc);
+          sendbuf.view_host()(sb_idx).lid = oldm - ombs;
+          sendbuf.view_host()(sb_idx).use_coarse = false;
           if (sb_idx > 0) {
-            sendbuf.h_view(sb_idx).offset = sendbuf.h_view((sb_idx-1)).offset +
-                                            sendbuf.h_view((sb_idx-1)).cnt;
+            sendbuf.view_host()(sb_idx).offset = sendbuf.view_host()((sb_idx-1)).offset +
+                                            sendbuf.view_host()((sb_idx-1)).cnt;
           } else {
-            sendbuf.h_view(sb_idx).offset = 0;
+            sendbuf.view_host()(sb_idx).offset = 0;
           }
           sb_idx++;
         }
@@ -489,24 +495,25 @@ void MeshRefinement::PackAndSendAMR(int nleaf) {
         // send whenever root MB changes rank, or if any leaf on different rank than root
         if ((pmy_mesh->rank_eachmb[newtoold[newm]] != global_variable::my_rank) ||
             (new_rank_eachmb[newm] != global_variable::my_rank)) {
-          sendbuf.h_view(sb_idx).bis = cis;
-          sendbuf.h_view(sb_idx).bie = cie;
-          sendbuf.h_view(sb_idx).bjs = cjs;
-          sendbuf.h_view(sb_idx).bje = cje;
-          sendbuf.h_view(sb_idx).bks = cks;
-          sendbuf.h_view(sb_idx).bke = cke;
-          sendbuf.h_view(sb_idx).cntcc = cnx1*cnx2*cnx3;
-          sendbuf.h_view(sb_idx).cntfc = 3*cnx1*cnx2*cnx3 + cnx2*cnx3 + cnx1*cnx3
+          sendbuf.view_host()(sb_idx).bis = cis;
+          sendbuf.view_host()(sb_idx).bie = cie;
+          sendbuf.view_host()(sb_idx).bjs = cjs;
+          sendbuf.view_host()(sb_idx).bje = cje;
+          sendbuf.view_host()(sb_idx).bks = cks;
+          sendbuf.view_host()(sb_idx).bke = cke;
+          sendbuf.view_host()(sb_idx).cntcc = cnx1*cnx2*cnx3;
+          sendbuf.view_host()(sb_idx).cntfc = 3*cnx1*cnx2*cnx3 + cnx2*cnx3 + cnx1*cnx3
                                           + cnx1*cnx2;
-          sendbuf.h_view(sb_idx).use_coarse = true;
-          sendbuf.h_view(sb_idx).cnt = ncc_tosend*(sendbuf.h_view(sb_idx).cntcc) +
-                                       nfc_tosend*(sendbuf.h_view(sb_idx).cntfc);
-          sendbuf.h_view(sb_idx).lid = oldm - ombs;
+          sendbuf.view_host()(sb_idx).use_coarse = true;
+          sendbuf.view_host()(sb_idx).cnt = ncc_tosend
+              *(sendbuf.view_host()(sb_idx).cntcc) +
+                                       nfc_tosend*(sendbuf.view_host()(sb_idx).cntfc);
+          sendbuf.view_host()(sb_idx).lid = oldm - ombs;
           if (sb_idx > 0) {
-            sendbuf.h_view(sb_idx).offset = sendbuf.h_view((sb_idx-1)).offset +
-                                            sendbuf.h_view((sb_idx-1)).cnt;
+            sendbuf.view_host()(sb_idx).offset = sendbuf.view_host()((sb_idx-1)).offset +
+                                            sendbuf.view_host()((sb_idx-1)).cnt;
           } else {
-            sendbuf.h_view(sb_idx).offset = 0;
+            sendbuf.view_host()(sb_idx).offset = 0;
           }
           sb_idx++;
         }
@@ -560,14 +567,15 @@ void MeshRefinement::PackAndSendAMR(int nleaf) {
         // send if refined MB changes rank, or if any leaf on different rank than root
         if ((new_rank_eachmb[newm] != global_variable::my_rank) ||
             (new_rank_eachmb[newm + l] != global_variable::my_rank)) {
-          int vs = sendbuf.h_view(sb_idx).offset;
-          int ve = vs + sendbuf.h_view(sb_idx).cnt;
+          int vs = sendbuf.view_host()(sb_idx).offset;
+          int ve = vs + sendbuf.view_host()(sb_idx).cnt;
           auto pdata = Kokkos::subview(send_data, std::make_pair(vs,ve));
           // create tag using local ID of *receiving* MeshBlock
           int lid = (newm + l) - new_gids_eachrank[new_rank_eachmb[newm+l]];
           int tag = CreateAMR_MPI_Tag(lid, 0, 0, 0);
           // post non-blocking send
-          int ierr = MPI_Isend(pdata.data(), sendbuf.h_view(sb_idx).cnt, MPI_ATHENA_REAL,
+          int ierr = MPI_Isend(pdata.data(), sendbuf.view_host()(sb_idx).cnt,
+              MPI_ATHENA_REAL,
                      new_rank_eachmb[newm+l], tag, amr_comm,
                      &(send_req[sb_idx]));
           if (ierr != MPI_SUCCESS) {no_errors=false;}
@@ -577,14 +585,15 @@ void MeshRefinement::PackAndSendAMR(int nleaf) {
     } else {   // same level or de-refinement
       if (old_lloc.level == new_lloc.level) {   // old MB at same level
         if (new_rank_eachmb[newm] != global_variable::my_rank) {
-          int vs = sendbuf.h_view(sb_idx).offset;
-          int ve = vs + sendbuf.h_view(sb_idx).cnt;
+          int vs = sendbuf.view_host()(sb_idx).offset;
+          int ve = vs + sendbuf.view_host()(sb_idx).cnt;
           auto pdata = Kokkos::subview(send_data, std::make_pair(vs,ve));
           // create tag using local ID of *receiving* MeshBlock
           int lid = newm - new_gids_eachrank[new_rank_eachmb[newm]];
           int tag = CreateAMR_MPI_Tag(lid, 0, 0, 0);
           // post non-blocking send
-          int ierr = MPI_Isend(pdata.data(), sendbuf.h_view(sb_idx).cnt, MPI_ATHENA_REAL,
+          int ierr = MPI_Isend(pdata.data(), sendbuf.view_host()(sb_idx).cnt,
+              MPI_ATHENA_REAL,
                      new_rank_eachmb[newm], tag, amr_comm,
                      &(send_req[sb_idx]));
           if (ierr != MPI_SUCCESS) {no_errors=false;}
@@ -594,8 +603,8 @@ void MeshRefinement::PackAndSendAMR(int nleaf) {
         // send whenever root MB changes rank, or if any leaf on different rank than root
         if ((pmy_mesh->rank_eachmb[newtoold[newm]] != global_variable::my_rank) ||
             (new_rank_eachmb[newm] != global_variable::my_rank)) {
-          int vs = sendbuf.h_view(sb_idx).offset;
-          int ve = vs + sendbuf.h_view(sb_idx).cnt;
+          int vs = sendbuf.view_host()(sb_idx).offset;
+          int ve = vs + sendbuf.view_host()(sb_idx).cnt;
           auto pdata = Kokkos::subview(send_data, std::make_pair(vs,ve));
           // create tag using local ID of *receiving* MeshBlock
           int ox1 = ((old_lloc.lx1 & 1) == 1);
@@ -604,7 +613,8 @@ void MeshRefinement::PackAndSendAMR(int nleaf) {
           int lid = newm - new_gids_eachrank[new_rank_eachmb[newm]];
           int tag = CreateAMR_MPI_Tag(lid, ox1, ox2, ox3);
           // post non-blocking send
-          int ierr = MPI_Isend(pdata.data(), sendbuf.h_view(sb_idx).cnt, MPI_ATHENA_REAL,
+          int ierr = MPI_Isend(pdata.data(), sendbuf.view_host()(sb_idx).cnt,
+              MPI_ATHENA_REAL,
                      new_rank_eachmb[newm], tag, amr_comm,
                      &(send_req[sb_idx]));
           if (ierr != MPI_SUCCESS) {no_errors=false;}
@@ -644,17 +654,18 @@ void MeshRefinement::PackAMRBuffersCC(DvceArray5D<Real> &a, DvceArray5D<Real> &c
     const int n = (tmember.league_rank())/nvar;
     const int v = (tmember.league_rank() - n*nvar);
 
-    const int il = sbuf.d_view(n).bis;
-    const int jl = sbuf.d_view(n).bjs;
-    const int kl = sbuf.d_view(n).bks;
-    const int ni = sbuf.d_view(n).bie - il + 1;
-    const int nj = sbuf.d_view(n).bje - jl + 1;
-    const int nk = sbuf.d_view(n).bke - kl + 1;
+    const int il = sbuf.view_device()(n).bis;
+    const int jl = sbuf.view_device()(n).bjs;
+    const int kl = sbuf.view_device()(n).bks;
+    const int ni = sbuf.view_device()(n).bie - il + 1;
+    const int nj = sbuf.view_device()(n).bje - jl + 1;
+    const int nk = sbuf.view_device()(n).bke - kl + 1;
     const int nkji = nk*nj*ni;
     const int nji  = nj*ni;
-    const int m  = sbuf.d_view(n).lid;
-    const int offset = sbuf.d_view(n).offset +
-                       (ncc*sbuf.d_view(n).cntcc + nfc*sbuf.d_view(n).cntfc);
+    const int m  = sbuf.view_device()(n).lid;
+    const int offset = sbuf.view_device()(n).offset +
+                       (ncc*sbuf.view_device()(n).cntcc + nfc
+                           *sbuf.view_device()(n).cntfc);
 
     // Middle loop over k,j,i
     Kokkos::parallel_for(Kokkos::TeamThreadRange<>(tmember, nkji), [&](const int idx) {
@@ -663,7 +674,7 @@ void MeshRefinement::PackAMRBuffersCC(DvceArray5D<Real> &a, DvceArray5D<Real> &c
       int i = (idx - k*nji - j*ni) + il;
       k += kl;
       j += jl;
-      if (sbuf.d_view(n).use_coarse) {
+      if (sbuf.view_device()(n).use_coarse) {
         // if de-refinement, load data from coarse_a
         sdata(offset + (i-il + ni*(j-jl + nj*(k-kl + nk*v)))) = ca(m,v,k,j,i);
       } else {
@@ -692,18 +703,19 @@ void MeshRefinement::PackAMRBuffersFC(DvceFaceFld4D<Real> &b, DvceFaceFld4D<Real
     const int n = (tmember.league_rank())/3;
     const int v = (tmember.league_rank() - 3*n);
 
-    const int il = sbuf.d_view(n).bis;
-    const int jl = sbuf.d_view(n).bjs;
-    const int kl = sbuf.d_view(n).bks;
-    const int m  = sbuf.d_view(n).lid;
-    const int nicc = sbuf.d_view(n).bie - il + 1;
-    const int njcc = sbuf.d_view(n).bje - jl + 1;
-    const int nkcc = sbuf.d_view(n).bke - kl + 1;
+    const int il = sbuf.view_device()(n).bis;
+    const int jl = sbuf.view_device()(n).bjs;
+    const int kl = sbuf.view_device()(n).bks;
+    const int m  = sbuf.view_device()(n).lid;
+    const int nicc = sbuf.view_device()(n).bie - il + 1;
+    const int njcc = sbuf.view_device()(n).bje - jl + 1;
+    const int nkcc = sbuf.view_device()(n).bke - kl + 1;
 
     // pack x1 component
     if (v==0) {
-      const int offset = sbuf.d_view(n).offset +
-                         (ncc*sbuf.d_view(n).cntcc + nfc*sbuf.d_view(n).cntfc);
+      const int offset = sbuf.view_device()(n).offset +
+                         (ncc*sbuf.view_device()(n).cntcc + nfc
+                             *sbuf.view_device()(n).cntfc);
       const int ni = nicc + 1;  // add b.x1f at (ie+1)
       const int nj = njcc;
       const int nk = nkcc;
@@ -717,7 +729,7 @@ void MeshRefinement::PackAMRBuffersFC(DvceFaceFld4D<Real> &b, DvceFaceFld4D<Real
         int i = (idx - k*nji - j*ni) + il;
         k += kl;
         j += jl;
-        if (sbuf.d_view(n).use_coarse) {
+        if (sbuf.view_device()(n).use_coarse) {
           // if de-refinement, load data from coarse_a
           sdata(offset + (i-il + ni*(j-jl + nj*(k-kl)))) = cb.x1f(m,k,j,i);
         } else {
@@ -728,8 +740,9 @@ void MeshRefinement::PackAMRBuffersFC(DvceFaceFld4D<Real> &b, DvceFaceFld4D<Real
 
     // pack x2 component
     } else if (v==1) {
-      const int offset = sbuf.d_view(n).offset +
-                         (ncc*sbuf.d_view(n).cntcc + nfc*sbuf.d_view(n).cntfc) +
+      const int offset = sbuf.view_device()(n).offset +
+                         (ncc*sbuf.view_device()(n).cntcc + nfc
+                             *sbuf.view_device()(n).cntfc) +
                          (nicc+1)*njcc*nkcc;
       const int ni = nicc;
       const int nj = njcc + 1;  // add b.x2f at (je+1)
@@ -744,7 +757,7 @@ void MeshRefinement::PackAMRBuffersFC(DvceFaceFld4D<Real> &b, DvceFaceFld4D<Real
         int i = (idx - k*nji - j*ni) + il;
         k += kl;
         j += jl;
-        if (sbuf.d_view(n).use_coarse) {
+        if (sbuf.view_device()(n).use_coarse) {
           // if de-refinement, load data from coarse_a
           sdata(offset + (i-il + ni*(j-jl + nj*(k-kl)))) = cb.x2f(m,k,j,i);
         } else {
@@ -755,8 +768,9 @@ void MeshRefinement::PackAMRBuffersFC(DvceFaceFld4D<Real> &b, DvceFaceFld4D<Real
 
     // pack x3 component
     } else {
-      const int offset = sbuf.d_view(n).offset +
-                         (ncc*sbuf.d_view(n).cntcc + nfc*sbuf.d_view(n).cntfc) +
+      const int offset = sbuf.view_device()(n).offset +
+                         (ncc*sbuf.view_device()(n).cntcc + nfc
+                             *sbuf.view_device()(n).cntfc) +
                          (nicc+1)*njcc*nkcc + nicc*(njcc+1)*nkcc;
       const int ni = nicc;
       const int nj = njcc;
@@ -771,7 +785,7 @@ void MeshRefinement::PackAMRBuffersFC(DvceFaceFld4D<Real> &b, DvceFaceFld4D<Real
         int i = (idx - k*nji - j*ni) + il;
         k += kl;
         j += jl;
-        if (sbuf.d_view(n).use_coarse) {
+        if (sbuf.view_device()(n).use_coarse) {
           // if de-refinement, load data from coarse_a
           sdata(offset + (i-il + ni*(j-jl + nj*(k-kl)))) = cb.x3f(m,k,j,i);
         } else {
@@ -858,17 +872,18 @@ void MeshRefinement::UnpackAMRBuffersCC(DvceArray5D<Real> &a, DvceArray5D<Real> 
     const int n = (tmember.league_rank())/nvar;
     const int v = (tmember.league_rank() - n*nvar);
 
-    const int il = rbuf.d_view(n).bis;
-    const int jl = rbuf.d_view(n).bjs;
-    const int kl = rbuf.d_view(n).bks;
-    const int ni = rbuf.d_view(n).bie - il + 1;
-    const int nj = rbuf.d_view(n).bje - jl + 1;
-    const int nk = rbuf.d_view(n).bke - kl + 1;
+    const int il = rbuf.view_device()(n).bis;
+    const int jl = rbuf.view_device()(n).bjs;
+    const int kl = rbuf.view_device()(n).bks;
+    const int ni = rbuf.view_device()(n).bie - il + 1;
+    const int nj = rbuf.view_device()(n).bje - jl + 1;
+    const int nk = rbuf.view_device()(n).bke - kl + 1;
     const int nkji = nk*nj*ni;
     const int nji  = nj*ni;
-    const int m  = rbuf.d_view(n).lid;
-    const int offset = rbuf.d_view(n).offset +
-                       (ncc*rbuf.d_view(n).cntcc + nfc*rbuf.d_view(n).cntfc);
+    const int m  = rbuf.view_device()(n).lid;
+    const int offset = rbuf.view_device()(n).offset +
+                       (ncc*rbuf.view_device()(n).cntcc + nfc
+                           *rbuf.view_device()(n).cntfc);
 
     // Middle loop over k,j,i
     Kokkos::parallel_for(Kokkos::TeamThreadRange<>(tmember, nkji), [&](const int idx) {
@@ -877,7 +892,7 @@ void MeshRefinement::UnpackAMRBuffersCC(DvceArray5D<Real> &a, DvceArray5D<Real> 
       int i = (idx - k*nji - j*ni) + il;
       k += kl;
       j += jl;
-      if (rbuf.d_view(n).use_coarse) {
+      if (rbuf.view_device()(n).use_coarse) {
         // if refinement, load data into coarse_a
         ca(m,v,k,j,i) = rdata(offset + (i-il + ni*(j-jl + nj*(k-kl + nk*v))));
       } else {
@@ -907,18 +922,19 @@ void MeshRefinement::UnpackAMRBuffersFC(DvceFaceFld4D<Real> &b, DvceFaceFld4D<Re
     const int n = (tmember.league_rank())/3;
     const int v = (tmember.league_rank() - n*3);
 
-    const int il = rbuf.d_view(n).bis;
-    const int jl = rbuf.d_view(n).bjs;
-    const int kl = rbuf.d_view(n).bks;
-    const int m  = rbuf.d_view(n).lid;
-    const int nicc = rbuf.d_view(n).bie - il + 1;
-    const int njcc = rbuf.d_view(n).bje - jl + 1;
-    const int nkcc = rbuf.d_view(n).bke - kl + 1;
+    const int il = rbuf.view_device()(n).bis;
+    const int jl = rbuf.view_device()(n).bjs;
+    const int kl = rbuf.view_device()(n).bks;
+    const int m  = rbuf.view_device()(n).lid;
+    const int nicc = rbuf.view_device()(n).bie - il + 1;
+    const int njcc = rbuf.view_device()(n).bje - jl + 1;
+    const int nkcc = rbuf.view_device()(n).bke - kl + 1;
 
     // unpack x1 component
     if (v==0) {
-      const int offset = rbuf.d_view(n).offset +
-                         (ncc*rbuf.d_view(n).cntcc + nfc*rbuf.d_view(n).cntfc);
+      const int offset = rbuf.view_device()(n).offset +
+                         (ncc*rbuf.view_device()(n).cntcc + nfc
+                             *rbuf.view_device()(n).cntfc);
       const int ni = nicc + 1;  // add b.x1f at (ie+1)
       const int nj = njcc;
       const int nk = nkcc;
@@ -932,7 +948,7 @@ void MeshRefinement::UnpackAMRBuffersFC(DvceFaceFld4D<Real> &b, DvceFaceFld4D<Re
         int i = (idx - k*nji - j*ni) + il;
         k += kl;
         j += jl;
-        if (rbuf.d_view(n).use_coarse) {
+        if (rbuf.view_device()(n).use_coarse) {
           // if refinement, load data into coarse_a
           cb.x1f(m,k,j,i) = rdata(offset + (i-il + ni*(j-jl + nj*(k-kl))));
         } else {
@@ -943,8 +959,9 @@ void MeshRefinement::UnpackAMRBuffersFC(DvceFaceFld4D<Real> &b, DvceFaceFld4D<Re
 
     // unpack x2 component
     } else if (v==1) {
-      const int offset = rbuf.d_view(n).offset +
-                         (ncc*rbuf.d_view(n).cntcc + nfc*rbuf.d_view(n).cntfc) +
+      const int offset = rbuf.view_device()(n).offset +
+                         (ncc*rbuf.view_device()(n).cntcc + nfc
+                             *rbuf.view_device()(n).cntfc) +
                          (nicc+1)*njcc*nkcc;
       const int ni = nicc;
       const int nj = njcc + 1;  // add b.x2f at (je+1)
@@ -959,7 +976,7 @@ void MeshRefinement::UnpackAMRBuffersFC(DvceFaceFld4D<Real> &b, DvceFaceFld4D<Re
         int i = (idx - k*nji - j*ni) + il;
         k += kl;
         j += jl;
-        if (rbuf.d_view(n).use_coarse) {
+        if (rbuf.view_device()(n).use_coarse) {
           // if refinement, load data into coarse_a
           cb.x2f(m,k,j,i) = rdata(offset + (i-il + ni*(j-jl + nj*(k-kl))));
         } else {
@@ -970,8 +987,9 @@ void MeshRefinement::UnpackAMRBuffersFC(DvceFaceFld4D<Real> &b, DvceFaceFld4D<Re
 
     // unpack x3 component
     } else {
-      const int offset = rbuf.d_view(n).offset +
-                         (ncc*rbuf.d_view(n).cntcc + nfc*rbuf.d_view(n).cntfc) +
+      const int offset = rbuf.view_device()(n).offset +
+                         (ncc*rbuf.view_device()(n).cntcc + nfc
+                             *rbuf.view_device()(n).cntfc) +
                          (nicc+1)*njcc*nkcc + nicc*(njcc+1)*nkcc;
       const int ni = nicc;
       const int nj = njcc;
@@ -986,7 +1004,7 @@ void MeshRefinement::UnpackAMRBuffersFC(DvceFaceFld4D<Real> &b, DvceFaceFld4D<Re
         int i = (idx - k*nji - j*ni) + il;
         k += kl;
         j += jl;
-        if (rbuf.d_view(n).use_coarse) {
+        if (rbuf.view_device()(n).use_coarse) {
           // if refinement, load data into coarse_a
           cb.x3f(m,k,j,i) = rdata(offset + (i-il + ni*(j-jl + nj*(k-kl))));
         } else {

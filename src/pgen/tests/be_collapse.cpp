@@ -197,12 +197,12 @@ void ProblemGenerator::BECollapse(ParameterInput *pin, const bool restart) {
     Real igm1_l = igm1;
     par_for("be_collapse_hydro", DevExeSpace(), 0, nmb - 1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
 
       Real x = CellCenterX(i - is, indcs.nx1, x1min, x1max);
       Real y = CellCenterX(j - js, indcs.nx2, x2min, x2max);
@@ -239,12 +239,12 @@ void ProblemGenerator::BECollapse(ParameterInput *pin, const bool restart) {
     Real igm1_l = igm1;
     par_for("be_collapse_mhd", DevExeSpace(), 0, nmb - 1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
 
       Real x = CellCenterX(i - is, indcs.nx1, x1min, x1max);
       Real y = CellCenterX(j - js, indcs.nx2, x2min, x2max);
@@ -377,12 +377,12 @@ void BarotropicCooling(Mesh *pm, const Real bdt) {
     auto &bcc0 = pmbp->pmhd->bcc0;
     par_for("barotropic_cooling_mhd", DevExeSpace(), 0, nmb-1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
 
       Real x = CellCenterX(i - is, indcs.nx1, x1min, x1max);
       Real y = CellCenterX(j - js, indcs.nx2, x2min, x2max);
@@ -411,12 +411,12 @@ void BarotropicCooling(Mesh *pm, const Real bdt) {
     auto &u0 = pmbp->phydro->u0;
     par_for("barotropic_cooling_hydro", DevExeSpace(), 0, nmb-1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
 
       Real x = CellCenterX(i - is, indcs.nx1, x1min, x1max);
       Real y = CellCenterX(j - js, indcs.nx2, x2min, x2max);
@@ -488,7 +488,7 @@ void JeansRefinement(MeshBlockPack *pmbp) {
       },
       Kokkos::Max<Real>(team_rhomax));
 
-    Real dx = size.d_view(m).dx1;
+    Real dx = size.view_device()(m).dx1;
     Real v_eff = cs;
 
     // For MHD with isothermal EOS, add Alfven speed contribution
@@ -511,11 +511,11 @@ void JeansRefinement(MeshBlockPack *pmbp) {
     Real nj_min = v_eff / Kokkos::sqrt(team_rhomax) * (2.0 * M_PI / dx);
 
     if (nj_min < njeans) {
-      refine_flag.d_view(m + mbs) = 1;
+      refine_flag.view_device()(m + mbs) = 1;
     } else if (nj_min > njeans * 2.5) {
-      refine_flag.d_view(m + mbs) = -1;
+      refine_flag.view_device()(m + mbs) = -1;
     } else {
-      refine_flag.d_view(m + mbs) = 0;
+      refine_flag.view_device()(m + mbs) = 0;
     }
   });
 

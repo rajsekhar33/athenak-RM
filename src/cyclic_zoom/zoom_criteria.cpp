@@ -127,12 +127,12 @@ void CyclicZoom::SetRefinementFlags() {
       Real x1min, x1max, x2min, x2max, x3min, x3max;
       if (ref_flag > 0) {
         // For refinement, the bounds are simply those of the current MeshBlock
-        x1min = size.h_view(m).x1min;
-        x1max = size.h_view(m).x1max;
-        x2min = size.h_view(m).x2min;
-        x2max = size.h_view(m).x2max;
-        x3min = size.h_view(m).x3min;
-        x3max = size.h_view(m).x3max;
+        x1min = size.view_host()(m).x1min;
+        x1max = size.view_host()(m).x1max;
+        x2min = size.view_host()(m).x2min;
+        x2max = size.view_host()(m).x2max;
+        x3min = size.view_host()(m).x3min;
+        x3max = size.view_host()(m).x3max;
       } else {
         // For coarsening, need to compute the bounds of the parent MeshBlock
         std::int32_t plev = pmesh->lloc_eachmb[m+mbs].level - 1;
@@ -149,7 +149,7 @@ void CyclicZoom::SetRefinementFlags() {
         x3min = LeftEdgeX(plx3, nmbx3, ms.x3min, ms.x3max);
         x3max = LeftEdgeX(plx3+1, nmbx3, ms.x3min, ms.x3max);
       }
-      // levels_thisrank.h_view(m) = pmesh->lloc_eachmb[m+mbs].level;
+      // levels_thisrank.view_host()(m) = pmesh->lloc_eachmb[m+mbs].level;
       // Find the closest point on the box to the sphere center
       Real closest_x1 = fmax(x1min, fmin(x1c, x1max));
       Real closest_x2 = fmax(x2min, fmin(x2c, x2max));
@@ -157,7 +157,7 @@ void CyclicZoom::SetRefinementFlags() {
       // Calculate the distance from sphere center to this closest point
       Real r_sq = SQR(x1c - closest_x1) + SQR(x2c - closest_x2) + SQR(x3c - closest_x3);
       if (r_sq < SQR(r_ref)) {
-        refine_flag.h_view(m+mbs) = ref_flag;
+        refine_flag.view_host()(m+mbs) = ref_flag;
       }
     }
   }
@@ -183,12 +183,12 @@ bool CyclicZoom::CheckStoreFlag(int m) {
   // check previous level (finer level)
   if (pmesh->lloc_eachmb[m+mbs].level == old_level) {
     // extract bounds of MeshBlock
-    Real x1min = size.h_view(m).x1min;
-    Real x1max = size.h_view(m).x1max;
-    Real x2min = size.h_view(m).x2min;
-    Real x2max = size.h_view(m).x2max;
-    Real x3min = size.h_view(m).x3min;
-    Real x3max = size.h_view(m).x3max;
+    Real x1min = size.view_host()(m).x1min;
+    Real x1max = size.view_host()(m).x1max;
+    Real x2min = size.view_host()(m).x2min;
+    Real x2max = size.view_host()(m).x2max;
+    Real x3min = size.view_host()(m).x3min;
+    Real x3max = size.view_host()(m).x3max;
     // Find the closest point on the box to the sphere center
     Real closest_x1 = fmax(x1min, fmin(x1c, x1max));
     Real closest_x2 = fmax(x2min, fmin(x2c, x2max));

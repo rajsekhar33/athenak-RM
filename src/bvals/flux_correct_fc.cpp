@@ -52,11 +52,12 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFluxFC(DvceEdgeFld4D<Real> &flx) {
     const int v = (tmember.league_rank() - m*(3*nnghbr) - 3*n);
 
     // only load buffers when neighbor exists and is at same or coarser level
-    if ((nghbr.d_view(m,n).gid >= 0) && (nghbr.d_view(m,n).lev <= mblev.d_view(m))) {
+    if ((nghbr.view_device()(m,n).gid >= 0)
+        && (nghbr.view_device()(m,n).lev <= mblev.view_device()(m))) {
       // if neighbor is at coarser level, use cindices to pack buffer
       // Note indices can be different for each component of flux
       int il, iu, jl, ju, kl, ku, ndat;
-      if (nghbr.d_view(m,n).lev < mblev.d_view(m)) {
+      if (nghbr.view_device()(m,n).lev < mblev.view_device()(m)) {
         il = sbuf[n].iflux_coar[v].bis;
         iu = sbuf[n].iflux_coar[v].bie;
         jl = sbuf[n].iflux_coar[v].bjs;
@@ -83,8 +84,8 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFluxFC(DvceEdgeFld4D<Real> &flx) {
 
       // indices of recv'ing (destination) MB and buffer: MB IDs are stored sequentially
       // in MeshBlockPacks, so array index equals (target_id - first_id)
-      int dm = nghbr.d_view(m,n).gid - mbgid.d_view(0);
-      int dn = nghbr.d_view(m,n).dest;
+      int dm = nghbr.view_device()(m,n).gid - mbgid.view_device()(0);
+      int dn = nghbr.view_device()(m,n).dest;
 
       // x1faces (only load x2e and x3e)
       if (n<8) {
@@ -99,7 +100,7 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFluxFC(DvceEdgeFld4D<Real> &flx) {
           if (v==1) {
             Real rflx;
             // if neighbor is at same level, load x2e directly
-            if (nghbr.d_view(m,n).lev == mblev.d_view(m)) {
+            if (nghbr.view_device()(m,n).lev == mblev.view_device()(m)) {
               rflx = flx.x2e(m,k,j,il);
             // if neighbor is at coarser level, restrict x2e
             } else {
@@ -112,7 +113,7 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFluxFC(DvceEdgeFld4D<Real> &flx) {
               }
             }
             // copy directly into recv buffer if MeshBlocks on same rank
-            if (nghbr.d_view(m,n).rank == my_rank) {
+            if (nghbr.view_device()(m,n).rank == my_rank) {
               rbuf[dn].flux(dm, ndat*v + (j-jl + nj*(k-kl))) = rflx;
             // else copy into send buffer for MPI communication below
             } else {
@@ -121,7 +122,7 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFluxFC(DvceEdgeFld4D<Real> &flx) {
           } else if (v==2) {
             Real rflx;
             // if neighbor is at same level, load x3e directly
-            if (nghbr.d_view(m,n).lev == mblev.d_view(m)) {
+            if (nghbr.view_device()(m,n).lev == mblev.view_device()(m)) {
               rflx = flx.x3e(m,k,j,il);
             // if neighbor is at coarser level, restrict x3e
             } else {
@@ -133,7 +134,7 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFluxFC(DvceEdgeFld4D<Real> &flx) {
                 rflx = 0.5*(flx.x3e(m,fk,fj,fi) + flx.x3e(m,fk+1,fj,fi));
               }
             }
-            if (nghbr.d_view(m,n).rank == my_rank) {
+            if (nghbr.view_device()(m,n).rank == my_rank) {
               rbuf[dn].flux(dm, ndat*v + (j-jl + nj*(k-kl))) = rflx;
             } else {
               sbuf[n].flux(m, ndat*v + (j-jl + nj*(k-kl))) = rflx;
@@ -155,7 +156,7 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFluxFC(DvceEdgeFld4D<Real> &flx) {
           if (v==0) {
             Real rflx;
             // if neighbor is at same level, load x1e directly
-            if (nghbr.d_view(m,n).lev == mblev.d_view(m)) {
+            if (nghbr.view_device()(m,n).lev == mblev.view_device()(m)) {
               rflx = flx.x1e(m,k,j,i);
             // if neighbor is at coarser level, restrict x1e
             } else {
@@ -165,7 +166,7 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFluxFC(DvceEdgeFld4D<Real> &flx) {
                 rflx = 0.5*(flx.x1e(m,fk,fj,fi) + flx.x1e(m,fk,fj,fi+1));
               }
             }
-            if (nghbr.d_view(m,n).rank == my_rank) {
+            if (nghbr.view_device()(m,n).rank == my_rank) {
               rbuf[dn].flux(dm, ndat*v + i-il + ni*(k-kl)) = rflx;
             } else {
               sbuf[n].flux(m, ndat*v + i-il + ni*(k-kl)) = rflx;
@@ -173,7 +174,7 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFluxFC(DvceEdgeFld4D<Real> &flx) {
           } else if (v==2) {
             Real rflx;
             // if neighbor is at same level, load x3e directly
-            if (nghbr.d_view(m,n).lev == mblev.d_view(m)) {
+            if (nghbr.view_device()(m,n).lev == mblev.view_device()(m)) {
               rflx = flx.x3e(m,k,j,i);
             // if neighbor is at coarser level, restrict x3e
             } else {
@@ -183,7 +184,7 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFluxFC(DvceEdgeFld4D<Real> &flx) {
                 rflx = 0.5*(flx.x3e(m,fk,fj,fi) + flx.x3e(m,fk+1,fj,fi));
               }
             }
-            if (nghbr.d_view(m,n).rank == my_rank) {
+            if (nghbr.view_device()(m,n).rank == my_rank) {
               rbuf[dn].flux(dm, ndat*v + i-il + ni*(k-kl)) = rflx;
             } else {
               sbuf[n].flux(m, ndat*v + i-il + ni*(k-kl)) = rflx;
@@ -204,7 +205,7 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFluxFC(DvceEdgeFld4D<Real> &flx) {
             int fk = 2*k - cks;
             Real rflx;
             // if neighbor is at same level, load x3e directly
-            if (nghbr.d_view(m,n).lev == mblev.d_view(m)) {
+            if (nghbr.view_device()(m,n).lev == mblev.view_device()(m)) {
               rflx = flx.x3e(m,k,j,i);
             // if neighbor is at coarser level, restrict x3e
             } else {
@@ -214,7 +215,7 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFluxFC(DvceEdgeFld4D<Real> &flx) {
                 rflx = 0.5*(flx.x3e(m,fk,fj,fi) + flx.x3e(m,fk+1,fj,fi));
               }
             }
-            if (nghbr.d_view(m,n).rank == my_rank) {
+            if (nghbr.view_device()(m,n).rank == my_rank) {
               rbuf[dn].flux(dm, ndat*v + (k-kl)) = rflx;
             } else {
               sbuf[n].flux(m, ndat*v + (k-kl)) = rflx;
@@ -236,13 +237,13 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFluxFC(DvceEdgeFld4D<Real> &flx) {
           if (v==0) {
             Real rflx;
             // if neighbor is at same level, load x1e directly
-            if (nghbr.d_view(m,n).lev == mblev.d_view(m)) {
+            if (nghbr.view_device()(m,n).lev == mblev.view_device()(m)) {
               rflx = flx.x1e(m,k,j,i);
             // if neighbor is at coarser level, restrict x1e
             } else {
               rflx = 0.5*(flx.x1e(m,fk,fj,fi) + flx.x1e(m,fk,fj,fi+1));
             }
-            if (nghbr.d_view(m,n).rank == my_rank) {
+            if (nghbr.view_device()(m,n).rank == my_rank) {
               rbuf[dn].flux(dm, ndat*v + i-il + ni*(j-jl)) = rflx;
             } else {
               sbuf[n].flux(m, ndat*v + i-il + ni*(j-jl)) = rflx;
@@ -250,13 +251,13 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFluxFC(DvceEdgeFld4D<Real> &flx) {
           } else if (v==1) {
             Real rflx;
             // if neighbor is at same level, load x2e directly
-            if (nghbr.d_view(m,n).lev == mblev.d_view(m)) {
+            if (nghbr.view_device()(m,n).lev == mblev.view_device()(m)) {
               rflx = flx.x2e(m,k,j,i);
             // if neighbor is at coarser level, restrict x2e
             } else {
               rflx = 0.5*(flx.x2e(m,fk,fj,fi) + flx.x2e(m,fk,fj+1,fi));
             }
-            if (nghbr.d_view(m,n).rank == my_rank) {
+            if (nghbr.view_device()(m,n).rank == my_rank) {
               rbuf[dn].flux(dm, ndat*v + i-il + ni*(j-jl)) = rflx;
             } else {
               sbuf[n].flux(m, ndat*v + i-il + ni*(j-jl)) = rflx;
@@ -276,13 +277,13 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFluxFC(DvceEdgeFld4D<Real> &flx) {
             int fj = 2*j - cjs;
             Real rflx;
             // if neighbor is at same level, load x2e directly
-            if (nghbr.d_view(m,n).lev == mblev.d_view(m)) {
+            if (nghbr.view_device()(m,n).lev == mblev.view_device()(m)) {
               rflx = flx.x2e(m,k,j,i);
             // if neighbor is at coarser level, restrict x2e
             } else {
               rflx = 0.5*(flx.x2e(m,fk,fj,fi) + flx.x2e(m,fk,fj+1,fi));
             }
-            if (nghbr.d_view(m,n).rank == my_rank) {
+            if (nghbr.view_device()(m,n).rank == my_rank) {
               rbuf[dn].flux(dm, ndat*v + (j-jl)) = rflx;
             } else {
               sbuf[n].flux(m, ndat*v + (j-jl)) = rflx;
@@ -302,13 +303,13 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFluxFC(DvceEdgeFld4D<Real> &flx) {
             int fi = 2*i - cis;
             Real rflx;
             // if neighbor is at same level, load x1e directly
-            if (nghbr.d_view(m,n).lev == mblev.d_view(m)) {
+            if (nghbr.view_device()(m,n).lev == mblev.view_device()(m)) {
               rflx = flx.x1e(m,k,j,i);
             // if neighbor is at coarser level, restrict x1e
             } else {
               rflx = 0.5*(flx.x1e(m,fk,fj,fi) + flx.x1e(m,fk,fj,fi+1));
             }
-            if (nghbr.d_view(m,n).rank == my_rank) {
+            if (nghbr.view_device()(m,n).rank == my_rank) {
               rbuf[dn].flux(dm, ndat*v + i-il) = rflx;
             } else {
               sbuf[n].flux(m, ndat*v + i-il) = rflx;
@@ -327,23 +328,24 @@ TaskStatus MeshBoundaryValuesFC::PackAndSendFluxFC(DvceEdgeFld4D<Real> &flx) {
   bool no_errors=true;
   for (int m=0; m<nmb; ++m) {
     for (int n=0; n<nnghbr; ++n) {
-      if ( (nghbr.h_view(m,n).gid >=0) &&
-           (nghbr.h_view(m,n).lev <= mblev.h_view(m)) &&
+      if ( (nghbr.view_host()(m,n).gid >=0) &&
+           (nghbr.view_host()(m,n).lev <= mblev.view_host()(m)) &&
            (n<48) ) {
         // index and rank of destination Neighbor
-        int dn = nghbr.h_view(m,n).dest;
-        int drank = nghbr.h_view(m,n).rank;
+        int dn = nghbr.view_host()(m,n).dest;
+        int drank = nghbr.view_host()(m,n).rank;
 
         if (drank != my_rank) {
           // create tag using local ID and buffer index of *receiving* MeshBlock
-          int lid = nghbr.h_view(m,n).gid - pmy_pack->pmesh->gids_eachrank[drank];
+          int lid = nghbr.view_host()(m,n).gid - pmy_pack->pmesh->gids_eachrank[drank];
           int tag = CreateBvals_MPI_Tag(lid, dn);
 
           // get ptr to send buffer for fluxes
           int data_size = 3;
-          if ( nghbr.h_view(m,n).lev < pmy_pack->pmb->mb_lev.h_view(m) ) {
+          if ( nghbr.view_host()(m,n).lev < pmy_pack->pmb->mb_lev.view_host()(m) ) {
             data_size *= sendbuf[n].iflxc_ndat;
-          } else if ( nghbr.h_view(m,n).lev == pmy_pack->pmb->mb_lev.h_view(m) ) {
+          } else if ( nghbr.view_host()(m,
+              n).lev == pmy_pack->pmb->mb_lev.view_host()(m) ) {
             data_size *= sendbuf[n].iflxs_ndat;
           }
           auto send_ptr = Kokkos::subview(sendbuf[n].flux, m, Kokkos::ALL);
@@ -386,10 +388,10 @@ TaskStatus MeshBoundaryValuesFC::RecvAndUnpackFluxFC(DvceEdgeFld4D<Real> &flx) {
   bool no_errors=true;
   for (int m=0; m<nmb; ++m) {
     for (int n=0; n<nnghbr; ++n) {
-      if ( (nghbr.h_view(m,n).gid >=0) &&
-           (nghbr.h_view(m,n).lev >= mblev.h_view(m)) &&
+      if ( (nghbr.view_host()(m,n).gid >=0) &&
+           (nghbr.view_host()(m,n).lev >= mblev.view_host()(m)) &&
            (n<48) ) {
-        if (nghbr.h_view(m,n).rank != global_variable::my_rank) {
+        if (nghbr.view_host()(m,n).rank != global_variable::my_rank) {
           int test;
           int ierr = MPI_Test(&(rbuf[n].flux_req[m]), &test, MPI_STATUS_IGNORE);
           if (ierr != MPI_SUCCESS) {no_errors=false;}
@@ -464,9 +466,10 @@ void MeshBoundaryValuesFC::SumBoundaryFluxes(DvceEdgeFld4D<Real> &flx,
       // only unpack buffers when neighbor exists AND
       // (neighbor at same level when same_level=true on input) OR
       // (neighbor at finer level when same_level=false on input)
-      if (    (nghbr.d_view(m,n).gid >= 0) &&
-           (( (same_level) && (nghbr.d_view(m,n).lev == mblev.d_view(m))) ||
-            (!(same_level) && (nghbr.d_view(m,n).lev >  mblev.d_view(m)))) ) {
+      if (    (nghbr.view_device()(m,n).gid >= 0) &&
+           (( (same_level) && (nghbr.view_device()(m,n).lev == mblev.view_device()(m))) ||
+            (!(same_level)
+                && (nghbr.view_device()(m,n).lev >  mblev.view_device()(m)))) ) {
         bool inner_bufs=false, outer_bufs=false;
         if ((n==0)||(n==16)||(n==20)||(n==32)||(n==33)||(n==36)||(n==37)) {
           inner_bufs=true;
@@ -480,14 +483,14 @@ void MeshBoundaryValuesFC::SumBoundaryFluxes(DvceEdgeFld4D<Real> &flx,
       //   (only innerx1 BC is shear_periodic AND n!=0,16,20,32,33,36,37) OR
       //   (only outerx1 BC is shear_periodic AND n!=4,18,22,34,35,38,39) OR
       //   (both innerx1 AND outerx1 BC are shear_periodic AND n!=...)
-      if ( ((mbbcs.d_view(m,0)!=BoundaryFlag::shear_periodic) &&
-            (mbbcs.d_view(m,1)!=BoundaryFlag::shear_periodic)) ||
-           ((mbbcs.d_view(m,0)==BoundaryFlag::shear_periodic) && !(inner_bufs) &&
-            (mbbcs.d_view(m,1)!=BoundaryFlag::shear_periodic)) ||
-           ((mbbcs.d_view(m,0)!=BoundaryFlag::shear_periodic) &&
-            (mbbcs.d_view(m,1)==BoundaryFlag::shear_periodic) && !(outer_bufs)) ||
-           ((mbbcs.d_view(m,0)==BoundaryFlag::shear_periodic) && !(inner_bufs) &&
-            (mbbcs.d_view(m,1)==BoundaryFlag::shear_periodic) && !(outer_bufs)) ) {
+      if ( ((mbbcs.view_device()(m,0)!=BoundaryFlag::shear_periodic) &&
+            (mbbcs.view_device()(m,1)!=BoundaryFlag::shear_periodic)) ||
+           ((mbbcs.view_device()(m,0)==BoundaryFlag::shear_periodic) && !(inner_bufs) &&
+            (mbbcs.view_device()(m,1)!=BoundaryFlag::shear_periodic)) ||
+           ((mbbcs.view_device()(m,0)!=BoundaryFlag::shear_periodic) &&
+            (mbbcs.view_device()(m,1)==BoundaryFlag::shear_periodic) && !(outer_bufs)) ||
+           ((mbbcs.view_device()(m,0)==BoundaryFlag::shear_periodic) && !(inner_bufs) &&
+            (mbbcs.view_device()(m,1)==BoundaryFlag::shear_periodic) && !(outer_bufs)) ) {
         int il, iu, jl, ju, kl, ku, ndat;
         // if neighbor is at same level, use same indices to unpack buffer
         if (same_level) {
@@ -669,7 +672,8 @@ void MeshBoundaryValuesFC::ZeroFluxesAtBoundaryWithFiner(DvceEdgeFld4D<Real> &fl
     const int v = (tmember.league_rank() - m*(3*nnghbr) - 3*n);
 
     // only zero EMFs when neighbor exists and is at finer level
-    if ((nghbr.d_view(m,n).gid >= 0) && (nghbr.d_view(m,n).lev > mblev.d_view(m))) {
+    if ((nghbr.view_device()(m,n).gid >= 0)
+        && (nghbr.view_device()(m,n).lev > mblev.view_device()(m))) {
       int il, iu, jl, ju, kl, ku;
       il = rbuf[n].iflux_coar[v].bis;
       iu = rbuf[n].iflux_coar[v].bie;
@@ -821,14 +825,14 @@ void MeshBoundaryValuesFC::AverageBoundaryFluxes(DvceEdgeFld4D<Real> &flx,
     //   (only innerx1 BC is shear_periodic AND n!=0) OR
     //   (only outerx1 BC is shear_periodic AND n!=4) OR
     //   (both innerx1 AND outerx1 BC are shear_periodic AND n!=0,4)
-    if ( ((mbbcs.d_view(m,0)!=BoundaryFlag::shear_periodic) &&
-          (mbbcs.d_view(m,1)!=BoundaryFlag::shear_periodic)) ||
-         ((mbbcs.d_view(m,0)==BoundaryFlag::shear_periodic) && (n!=0) &&
-          (mbbcs.d_view(m,1)!=BoundaryFlag::shear_periodic)) ||
-         ((mbbcs.d_view(m,0)!=BoundaryFlag::shear_periodic) &&
-          (mbbcs.d_view(m,1)==BoundaryFlag::shear_periodic) && (n!=4)) ||
-         ((mbbcs.d_view(m,0)==BoundaryFlag::shear_periodic) && (n!=0) &&
-          (mbbcs.d_view(m,1)==BoundaryFlag::shear_periodic) && (n!=4)) ) {
+    if ( ((mbbcs.view_device()(m,0)!=BoundaryFlag::shear_periodic) &&
+          (mbbcs.view_device()(m,1)!=BoundaryFlag::shear_periodic)) ||
+         ((mbbcs.view_device()(m,0)==BoundaryFlag::shear_periodic) && (n!=0) &&
+          (mbbcs.view_device()(m,1)!=BoundaryFlag::shear_periodic)) ||
+         ((mbbcs.view_device()(m,0)!=BoundaryFlag::shear_periodic) &&
+          (mbbcs.view_device()(m,1)==BoundaryFlag::shear_periodic) && (n!=4)) ||
+         ((mbbcs.view_device()(m,0)==BoundaryFlag::shear_periodic) && (n!=0) &&
+          (mbbcs.view_device()(m,1)==BoundaryFlag::shear_periodic) && (n!=4)) ) {
       int il, iu, jl, ju, kl, ku;
       il = rbuf[n].iflux_same[v].bis;
       iu = rbuf[n].iflux_same[v].bie;
@@ -842,7 +846,7 @@ void MeshBoundaryValuesFC::AverageBoundaryFluxes(DvceEdgeFld4D<Real> &flx,
         if (v==1) {
           int nj = ju - jl + 1;
           // same level; divide EMFs on face by 2, excluding edges
-          if (nghbr.d_view(m,n).lev == mblev.d_view(m)) {
+          if (nghbr.view_device()(m,n).lev == mblev.view_device()(m)) {
             if (three_d) {
               kl += 1; ku -= 1;
             }
@@ -855,7 +859,7 @@ void MeshBoundaryValuesFC::AverageBoundaryFluxes(DvceEdgeFld4D<Real> &flx,
               flx.x2e(m,k,j,il) *= 0.5;
             });
           // finer level; divide EMFs that overlap at edges of fine faces by 2
-          } else if (nghbr.d_view(m,n).lev >= mblev.d_view(m)) {
+          } else if (nghbr.view_device()(m,n).lev >= mblev.view_device()(m)) {
             if (three_d) {
               int k = kl + (ku - kl + 1)/2;
               Kokkos::parallel_for(Kokkos::TeamThreadRange<>(tmember, nj),
@@ -869,7 +873,7 @@ void MeshBoundaryValuesFC::AverageBoundaryFluxes(DvceEdgeFld4D<Real> &flx,
         } else if (v==2) {
           int nk = ku - kl + 1;
           // same level; divide EMFs on face by 2, excluding edges
-          if (nghbr.d_view(m,n).lev == mblev.d_view(m)) {
+          if (nghbr.view_device()(m,n).lev == mblev.view_device()(m)) {
             if (multi_d) {
               jl += 1; ju -= 1;
             }
@@ -882,7 +886,7 @@ void MeshBoundaryValuesFC::AverageBoundaryFluxes(DvceEdgeFld4D<Real> &flx,
               flx.x3e(m,k,j,il) *= 0.5;
             });
           // finer level; divide EMFs that overlap at edges of fine faces by 2
-          } else if (nghbr.d_view(m,n).lev >= mblev.d_view(m)) {
+          } else if (nghbr.view_device()(m,n).lev >= mblev.view_device()(m)) {
             if (multi_d) {
               int j = jl + (ju - jl + 1)/2;
               Kokkos::parallel_for(Kokkos::TeamThreadRange<>(tmember, nk),
@@ -899,7 +903,7 @@ void MeshBoundaryValuesFC::AverageBoundaryFluxes(DvceEdgeFld4D<Real> &flx,
         if (v==0) {
           int ni = iu - il + 1;
           // same level; divide EMFs on face by 2, excluding edges
-          if (nghbr.d_view(m,n).lev == mblev.d_view(m)) {
+          if (nghbr.view_device()(m,n).lev == mblev.view_device()(m)) {
             if (three_d) {
               kl += 1; ku -= 1;
             }
@@ -912,7 +916,7 @@ void MeshBoundaryValuesFC::AverageBoundaryFluxes(DvceEdgeFld4D<Real> &flx,
               flx.x1e(m,k,jl,i) *= 0.5;
             });
           // finer level; divide EMFs that overlap at edges of fine faces by 2
-          } else if (nghbr.d_view(m,n).lev >= mblev.d_view(m)) {
+          } else if (nghbr.view_device()(m,n).lev >= mblev.view_device()(m)) {
             if (three_d) {
               int k = kl + (ku - kl + 1)/2;
               Kokkos::parallel_for(Kokkos::TeamThreadRange<>(tmember, ni),
@@ -926,7 +930,7 @@ void MeshBoundaryValuesFC::AverageBoundaryFluxes(DvceEdgeFld4D<Real> &flx,
         } else if (v==2) {
           int nk = ku - kl + 1;
           // same level; divide EMFs on face by 2, excluding edges
-          if (nghbr.d_view(m,n).lev == mblev.d_view(m)) {
+          if (nghbr.view_device()(m,n).lev == mblev.view_device()(m)) {
             il += 1; iu -= 1;
             int ni = iu - il + 1;
             Kokkos::parallel_for(Kokkos::TeamThreadRange<>(tmember, nk*ni),
@@ -938,7 +942,7 @@ void MeshBoundaryValuesFC::AverageBoundaryFluxes(DvceEdgeFld4D<Real> &flx,
             });
             tmember.team_barrier();
           // finer level; divide EMFs that overlap at edges of fine faces by 2
-          } else if (nghbr.d_view(m,n).lev >= mblev.d_view(m)) {
+          } else if (nghbr.view_device()(m,n).lev >= mblev.view_device()(m)) {
             int i = il + (iu - il + 1)/2;
             Kokkos::parallel_for(Kokkos::TeamThreadRange<>(tmember, nk),
             [&](const int idx) {
@@ -964,7 +968,7 @@ void MeshBoundaryValuesFC::AverageBoundaryFluxes(DvceEdgeFld4D<Real> &flx,
         if (v==0) {
           int ni = iu - il + 1;
           // same level; divide EMFs on face by 2, excluding edges
-          if (nghbr.d_view(m,n).lev == mblev.d_view(m)) {
+          if (nghbr.view_device()(m,n).lev == mblev.view_device()(m)) {
             jl += 1; ju -= 1;
             int nj = ju - jl + 1;
             Kokkos::parallel_for(Kokkos::TeamThreadRange<>(tmember, nj*ni),
@@ -976,7 +980,7 @@ void MeshBoundaryValuesFC::AverageBoundaryFluxes(DvceEdgeFld4D<Real> &flx,
             });
             tmember.team_barrier();
           // finer level; divide EMFs that overlap at edges of fine faces by 2
-          } else if (nghbr.d_view(m,n).lev >= mblev.d_view(m)) {
+          } else if (nghbr.view_device()(m,n).lev >= mblev.view_device()(m)) {
             int j = jl + (ju - jl + 1)/2;
             Kokkos::parallel_for(Kokkos::TeamThreadRange<>(tmember,ni),[&](const int idx){
               int i = idx + il;
@@ -987,7 +991,7 @@ void MeshBoundaryValuesFC::AverageBoundaryFluxes(DvceEdgeFld4D<Real> &flx,
         } else if (v==1) {
           int nj = ju - jl + 1;
           // same level; divide EMFs on face by 2, excluding edges
-            if (nghbr.d_view(m,n).lev == mblev.d_view(m)) {
+            if (nghbr.view_device()(m,n).lev == mblev.view_device()(m)) {
             il += 1; iu -= 1;
             int ni = iu - il + 1;
             Kokkos::parallel_for(Kokkos::TeamThreadRange<>(tmember, nj*ni),
@@ -999,7 +1003,7 @@ void MeshBoundaryValuesFC::AverageBoundaryFluxes(DvceEdgeFld4D<Real> &flx,
             });
             tmember.team_barrier();
           // finer level; divide EMFs that overlap at edges of fine faces by 2
-          } else if (nghbr.d_view(m,n).lev >= mblev.d_view(m)) {
+          } else if (nghbr.view_device()(m,n).lev >= mblev.view_device()(m)) {
             int i = il + (iu - il + 1)/2;
             Kokkos::parallel_for(Kokkos::TeamThreadRange<>(tmember,nj),[&](const int idx){
               int j = idx + jl;
@@ -1054,11 +1058,11 @@ TaskStatus MeshBoundaryValuesFC::InitFluxRecv(const int nvars) {
     for (int n=0; n<nnghbr; ++n) {
       // only post receives for neighbors on FACES and EDGES at FINER and SAME levels
       // this is the only thing different from BoundaryValuesCC::InitRecvFlux()
-      if ( (nghbr.h_view(m,n).gid >=0) &&
-           (nghbr.h_view(m,n).lev >= pmy_pack->pmb->mb_lev.h_view(m)) &&
+      if ( (nghbr.view_host()(m,n).gid >=0) &&
+           (nghbr.view_host()(m,n).lev >= pmy_pack->pmb->mb_lev.view_host()(m)) &&
            (n<48) ) {
         // rank of destination buffer
-        int drank = nghbr.h_view(m,n).rank;
+        int drank = nghbr.view_host()(m,n).rank;
 
         // post non-blocking receive if neighboring MeshBlock on a different rank
         if (drank != global_variable::my_rank) {
@@ -1067,9 +1071,10 @@ TaskStatus MeshBoundaryValuesFC::InitFluxRecv(const int nvars) {
 
           // calculate amount of data to be passed, get pointer to variables
           int data_size = nvars;
-          if ( nghbr.h_view(m,n).lev > pmy_pack->pmb->mb_lev.h_view(m) ) {
+          if ( nghbr.view_host()(m,n).lev > pmy_pack->pmb->mb_lev.view_host()(m) ) {
             data_size *= recvbuf[n].iflxc_ndat;
-          } else if ( nghbr.h_view(m,n).lev == pmy_pack->pmb->mb_lev.h_view(m) ) {
+          } else if ( nghbr.view_host()(m,
+              n).lev == pmy_pack->pmb->mb_lev.view_host()(m) ) {
             data_size *= recvbuf[n].iflxs_ndat;
           }
           auto recv_ptr = Kokkos::subview(recvbuf[n].flux, m, Kokkos::ALL);

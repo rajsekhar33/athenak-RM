@@ -105,10 +105,10 @@ void CCE::InterpolateAndDecompose(MeshBlockPack *pmbp) {
           Real psilmR = 0.0;
           Real psilmI = 0.0;
           for (int ip = 0; ip < grids[k]->nangles; ++ip) {
-            Real theta = grids[k]->polar_pos.h_view(ip,0);
-            Real phi = grids[k]->polar_pos.h_view(ip,1);
-            Real data = grids[k]->interp_vals.h_view(ip);
-            Real weight = grids[k]->int_weights.h_view(ip);
+            Real theta = grids[k]->polar_pos.view_host()(ip,0);
+            Real phi = grids[k]->polar_pos.view_host()(ip,1);
+            Real data = grids[k]->interp_vals.view_host()(ip);
+            Real weight = grids[k]->int_weights.view_host()(ip);
             // calculate spherical harmonics
             SWSphericalHarm(&ylmR,&ylmI, l, m, 0, theta, phi);
             psilmR += weight*data*ylmR;

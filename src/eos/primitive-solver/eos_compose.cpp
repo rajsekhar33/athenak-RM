@@ -55,10 +55,10 @@ void EOSCompOSE<LogPolicy>::ReadTableFromFile(std::string fname) {
     Kokkos::realloc(m_table, ECNVARS, m_nn, m_ny, m_nt);
 
     // Create host storage to read into
-    HostArray1D<Real>::HostMirror host_log_nb = create_mirror_view(m_log_nb);
-    HostArray1D<Real>::HostMirror host_yq =     create_mirror_view(m_yq);
-    HostArray1D<Real>::HostMirror host_log_t =  create_mirror_view(m_log_t);
-    HostArray4D<Real>::HostMirror host_table =  create_mirror_view(m_table);
+    HostArray1D<Real>::host_mirror_type host_log_nb = create_mirror_view(m_log_nb);
+    HostArray1D<Real>::host_mirror_type host_yq =     create_mirror_view(m_yq);
+    HostArray1D<Real>::host_mirror_type host_log_t =  create_mirror_view(m_log_t);
+    HostArray4D<Real>::host_mirror_type host_table =  create_mirror_view(m_table);
 
     // Note that the some quantities are perturbed down slightly from what the top of
     // the table allows. This is because a lot of the interpolation operations need

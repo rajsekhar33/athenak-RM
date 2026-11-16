@@ -238,25 +238,25 @@ class Multigrid {
   int GetSize() { return indcs_.nx1; }
   int GetGhostCells() { return ngh_; }
   Real GetRootDx() { return rdx_; }
-  auto GetCurrentData() { return u_[current_level_].d_view; }
-  auto GetCurrentSource() { return src_[current_level_].d_view; }
-  auto GetCurrentOldData() { return uold_[current_level_].d_view; }
-  auto GetCurrentCoefficient() { return coeff_[current_level_].d_view; }
-  auto GetCurrentData_h() { return u_[current_level_].h_view; }
-  auto GetCurrentSource_h() { return src_[current_level_].h_view; }
-  auto GetCurrentOldData_h() { return uold_[current_level_].h_view; }
+  auto GetCurrentData() { return u_[current_level_].view_device(); }
+  auto GetCurrentSource() { return src_[current_level_].view_device(); }
+  auto GetCurrentOldData() { return uold_[current_level_].view_device(); }
+  auto GetCurrentCoefficient() { return coeff_[current_level_].view_device(); }
+  auto GetCurrentData_h() { return u_[current_level_].view_host(); }
+  auto GetCurrentSource_h() { return src_[current_level_].view_host(); }
+  auto GetCurrentOldData_h() { return uold_[current_level_].view_host(); }
   bool OnHost() const { return on_host_; }
 
 
   // actual implementations of Multigrid operations (templated on view type)
   template <typename ViewType>
-  void Restrict(ViewType &dst, const ViewType &src,
+  void Restrict(const ViewType &dst, const ViewType &src,
                 int nvar, int il, int iu, int jl, int ju, int kl, int ku, bool th);
   template <typename ViewType>
-  void ProlongateAndCorrect(ViewType &dst, const ViewType &src,
+  void ProlongateAndCorrect(const ViewType &dst, const ViewType &src,
     int il, int iu, int jl, int ju, int kl, int ku, int fil, int fjl, int fkl, bool th);
   template <typename ViewType>
-  void FMGProlongate(ViewType &dst, const ViewType &src,
+  void FMGProlongate(const ViewType &dst, const ViewType &src,
     int il, int iu, int jl, int ju, int kl, int ku, int fil, int fjl, int fkl);
 
   // Physics-dependent operations templated on view type and stencil.
@@ -264,21 +264,21 @@ class Multigrid {
   //   Real Apply(const ViewType&, const ViewType&, int m, int v, int k, int j, int i)
   //   Real omega_over_diag
   template <typename ViewType, typename StencilOp>
-  void Smooth(ViewType &u, const ViewType &src, const ViewType &coeff,
+  void Smooth(const ViewType &u, const ViewType &src, const ViewType &coeff,
               const ViewType &matrix, const StencilOp &stencil, int rlev,
               int il, int iu, int jl, int ju, int kl, int ku, int color, bool th);
 
   template <typename ViewType, typename StencilOp>
-  void CalculateDefect(ViewType &def, const ViewType &u, const ViewType &src,
+  void CalculateDefect(const ViewType &def, const ViewType &u, const ViewType &src,
                        const ViewType &coeff, const ViewType &matrix,
                        const StencilOp &stencil, int rlev,
                        int il, int iu, int jl, int ju, int kl, int ku, bool th) {
     using ExeSpace = typename ViewType::execution_space;
     auto brdx = [this]() {
       if constexpr (std::is_same_v<ExeSpace, HostExeSpace>)
-        return block_rdx_.h_view;
+        return block_rdx_.view_host();
       else
-        return block_rdx_.d_view;
+        return block_rdx_.view_device();
     }();
     int rlev_l = rlev;
     par_for("Multigrid::CalculateDefect", ExeSpace(), 0, nmmb_-1, kl, ku, jl, ju, il, iu,
@@ -291,15 +291,15 @@ class Multigrid {
   }
 
   template <typename ViewType, typename StencilOp>
-  void CalculateFASRHS(ViewType &src, const ViewType &u, const ViewType &coeff,
+  void CalculateFASRHS(const ViewType &src, const ViewType &u, const ViewType &coeff,
                        const ViewType &matrix, const StencilOp &stencil, int rlev,
                        int il, int iu, int jl, int ju, int kl, int ku, bool th) {
     using ExeSpace = typename ViewType::execution_space;
     auto brdx = [this]() {
       if constexpr (std::is_same_v<ExeSpace, HostExeSpace>)
-        return block_rdx_.h_view;
+        return block_rdx_.view_host();
       else
-        return block_rdx_.d_view;
+        return block_rdx_.view_device();
     }();
     int rlev_l = rlev;
     par_for("Multigrid::CalculateFASRHS", ExeSpace(), 0, nmmb_-1, kl, ku, jl, ju, il, iu,
@@ -619,16 +619,16 @@ class MultigridBoundaryValues : public MeshBoundaryValuesCC {
 };
 
 template <typename ViewType, typename StencilOp>
-void Multigrid::Smooth(ViewType &u, const ViewType &src, const ViewType &coeff,
+void Multigrid::Smooth(const ViewType &u, const ViewType &src, const ViewType &coeff,
                        const ViewType &matrix, const StencilOp &stencil, int rlev,
                        int il, int iu, int jl, int ju, int kl, int ku, int color,
                        bool th) {
   using ExeSpace = typename ViewType::execution_space;
   auto brdx = [this]() {
     if constexpr (std::is_same_v<ExeSpace, HostExeSpace>)
-      return block_rdx_.h_view;
+      return block_rdx_.view_host();
     else
-      return block_rdx_.d_view;
+      return block_rdx_.view_device();
   }();
   int rlev_l = rlev;
   Real odiag = stencil.omega_over_diag;

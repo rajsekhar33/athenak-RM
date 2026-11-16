@@ -140,7 +140,8 @@ void Z4c::ADMToZ4c(MeshBlockPack *pmbp, ParameterInput *pin) {
   par_for("initialize Gamma",DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
     // Usage of Dx: pmbp->pz4c->Dx(blockn, posvar, k,j,i, dir, nghost, dx, quantity);
-    Real idx[] = {1/size.d_view(m).dx1, 1/size.d_view(m).dx2, 1/size.d_view(m).dx3};
+    Real idx[] = {1/size.view_device()(m).dx1, 1/size.view_device()(m).dx2, 1
+        /size.view_device()(m).dx3};
     /*AthenaPointTensor<Real, TensorSymm::SYM2, 3, 2> g_uu;
     AthenaPointTensor<Real, TensorSymm::SYM2, 3, 3> Gamma_udd;
     AthenaPointTensor<Real, TensorSymm::SYM2, 3, 3> dg_ddd;
@@ -295,7 +296,8 @@ void Z4c::ADMConstraints(MeshBlockPack *pmbp) {
 
     AthenaPointTensor<Real, TensorSymm::SYM22, 3, 4> ddg_dddd;
 
-    Real idx[] = {1/size.d_view(m).dx1, 1/size.d_view(m).dx2, 1/size.d_view(m).dx3};
+    Real idx[] = {1/size.view_device()(m).dx1, 1/size.view_device()(m).dx2, 1
+        /size.view_device()(m).dx3};
 
     // -----------------------------------------------------------------------------------
     // derivatives

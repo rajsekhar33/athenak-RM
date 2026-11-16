@@ -78,8 +78,8 @@ void ProblemGenerator::MarchingCubes(ParameterInput *pin, const bool restart) {
   par_for("pgen_marching_cubes_temperature", DevExeSpace(), 0, nmb - 1,
           ks - ng, ke + ng, js - ng, je + ng, is - ng, ie + ng,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    const Real x1 = CellCenterX(i - is, nx1, size.d_view(m).x1min,
-                                size.d_view(m).x1max);
+    const Real x1 = CellCenterX(i - is, nx1, size.view_device()(m).x1min,
+                                size.view_device()(m).x1max);
     const Real temperature = std::pow(10.0, x1);
     w0(m, IDN, k, j, i) = 1.0;
     w0(m, IM1, k, j, i) = 0.0;
@@ -122,9 +122,9 @@ void ProblemGenerator::MarchingCubes(ParameterInput *pin, const bool restart) {
                                     w0(m, IDN, k + 1, j + 1, i + 1));
         const Real v7 = std::log10(gm1 * w0(m, IEN, k + 1, j + 1, i    ) /
                                     w0(m, IDN, k + 1, j + 1, i    ));
-        const marching_cubes::CellSpacing spacing(size.d_view(m).dx1,
-                                                   size.d_view(m).dx2,
-                                                   size.d_view(m).dx3);
+        const marching_cubes::CellSpacing spacing(size.view_device()(m).dx1,
+                                                   size.view_device()(m).dx2,
+                                                   size.view_device()(m).dx3);
         const marching_cubes::Cube cube(v0, v1, v2, v3, v4, v5, v6, v7, spacing);
         area += marching_cubes::ComputeArea(cube);
       }, Kokkos::Sum<Real>(local_area));

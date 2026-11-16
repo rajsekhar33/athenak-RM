@@ -239,9 +239,9 @@ Resistivity::RawState Resistivity::InspectRawState(const DvceArray5D<Real> &u,
         if (!invalid_cell && i >= is-1 && i <= ie+1 &&
             j >= js-multi_d && j <= je+multi_d &&
             k >= ks-three_d && k <= ke+three_d) {
-          min_dt = fmin(min_dt, fac*SQR(size.d_view(m).dx1)/eta);
-          if (multi_d) min_dt = fmin(min_dt, fac*SQR(size.d_view(m).dx2)/eta);
-          if (three_d) min_dt = fmin(min_dt, fac*SQR(size.d_view(m).dx3)/eta);
+          min_dt = fmin(min_dt, fac*SQR(size.view_device()(m).dx1)/eta);
+          if (multi_d) min_dt = fmin(min_dt, fac*SQR(size.view_device()(m).dx2)/eta);
+          if (three_d) min_dt = fmin(min_dt, fac*SQR(size.view_device()(m).dx3)/eta);
         }
       }
     }
@@ -338,7 +338,8 @@ void Resistivity::AddEMFOhmic(const DvceFaceFld4D<Real> &b0,
       ScrArray1D<Real> j2(member.team_scratch(scr_level), ncells1);
       ScrArray1D<Real> j3(member.team_scratch(scr_level), ncells1);
 
-      CurrentDensity(member, m, ks, js, is, ie+1, b0, mbsize.d_view(m), j1, j2, j3);
+      CurrentDensity(member, m, ks, js, is, ie+1, b0, mbsize.view_device()(m), j1, j2,
+          j3);
 
       // Add E_{resistive} = \eta J to corner-centered electric fields
       par_for_inner(member, is, ie+1, [&](const int i) {
@@ -371,7 +372,7 @@ void Resistivity::AddEMFOhmic(const DvceFaceFld4D<Real> &b0,
       ScrArray1D<Real> j2(member.team_scratch(scr_level), ncells1);
       ScrArray1D<Real> j3(member.team_scratch(scr_level), ncells1);
 
-      CurrentDensity(member, m, ks, j, is, ie+1, b0, mbsize.d_view(m), j1, j2, j3);
+      CurrentDensity(member, m, ks, j, is, ie+1, b0, mbsize.view_device()(m), j1, j2, j3);
 
       // Add E_{resistive} = \eta J to corner-centered electric fields
       par_for_inner(member, is, ie+1, [&](const int i) {
@@ -409,7 +410,7 @@ void Resistivity::AddEMFOhmic(const DvceFaceFld4D<Real> &b0,
     ScrArray1D<Real> j2(member.team_scratch(scr_level), ncells1);
     ScrArray1D<Real> j3(member.team_scratch(scr_level), ncells1);
 
-    CurrentDensity(member, m, k, j, is, ie+1, b0, mbsize.d_view(m), j1, j2, j3);
+    CurrentDensity(member, m, k, j, is, ie+1, b0, mbsize.view_device()(m), j1, j2, j3);
 
     // Add E_{resistive} = \eta J to corner-centered electric fields
     par_for_inner(member, is, ie+1, [&](const int i) {
@@ -454,19 +455,19 @@ void Resistivity::AddFluxOhmic(const DvceFaceFld4D<Real> &b,
   auto &flx1 = flx.x1f;
   par_for("ohm_heat1", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie+1,
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
-    Real j2k   = -(b.x3f(m,k  ,j,i) - b.x3f(m,k  ,j,i-1))/size.d_view(m).dx1;
-    Real j2kp1 = -(b.x3f(m,k+1,j,i) - b.x3f(m,k+1,j,i-1))/size.d_view(m).dx1;
+    Real j2k   = -(b.x3f(m,k  ,j,i) - b.x3f(m,k  ,j,i-1))/size.view_device()(m).dx1;
+    Real j2kp1 = -(b.x3f(m,k+1,j,i) - b.x3f(m,k+1,j,i-1))/size.view_device()(m).dx1;
 
-    Real j3j   = (b.x2f(m,k,j  ,i) - b.x2f(m,k,j  ,i-1))/size.d_view(m).dx1;
-    Real j3jp1 = (b.x2f(m,k,j+1,i) - b.x2f(m,k,j+1,i-1))/size.d_view(m).dx1;
+    Real j3j   = (b.x2f(m,k,j  ,i) - b.x2f(m,k,j  ,i-1))/size.view_device()(m).dx1;
+    Real j3jp1 = (b.x2f(m,k,j+1,i) - b.x2f(m,k,j+1,i-1))/size.view_device()(m).dx1;
 
     if (multi_d) {
-      j3j   -= (b.x1f(m,k,j  ,i) - b.x1f(m,k,j-1,i))/size.d_view(m).dx2;
-      j3jp1 -= (b.x1f(m,k,j+1,i) - b.x1f(m,k,j  ,i))/size.d_view(m).dx2;
+      j3j   -= (b.x1f(m,k,j  ,i) - b.x1f(m,k,j-1,i))/size.view_device()(m).dx2;
+      j3jp1 -= (b.x1f(m,k,j+1,i) - b.x1f(m,k,j  ,i))/size.view_device()(m).dx2;
     }
     if (three_d) {
-      j2k   += (b.x1f(m,k  ,j,i) - b.x1f(m,k-1,j,i))/size.d_view(m).dx3;
-      j2kp1 += (b.x1f(m,k+1,j,i) - b.x1f(m,k  ,j,i))/size.d_view(m).dx3;
+      j2k   += (b.x1f(m,k  ,j,i) - b.x1f(m,k-1,j,i))/size.view_device()(m).dx3;
+      j2kp1 += (b.x1f(m,k+1,j,i) - b.x1f(m,k  ,j,i))/size.view_device()(m).dx3;
     }
 
     if (spitzer) {
@@ -488,17 +489,17 @@ void Resistivity::AddFluxOhmic(const DvceFaceFld4D<Real> &b,
   auto &flx2 = flx.x2f;
   par_for("ohm_heat2", DevExeSpace(), 0, nmb1, ks, ke, js, je+1, is, ie,
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
-    Real j1k   = (b.x3f(m,k  ,j,i) - b.x3f(m,k  ,j-1,i))/size.d_view(m).dx2;
-    Real j1kp1 = (b.x3f(m,k+1,j,i) - b.x3f(m,k+1,j-1,i))/size.d_view(m).dx2;
+    Real j1k   = (b.x3f(m,k  ,j,i) - b.x3f(m,k  ,j-1,i))/size.view_device()(m).dx2;
+    Real j1kp1 = (b.x3f(m,k+1,j,i) - b.x3f(m,k+1,j-1,i))/size.view_device()(m).dx2;
 
-    Real j3i   = (b.x2f(m,k,j,i  ) - b.x2f(m,k,j  ,i-1))/size.d_view(m).dx1
-               - (b.x1f(m,k,j,i  ) - b.x1f(m,k,j-1,i  ))/size.d_view(m).dx2;
-    Real j3ip1 = (b.x2f(m,k,j,i+1) - b.x2f(m,k,j  ,i  ))/size.d_view(m).dx1
-               - (b.x1f(m,k,j,i+1) - b.x1f(m,k,j-1,i+1))/size.d_view(m).dx2;
+    Real j3i   = (b.x2f(m,k,j,i  ) - b.x2f(m,k,j  ,i-1))/size.view_device()(m).dx1
+               - (b.x1f(m,k,j,i  ) - b.x1f(m,k,j-1,i  ))/size.view_device()(m).dx2;
+    Real j3ip1 = (b.x2f(m,k,j,i+1) - b.x2f(m,k,j  ,i  ))/size.view_device()(m).dx1
+               - (b.x1f(m,k,j,i+1) - b.x1f(m,k,j-1,i+1))/size.view_device()(m).dx2;
 
     if (three_d) {
-      j1k   -= (b.x2f(m,k  ,j,i) - b.x2f(m,k-1,j,i))/size.d_view(m).dx3;
-      j1kp1 -= (b.x2f(m,k+1,j,i) - b.x2f(m,k  ,j,i))/size.d_view(m).dx3;
+      j1k   -= (b.x2f(m,k  ,j,i) - b.x2f(m,k-1,j,i))/size.view_device()(m).dx3;
+      j1kp1 -= (b.x2f(m,k+1,j,i) - b.x2f(m,k  ,j,i))/size.view_device()(m).dx3;
     }
 
     if (spitzer) {
@@ -520,15 +521,15 @@ void Resistivity::AddFluxOhmic(const DvceFaceFld4D<Real> &b,
   auto &flx3 = flx.x3f;
   par_for("ohm_heat3", DevExeSpace(), 0, nmb1, ks, ke+1, js, je, is, ie,
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
-    Real j1j   = (b.x3f(m,k,j  ,i) - b.x3f(m,k  ,j-1,i))/size.d_view(m).dx2
-               - (b.x2f(m,k,j  ,i) - b.x2f(m,k-1,j  ,i))/size.d_view(m).dx3;
-    Real j1jp1 = (b.x3f(m,k,j+1,i) - b.x3f(m,k  ,j  ,i))/size.d_view(m).dx2
-               - (b.x2f(m,k,j+1,i) - b.x2f(m,k-1,j+1,i))/size.d_view(m).dx3;
+    Real j1j   = (b.x3f(m,k,j  ,i) - b.x3f(m,k  ,j-1,i))/size.view_device()(m).dx2
+               - (b.x2f(m,k,j  ,i) - b.x2f(m,k-1,j  ,i))/size.view_device()(m).dx3;
+    Real j1jp1 = (b.x3f(m,k,j+1,i) - b.x3f(m,k  ,j  ,i))/size.view_device()(m).dx2
+               - (b.x2f(m,k,j+1,i) - b.x2f(m,k-1,j+1,i))/size.view_device()(m).dx3;
 
-    Real j2i   = -(b.x3f(m,k,j,i  ) - b.x3f(m,k  ,j,i-1))/size.d_view(m).dx1
-                + (b.x1f(m,k,j,i  ) - b.x1f(m,k-1,j,i  ))/size.d_view(m).dx3;
-    Real j2ip1 = -(b.x3f(m,k,j,i+1) - b.x3f(m,k  ,j,i  ))/size.d_view(m).dx1
-                + (b.x1f(m,k,j,i+1) - b.x1f(m,k-1,j,i+1))/size.d_view(m).dx3;
+    Real j2i   = -(b.x3f(m,k,j,i  ) - b.x3f(m,k  ,j,i-1))/size.view_device()(m).dx1
+                + (b.x1f(m,k,j,i  ) - b.x1f(m,k-1,j,i  ))/size.view_device()(m).dx3;
+    Real j2ip1 = -(b.x3f(m,k,j,i+1) - b.x3f(m,k  ,j,i  ))/size.view_device()(m).dx1
+                + (b.x1f(m,k,j,i+1) - b.x1f(m,k-1,j,i+1))/size.view_device()(m).dx3;
 
     if (spitzer) {
       j1j   *= SpitzerEdgeEta(w, m, k, j, i, 1, multi_d, three_d, gm1, eta0);
@@ -586,9 +587,9 @@ void Resistivity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_d
             {0, kl, jl, il}, {pmy_pack->nmb_thispack, ku+1, ju+1, iu+1}),
         KOKKOS_LAMBDA(int m, int k, int j, int i, Real &min_dt) {
       const Real eta = SpitzerCellEta(w0, m, k, j, i, gm1, eta0);
-      min_dt = fmin(min_dt, fac*SQR(size.d_view(m).dx1)/eta);
-      if (multi_d) min_dt = fmin(min_dt, fac*SQR(size.d_view(m).dx2)/eta);
-      if (three_d) min_dt = fmin(min_dt, fac*SQR(size.d_view(m).dx3)/eta);
+      min_dt = fmin(min_dt, fac*SQR(size.view_device()(m).dx1)/eta);
+      if (multi_d) min_dt = fmin(min_dt, fac*SQR(size.view_device()(m).dx2)/eta);
+      if (three_d) min_dt = fmin(min_dt, fac*SQR(size.view_device()(m).dx3)/eta);
     }, Kokkos::Min<Real>(dtnew));
     return;
   }
@@ -600,12 +601,12 @@ void Resistivity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_d
   if (eta_ad == 0.0) {
     if (eta_ohm > 0.0) {
       for (int m=0; m<(pmy_pack->nmb_thispack); ++m) {
-        dtnew = std::min(dtnew, fac*SQR(size.h_view(m).dx1)/eta_ohm);
+        dtnew = std::min(dtnew, fac*SQR(size.view_host()(m).dx1)/eta_ohm);
         if (multi_d) {
-          dtnew = std::min(dtnew, fac*SQR(size.h_view(m).dx2)/eta_ohm);
+          dtnew = std::min(dtnew, fac*SQR(size.view_host()(m).dx2)/eta_ohm);
         }
         if (three_d) {
-          dtnew = std::min(dtnew, fac*SQR(size.h_view(m).dx3)/eta_ohm);
+          dtnew = std::min(dtnew, fac*SQR(size.view_host()(m).dx3)/eta_ohm);
         }
       }
     }
@@ -637,15 +638,18 @@ void Resistivity::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_d
     Real eta = eta_o + eta_a*(SQR(bcc0(m,IBX,k,j,i)) + SQR(bcc0(m,IBY,k,j,i))
                             + SQR(bcc0(m,IBZ,k,j,i)));
     if (eta > 0.0) {
-      min_dt = fmin(min_dt, SQR(size.d_view(m).dx1)/eta);
+      min_dt = fmin(min_dt, SQR(size.view_device()(m).dx1)/eta);
       if (multi_d) {
-        min_dt = fmin(min_dt, SQR(size.d_view(m).dx2)/eta);
+        min_dt = fmin(min_dt, SQR(size.view_device()(m).dx2)/eta);
       }
       if (three_d) {
-        min_dt = fmin(min_dt, SQR(size.d_view(m).dx3)/eta);
+        min_dt = fmin(min_dt, SQR(size.view_device()(m).dx3)/eta);
       }
     }
   }, Kokkos::Min<Real>(dtnew));
+  // Zero field can disable ambipolar diffusion throughout the pack. Preserve
+  // the finite reduction identity before applying the dimensional factor.
+  dtnew = std::min(dtnew, std::numeric_limits<Real>::max());
   dtnew *= fac;
 
   return;

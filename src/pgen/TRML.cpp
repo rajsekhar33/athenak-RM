@@ -7,6 +7,7 @@
 //! \brief Problem generator for TRML
 //! - written by Rajsekhar Mohapatra 2022-2023 (Athenak version of Drummond Fielding's TRML setup)
 
+#include <cfloat>
 #include <algorithm>
 #include <cmath>
 #include <sstream>
@@ -327,8 +328,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     }
     par_for("pgen_trml", DevExeSpace(),0,nmb1,ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       int nx3 = indcs.nx3;
       Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
 
@@ -406,8 +407,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       
       par_for("pgen_set_bfield", DevExeSpace(),0,nmb1,ks,ke,js,je,is,ie,
       KOKKOS_LAMBDA(int m, int k, int j, int i) {
-        Real &x3min = size.d_view(m).x3min;
-        Real &x3max = size.d_view(m).x3max;
+        Real &x3min = size.view_device()(m).x3min;
+        Real &x3max = size.view_device()(m).x3max;
         int nx3 = indcs.nx3;
         Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
         Real z_weight = 1.0;
@@ -527,7 +528,7 @@ void UserZBoundaryConditions(Mesh *pm) {
 
   par_for("userBC_x3", DevExeSpace(),0,(nmb-1),0,(nvar-1),0,(n2-1),0,(n1-1),
   KOKKOS_LAMBDA(int m, int n, int j, int i) {
-    if (mb_bcs.d_view(m,BoundaryFace::inner_x3) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::inner_x3) == BoundaryFlag::user) {
       for (int k=0; k<ng; ++k) {
         // noinflow at inner x3 BC
         // if (n==(IVZ)){
@@ -538,7 +539,7 @@ void UserZBoundaryConditions(Mesh *pm) {
         // }
       }
     }
-    if (mb_bcs.d_view(m,BoundaryFace::outer_x3) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::outer_x3) == BoundaryFlag::user) {
       for (int k=0; k<ng; ++k) {
         if (n == (IDN)){
           w0_(m,n,ke+k+1,j,i) = rho_0;
@@ -563,7 +564,7 @@ void UserZBoundaryConditions(Mesh *pm) {
     auto &bcc_ = pmbp->pmhd->bcc0;
     par_for("noinflow_field_x3", DevExeSpace(),0,(nmb-1),0,(n2-1),0,(n1-1),
     KOKKOS_LAMBDA(int m, int j, int i) {
-      if (mb_bcs.d_view(m,BoundaryFace::inner_x3) == BoundaryFlag::user) {
+      if (mb_bcs.view_device()(m,BoundaryFace::inner_x3) == BoundaryFlag::user) {
         for (int k=0; k<ng; ++k) {
           b0.x1f(m,ks-k-1,j,i) = b0.x1f(m,ks,j,i);
           if (i == n1-1) {b0.x1f(m,ks-k-1,j,i+1) = b0.x1f(m,ks,j,i+1);}
@@ -572,7 +573,7 @@ void UserZBoundaryConditions(Mesh *pm) {
           b0.x3f(m,ks-k-1,j,i) = b0.x3f(m,ks,j,i);
         }
       }
-      if (mb_bcs.d_view(m,BoundaryFace::outer_x3) == BoundaryFlag::user) {
+      if (mb_bcs.view_device()(m,BoundaryFace::outer_x3) == BoundaryFlag::user) {
         for (int k=0; k<ng; ++k) {
           b0.x1f(m,ke+k+1,j,i) = b0.x1f(m,ke,j,i);
           if (i == n1-1) {b0.x1f(m,ke+k+1,j,i+1) = b0.x1f(m,ke,j,i+1);}
@@ -584,14 +585,14 @@ void UserZBoundaryConditions(Mesh *pm) {
     });
     par_for("noinflow_field_x3", DevExeSpace(),0,(nmb-1),0,(n2-1),0,(n1-1),
     KOKKOS_LAMBDA(int m, int j, int i) {
-      if (mb_bcs.d_view(m,BoundaryFace::inner_x3) == BoundaryFlag::user) {
+      if (mb_bcs.view_device()(m,BoundaryFace::inner_x3) == BoundaryFlag::user) {
         for (int k=0; k<ng; ++k) {
           bcc_(m,IBX,ks-k-1,j,i) = 0.5*(b0.x1f(m,ks-k-1,j,i) + b0.x1f(m,ks-k-1,j  ,i+1));
           bcc_(m,IBY,ks-k-1,j,i) = 0.5*(b0.x2f(m,ks-k-1,j,i) + b0.x2f(m,ks-k-1,j+1,i  ));
           bcc_(m,IBZ,ks-k-1,j,i) = 0.5*(b0.x3f(m,ks-k-1,j,i) + b0.x3f(m,ks-k  ,j  ,i  ));
         }
       }
-      if (mb_bcs.d_view(m,BoundaryFace::outer_x3) == BoundaryFlag::user) {
+      if (mb_bcs.view_device()(m,BoundaryFace::outer_x3) == BoundaryFlag::user) {
         for (int k=0; k<ng; ++k) {
           bcc_(m,IBX,ke+k+1,j,i) = 0.5*(b0.x1f(m,ke+k+1,j,i) + b0.x1f(m,ke+k+1,j  ,i+1));
           bcc_(m,IBY,ke+k+1,j,i) = 0.5*(b0.x2f(m,ke+k+1,j,i) + b0.x2f(m,ke+k+1,j+1,i  ));
@@ -651,7 +652,7 @@ void UserZBoundaryConditions(Mesh *pm) {
   //     j += js;
   //     Real dens=1.0, temp = 1.0, eint = 1.0;
   //     dens = w0_(m,IDN,k,j,i);
-  //     Real dvol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+  //     Real dvol = size.view_device()(m).dx1*size.view_device()(m).dx2*size.view_device()(m).dx3;
   //     if (use_e) {
   //       temp = w0_(m,IEN,k,j,i)/dens*gm1;
   //       eint = w0_(m,IEN,k,j,i);
@@ -661,8 +662,8 @@ void UserZBoundaryConditions(Mesh *pm) {
   //     }
   //     Real pres = eint*gm1;
 
-  //     Real &x3min = size.d_view(m).x3min;
-  //     Real &x3max = size.d_view(m).x3max;
+  //     Real &x3min = size.view_device()(m).x3min;
+  //     Real &x3max = size.view_device()(m).x3max;
   //     int nx3 = indcs.nx3;
   //     Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
 
@@ -897,7 +898,7 @@ void AddCoolingHeating(Mesh *pm, const Real bdt, DvceArray5D<Real> &u0,
     j += js;
     Real dens=1.0, temp = 1.0, eint = 1.0;
     dens = w0(m,IDN,k,j,i);
-    Real dvol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+    Real dvol = size.view_device()(m).dx1*size.view_device()(m).dx2*size.view_device()(m).dx3;
     temp = w0(m,IEN,k,j,i)/dens*gm1;
     eint = w0(m,IEN,k,j,i);
     Real pres = eint*gm1;
@@ -1132,10 +1133,10 @@ void UserRefine(MeshBlockPack* pmbp) {
 
       vel2_rms = sqrt(vel2_rms/counter);
       if ((density_ratio_max > density_ratio_threshold) || (vel2_rms>vel2_rms_threshold) || (trigger>0)) {
-        refine_flag_.d_view(m+mbs) = 1;
+        refine_flag_.view_device()(m+mbs) = 1;
       }
       else if ((density_ratio_max < 0.25 * density_ratio_threshold) || ((vel2_rms < 0.25*vel2_rms_threshold)) || (trigger==0)) {
-        refine_flag_.d_view(m+mbs) = -1;
+        refine_flag_.view_device()(m+mbs) = -1;
       }
     });
   }
@@ -1207,12 +1208,12 @@ void FrameTracking(Mesh *pm) {
     j += js;
     Real dens=1.0, temp = 1.0, eint = 1.0;
     dens = w0(m,IDN,k,j,i);
-    Real dvol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+    Real dvol = size.view_device()(m).dx1*size.view_device()(m).dx2*size.view_device()(m).dx3;
     temp = w0(m,IEN,k,j,i)/dens*gm1;
     eint = w0(m,IEN,k,j,i);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     int nx3 = indcs.nx3;
     Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
 
@@ -1355,13 +1356,13 @@ void Diagnostic(Mesh *pm) {
     k += ks;
     j += js;
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     int nx3 = indcs.nx3;
     Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
 
-    Real dx = fmin(fmin(size.d_view(m).dx1,size.d_view(m).dx2),size.d_view(m).dx3);
-    Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+    Real dx = fmin(fmin(size.view_device()(m).dx1,size.view_device()(m).dx2),size.view_device()(m).dx3);
+    Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2*size.view_device()(m).dx3;
 
     // temperature in cgs unit
     Real temp = 1.0, eint = 1.0;
@@ -1641,14 +1642,14 @@ void UserHistOutput(HistoryData *pdata, Mesh *pm) {
     k += ks;
     j += js;
 
-    Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+    Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2*size.view_device()(m).dx3;
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     int nx3 = indcs.nx3;
     Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
-    Real dz = size.d_view(m).dx3;
-    Real dA = size.d_view(m).dx1*size.d_view(m).dx2;
+    Real dz = size.view_device()(m).dx3;
+    Real dA = size.view_device()(m).dx1*size.view_device()(m).dx2;
 
     Real dens = w0(m,IDN,k,j,i);
     Real velx = w0(m,IVX,k,j,i);
@@ -1738,9 +1739,9 @@ void UserHistOutput(HistoryData *pdata, Mesh *pm) {
       Real gradTx = 0.0;
       Real gradTy = 0.0;
       Real gradTz = 0.0;
-      gradTx = gm1*(w0(m,IEN,k,j,i+1)/w0(m,IDN,k,j,i+1)-w0(m,IEN,k,j,i-1)/w0(m,IDN,k,j,i-1))/(2.0*size.d_view(m).dx1);
-      gradTy = gm1*(w0(m,IEN,k,j+1,i)/w0(m,IDN,k,j+1,i)-w0(m,IEN,k,j-1,i)/w0(m,IDN,k,j-1,i))/(2.0*size.d_view(m).dx2);
-      gradTz = gm1*(w0(m,IEN,k+1,j,i)/w0(m,IDN,k+1,j,i)-w0(m,IEN,k-1,j,i)/w0(m,IDN,k-1,j,i))/(2.0*size.d_view(m).dx3);
+      gradTx = gm1*(w0(m,IEN,k,j,i+1)/w0(m,IDN,k,j,i+1)-w0(m,IEN,k,j,i-1)/w0(m,IDN,k,j,i-1))/(2.0*size.view_device()(m).dx1);
+      gradTy = gm1*(w0(m,IEN,k,j+1,i)/w0(m,IDN,k,j+1,i)-w0(m,IEN,k,j-1,i)/w0(m,IDN,k,j-1,i))/(2.0*size.view_device()(m).dx2);
+      gradTz = gm1*(w0(m,IEN,k+1,j,i)/w0(m,IDN,k+1,j,i)-w0(m,IEN,k-1,j,i)/w0(m,IDN,k-1,j,i))/(2.0*size.view_device()(m).dx3);
       Real gradT = sqrt(SQR(gradTx)+SQR(gradTy)+SQR(gradTz));
       // define temperature scale height
       Real ell_T = temp/gradT;
@@ -1758,11 +1759,11 @@ void UserHistOutput(HistoryData *pdata, Mesh *pm) {
       Real vin_im1 = w0(m,IVX,k,j,i-1)*nx + w0(m,IVY,k,j,i-1)*ny + w0(m,IVZ,k,j,i-1)*nz;
       Real vin_ip1 = w0(m,IVX,k,j,i+1)*nx + w0(m,IVY,k,j,i+1)*ny + w0(m,IVZ,k,j,i+1)*nz;
 
-      Real vin_gradx = (vin_ip1-vin_im1)/(2.0*size.d_view(m).dx1);
-      Real vin_grady = (vin_jp1-vin_jm1)/(2.0*size.d_view(m).dx2);
-      Real vin_gradz = (vin_kp1-vin_km1)/(2.0*size.d_view(m).dx3);
+      Real vin_gradx = (vin_ip1-vin_im1)/(2.0*size.view_device()(m).dx1);
+      Real vin_grady = (vin_jp1-vin_jm1)/(2.0*size.view_device()(m).dx2);
+      Real vin_gradz = (vin_kp1-vin_km1)/(2.0*size.view_device()(m).dx3);
       Real vin = -1*ell_T*(vin_gradx*nx + vin_grady*ny + vin_gradz*nz);
-      Real vin_dx = -2*size.d_view(m).dx1*(vin_gradx*nx + vin_grady*ny + vin_gradz*nz);
+      Real vin_dx = -2*size.view_device()(m).dx1*(vin_gradx*nx + vin_grady*ny + vin_gradz*nz);
       if ((temp<T_peak_hi) && (temp>T_peak_lo)){
         hvars1.the_array[3] = vin*vol; // the small scale diffusive velocity near the cooling surface
         hvars1.the_array[4] = vin_dx*vol; // different measurement of vdiff

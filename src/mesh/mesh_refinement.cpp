@@ -16,7 +16,10 @@
 #include <iostream>
 #include <cmath>     // abs
 #include <algorithm> // sort
+#include <map>       // map
+#include <tuple>     // tuple
 #include <utility>   // pair
+#include <vector>    // vector
 
 #include "athena.hpp"
 #include "globals.hpp"
@@ -34,6 +37,7 @@
 #include "coordinates/coordinates.hpp"
 #include "z4c/z4c.hpp"
 #include "z4c/z4c_amr.hpp"
+#include "srcterms/turb_driver.hpp"
 #include "prolongation.hpp"
 #include "restriction.hpp"
 
@@ -83,8 +87,8 @@ MeshRefinement::MeshRefinement(Mesh *pm, ParameterInput *pin) :
 
   // be sure Views are initialized to zero
   for (int m=0; m<(pm->nmb_total); ++m) {
-    refine_flag.h_view(m) = 0;
-    fc_amr_repair.h_view(m) = 0;
+    refine_flag.view_host()(m) = 0;
+    fc_amr_repair.view_host()(m) = 0;
     ncyc_since_ref(m) = pm->restart_amr_age.empty() ? 0 : pm->restart_amr_age[m];
   }
   refine_flag.template modify<HostMemSpace>();
@@ -98,6 +102,7 @@ MeshRefinement::MeshRefinement(Mesh *pm, ParameterInput *pin) :
 #if MPI_PARALLEL_ENABLED
   // create unique communicators for AMR
   MPI_Comm_dup(MPI_COMM_WORLD, &amr_comm);
+  MPI_Comm_dup(MPI_COMM_WORLD, &ffc_comm);
   // allocate fixed-length send/recv data buffers as work around on Aurora and other
   // machines where frequent reallocation of Kokkos:Views causes memory issues
   // count number of cell- and face-centered variables communicated depending on physics
@@ -204,7 +209,7 @@ void MeshRefinement::CheckForRefinement(MeshBlockPack* pmbp) {
   // reallocate and zero refine_flag in host space and sync with device
   Kokkos::realloc(refine_flag, pmy_mesh->nmb_total);
   for (int m=0; m<(pmy_mesh->nmb_total); ++m) {
-    refine_flag.h_view(m) = 0;
+    refine_flag.view_host()(m) = 0;
   }
   refine_flag.template modify<HostMemSpace>();
   refine_flag.template sync<DevExeSpace>();
@@ -253,21 +258,21 @@ void MeshRefinement::CheckForRefinement(MeshBlockPack* pmbp) {
   int mbs = pmy_mesh->gids_eachrank[global_variable::my_rank];
   for (int m=0; m<nmb; ++m) {
     if (pmy_mesh->lloc_eachmb[m+mbs].level == pmy_mesh->max_level) {
-      if (refine_flag.h_view(m+mbs) > 0) {refine_flag.h_view(m+mbs) = 0;}
+      if (refine_flag.view_host()(m+mbs) > 0) {refine_flag.view_host()(m+mbs) = 0;}
     }
     if (pmy_mesh->lloc_eachmb[m+mbs].level == pmy_mesh->root_level) {
-      if (refine_flag.h_view(m+mbs) < 0) {refine_flag.h_view(m+mbs) = 0;}
+      if (refine_flag.view_host()(m+mbs) < 0) {refine_flag.view_host()(m+mbs) = 0;}
     }
   }
   // Turn off (on host) refine/derefine flag for any MB that has been recently refined
   for (int m=0; m<nmb; ++m) {
-    if (ncyc_since_ref(m+mbs) < refinement_interval) {refine_flag.h_view(m+mbs) = 0;}
+    if (ncyc_since_ref(m+mbs) < refinement_interval) {refine_flag.view_host()(m+mbs) = 0;}
   }
 
 #if MPI_PARALLEL_ENABLED
   // Pass (host) refine_flag between all ranks
     MPI_Allgatherv(MPI_IN_PLACE, pmy_mesh->nmb_eachrank[global_variable::my_rank],
-                   MPI_INT, refine_flag.h_view.data(), pmy_mesh->nmb_eachrank,
+                   MPI_INT, refine_flag.view_host().data(), pmy_mesh->nmb_eachrank,
                    pmy_mesh->gids_eachrank, MPI_INT, MPI_COMM_WORLD);
 #endif
   // sync host array with device
@@ -292,8 +297,8 @@ void MeshRefinement::UpdateMeshBlockTree(int &nnew, int &ndel) {
   nderef_eachrank[global_variable::my_rank] = 0;
   int mbs = pmy_mesh->gids_eachrank[global_variable::my_rank];
   for (int i=0; i<(pmy_mesh->nmb_thisrank); ++i) {
-    if (refine_flag.h_view(i+mbs) ==  1) nref_eachrank[global_variable::my_rank]++;
-    if (refine_flag.h_view(i+mbs) == -1) nderef_eachrank[global_variable::my_rank]++;
+    if (refine_flag.view_host()(i+mbs) ==  1) nref_eachrank[global_variable::my_rank]++;
+    if (refine_flag.view_host()(i+mbs) == -1) nderef_eachrank[global_variable::my_rank]++;
   }
 #if MPI_PARALLEL_ENABLED
   MPI_Allgather(MPI_IN_PLACE, 1, MPI_INT, nref_eachrank,   1, MPI_INT, MPI_COMM_WORLD);
@@ -334,10 +339,10 @@ void MeshRefinement::UpdateMeshBlockTree(int &nnew, int &ndel) {
     int iref = nref_rsum[global_variable::my_rank];
     int ideref = nderef_rsum[global_variable::my_rank];
     for (int i=0; i<(pmy_mesh->nmb_thisrank); ++i) {
-      int gid = pmy_mesh->pmb_pack->pmb->mb_gid.h_view(i);
-      if (refine_flag.h_view(i+mbs) ==  1) {
+      int gid = pmy_mesh->pmb_pack->pmb->mb_gid.view_host()(i);
+      if (refine_flag.view_host()(i+mbs) ==  1) {
         llref[iref++] = pmy_mesh->lloc_eachmb[gid];;
-      } else if (refine_flag.h_view(i+mbs) == -1 && tnderef >= nleaf) {
+      } else if (refine_flag.view_host()(i+mbs) == -1 && tnderef >= nleaf) {
         llderef[ideref++] = pmy_mesh->lloc_eachmb[gid];
       }
     }
@@ -507,11 +512,11 @@ void MeshRefinement::RedistAndRefineMeshBlocks(ParameterInput *pin, int nnew, in
     LogicalLocation &old_lloc = pmy_mesh->lloc_eachmb[oldm];
     LogicalLocation &new_lloc = new_lloc_eachmb[newm];
     if (old_lloc.level > new_lloc.level) {          // old MB was de-refined
-      refine_flag.h_view(oldm) = -nleaf;
+      refine_flag.view_host()(oldm) = -nleaf;
     } else if (old_lloc.level < new_lloc.level) {   // old MB was refined
-      refine_flag.h_view(oldm) = 1;
+      refine_flag.view_host()(oldm) = 1;
     } else {
-      refine_flag.h_view(oldm) = 0;
+      refine_flag.view_host()(oldm) = 0;
     }
   }
   //  All ranks have copy of refine_flag over all MBs. So just sync host view with device
@@ -541,6 +546,12 @@ void MeshRefinement::RedistAndRefineMeshBlocks(ParameterInput *pin, int nnew, in
   PackAndSendAMR(nleaf);
   nmb_sent_thisrank += nmb_send;
 #endif
+
+  // Face field correction, Steps FFC1-FFC4 (Athena++): pack faces of existing MBs shared
+  // with newly refined MBs while b0 still has the pre-refinement layout.
+  if (pmhd != nullptr) {
+    PrepareAndSendFaceFieldCorrection(pmhd->b0);
+  }
 
   // Step 5.
   // De-refine (restrict) evolved physics variables for MeshBlocks within this rank.
@@ -607,10 +618,16 @@ void MeshRefinement::RedistAndRefineMeshBlocks(ParameterInput *pin, int nnew, in
   if (nmb_recv > 0) {ClearRecvAndUnpackAMR();}
 #endif
 
+  // Face field correction, Steps FFC5-FFC7 (Athena++): set shared faces of newly refined
+  // MBs before prolongation; RefineFC skips the flagged faces (Step FFC8).
+  if (pmhd != nullptr) {
+    ReceiveAndSetFaceFieldCorrection(pmhd->b0);
+  }
+
   // copy newtoold array to DualView so that it can be accessed in kernel
   DualArray1D<int> new_to_old("newtoold",new_nmb_total);
   for (int m=0; m<new_nmb_total; ++m) {
-    new_to_old.h_view(m) = newtoold[m];
+    new_to_old.view_host()(m) = newtoold[m];
   }
   new_to_old.template modify<HostMemSpace>();
   new_to_old.template sync<DevExeSpace>();
@@ -653,7 +670,7 @@ void MeshRefinement::RedistAndRefineMeshBlocks(ParameterInput *pin, int nnew, in
   HostArray1D<int> new_ncyc_since_ref("nnref",new_nmb_total);
   for (int m=0; m<(new_nmb_total); ++m) {
     int oldm = newtoold[m];
-    if (refine_flag.h_view(oldm) != 0) {
+    if (refine_flag.view_host()(oldm) != 0) {
       new_ncyc_since_ref(m) = 0;
     } else {
       new_ncyc_since_ref(m) = ncyc_since_ref(oldm);
@@ -695,7 +712,7 @@ void MeshRefinement::RedistAndRefineMeshBlocks(ParameterInput *pin, int nnew, in
 
   Kokkos::realloc(fc_amr_repair, new_nmb_total);
   for (int m=0; m<new_nmb_total; ++m) {
-    fc_amr_repair.h_view(m) = (refine_flag.h_view(newtoold[m]) != 0) ? 1 : 0;
+    fc_amr_repair.view_host()(m) = (refine_flag.view_host()(newtoold[m]) != 0) ? 1 : 0;
   }
   fc_amr_repair.template modify<HostMemSpace>();
   fc_amr_repair.template sync<DevExeSpace>();
@@ -703,6 +720,11 @@ void MeshRefinement::RedistAndRefineMeshBlocks(ParameterInput *pin, int nnew, in
   // clean-up
   delete [] newtoold;
   delete [] oldtonew;
+
+  // Forcing storage and position tables must follow the new local MeshBlocks.
+  if (pm->pmb_pack->pturb != nullptr) {
+    pm->pmb_pack->pturb->ResetForNewMesh();
+  }
 
   // Step 11.
   // Initialize quantities stored on the mesh associated with each physics, if necessary
@@ -748,7 +770,7 @@ void MeshRefinement::DerefineCCSameRank(DvceArray5D<Real> &a, DvceArray5D<Real> 
   int ombs = pmy_mesh->gids_eachrank[global_variable::my_rank];
   int ombe = ombs + pmy_mesh->nmb_eachrank[global_variable::my_rank] - 1;
   for (int oldm=ombs; oldm<=ombe; ++oldm) {
-    if (refine_flag.h_view(oldm) < -1) {  // only derefine if nleaf blocks flagged
+    if (refine_flag.view_host()(oldm) < -1) {  // only derefine if nleaf blocks flagged
       int newm = oldtonew[oldm];
       if ((oldm > 0) && (oldtonew[oldm-1] == newm)) continue;
       // only copy data if target MB stays on this rank
@@ -805,7 +827,7 @@ void MeshRefinement::DerefineFCSameRank(DvceFaceFld4D<Real> &b, DvceFaceFld4D<Re
   int ombs = pmy_mesh->gids_eachrank[global_variable::my_rank];
   int ombe = ombs + pmy_mesh->nmb_eachrank[global_variable::my_rank] - 1;
   for (int oldm=ombs; oldm<=ombe; ++oldm) {
-    if (refine_flag.h_view(oldm) < -1) {  // only derefine if nleaf blocks flagged
+    if (refine_flag.view_host()(oldm) < -1) {  // only derefine if nleaf blocks flagged
       int newm = oldtonew[oldm];
       if ((oldm > 0) && (oldtonew[oldm-1] == newm)) continue;
       // only copy data if target MB stays on this rank
@@ -974,7 +996,7 @@ void MeshRefinement::CopyForRefinementCC(DvceArray5D<Real> &a, DvceArray5D<Real>
   int nmbe = nmbs + new_nmb_eachrank[global_variable::my_rank] - 1;
   for (int newm=nmbs; newm<=nmbe; ++newm) {
     int oldm = newtoold[newm];
-    if (refine_flag.h_view(oldm) > 0) {
+    if (refine_flag.view_host()(oldm) > 0) {
       // only copy if old and new location of MB on this rank
       if ((new_rank_eachmb[oldtonew[oldm]] == global_variable::my_rank) &&
           (new_rank_eachmb[newm] == global_variable::my_rank)) {
@@ -1029,7 +1051,7 @@ void MeshRefinement::CopyForRefinementFC(DvceFaceFld4D<Real> &b,DvceFaceFld4D<Re
   int nmbe = nmbs + new_nmb_eachrank[global_variable::my_rank] - 1;
   for (int newm=nmbs; newm<=nmbe; ++newm) {
     int oldm = newtoold[newm];
-    if (refine_flag.h_view(oldm) > 0) {
+    if (refine_flag.view_host()(oldm) > 0) {
       // only copy if old and new location of MB on this rank
       if ((new_rank_eachmb[oldtonew[oldm]] == global_variable::my_rank) &&
           (new_rank_eachmb[newm] == global_variable::my_rank)) {
@@ -1094,7 +1116,7 @@ void MeshRefinement::RefineCC(DualArray1D<int> &n2o, DvceArray5D<Real> &a,
     const int m = (tmember.league_rank())/nvar;
     const int v = (tmember.league_rank() - m*nvar);
 
-    if (refine_flag_.d_view(n2o.d_view(m+ngids_)) > 0) {
+    if (refine_flag_.view_device()(n2o.view_device()(m+ngids_)) > 0) {
       const int ni = cie - cis + 1;
       const int nj = cje - cjs + 1;
       const int nk = cke - cks + 1;
@@ -1156,7 +1178,7 @@ bool MeshRefinement::RefineHydroPositive(DualArray1D<int> &n2o, DvceArray5D<Real
       Kokkos::RangePolicy<>(DevExeSpace(), 0, nmb*ncells),
       KOKKOS_LAMBDA(const int idx, int &bad) {
     const int m = idx/ncells;
-    if (flags.d_view(n2o.d_view(m+gid0)) <= 0) return;
+    if (flags.view_device()(n2o.view_device()(m+gid0)) <= 0) return;
     const int i = idx%ni+indcs.cis;
     const int j = (idx/ni)%nj+indcs.cjs;
     const int k = (idx/(ni*nj))%nk+indcs.cks;
@@ -1239,11 +1261,17 @@ void MeshRefinement::RefineFC(DualArray1D<int> &n2o, DvceFaceFld4D<Real> &b,
   bool &multi_d = pmy_mesh->multi_d;
   bool &three_d = pmy_mesh->three_d;
   auto &ngids_ = new_gids_eachrank[global_variable::my_rank];
+  // Step FFC8 (Athena++). skip the surface fields contacting previously refined MBs
+  auto &ffc_ = ffc_recv_flag;
 
   // Prolongate x1f
   par_for("RefineFC1",DevExeSpace(), 0,(new_nmb-1), cks,cke, cjs,cje, cis,cie+1,
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
-    if (refine_flag_.d_view(n2o.d_view(m+ngids_)) > 0) {
+    if ((i == cis && ffc_.view_device()(m,BoundaryFace::inner_x1) != 0) ||
+        (i == cie+1 && ffc_.view_device()(m,BoundaryFace::outer_x1) != 0)) {
+      return;
+    }
+    if (refine_flag_.view_device()(n2o.view_device()(m+ngids_)) > 0) {
       // fine indices refer to target array
       int fi = (i - cis)*2 + is;                   // fine i
       int fj = (multi_d)? ((j - cjs)*2 + js) : j;  // fine j
@@ -1255,7 +1283,11 @@ void MeshRefinement::RefineFC(DualArray1D<int> &n2o, DvceFaceFld4D<Real> &b,
   // Prolongate x2f
   par_for("RefineFC2",DevExeSpace(), 0,(new_nmb-1), cks,cke, cjs,cje+1, cis,cie,
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
-    if (refine_flag_.d_view(n2o.d_view(m+ngids_)) > 0) {
+    if ((j == cjs && ffc_.view_device()(m,BoundaryFace::inner_x2) != 0) ||
+        (j == cje+1 && ffc_.view_device()(m,BoundaryFace::outer_x2) != 0)) {
+      return;
+    }
+    if (refine_flag_.view_device()(n2o.view_device()(m+ngids_)) > 0) {
       // fine indices refer to target array
       int fi = (i - cis)*2 + is;                   // fine i
       int fj = (multi_d)? ((j - cjs)*2 + js) : j;  // fine j
@@ -1267,7 +1299,11 @@ void MeshRefinement::RefineFC(DualArray1D<int> &n2o, DvceFaceFld4D<Real> &b,
   // Prolongate x3f
   par_for("RefineFC3",DevExeSpace(), 0,(new_nmb-1), cks,cke+1, cjs,cje, cis,cie,
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
-    if (refine_flag_.d_view(n2o.d_view(m+ngids_)) > 0) {
+    if ((k == cks && ffc_.view_device()(m,BoundaryFace::inner_x3) != 0) ||
+        (k == cke+1 && ffc_.view_device()(m,BoundaryFace::outer_x3) != 0)) {
+      return;
+    }
+    if (refine_flag_.view_device()(n2o.view_device()(m+ngids_)) > 0) {
       // fine indices refer to target array
       int fi = (i - cis)*2 + is;                   // fine i
       int fj = (multi_d)? ((j - cjs)*2 + js) : j;  // fine j
@@ -1281,7 +1317,7 @@ void MeshRefinement::RefineFC(DualArray1D<int> &n2o, DvceFaceFld4D<Real> &b,
   bool &one_d = pmy_mesh->one_d;
   par_for("RefineFC-int",DevExeSpace(), 0,(new_nmb-1), cks,cke, cjs,cje, cis,cie,
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
-    if (refine_flag_.d_view(n2o.d_view(m+ngids_)) > 0) {
+    if (refine_flag_.view_device()(n2o.view_device()(m+ngids_)) > 0) {
       // fine indices refer to target array
       int fi = (i - cis)*2 + is;   // fine i
       int fj = (j - cjs)*2 + js;   // fine j
@@ -1297,6 +1333,224 @@ void MeshRefinement::RefineFC(DualArray1D<int> &n2o, DvceFaceFld4D<Real> &b,
     }
   });
 
+  return;
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn void MeshRefinement::PrepareAndSendFaceFieldCorrection
+//! \brief Steps FFC1-FFC4 of the face field correction in Athena++
+//! (PrincetonUniversity/athena, src/mesh/amr_loadbalance.cpp). A newly refined MeshBlock
+//! may share its outward face in each direction with a MeshBlock that existed at the same
+//! level before refinement. That face must keep the existing block's values instead of
+//! values prolongated from the coarse parent, otherwise the two blocks hold different
+//! copies of the shared face field. Called before b0 is reordered for the new mesh.
+
+void MeshRefinement::PrepareAndSendFaceFieldCorrection(DvceFaceFld4D<Real> &b) {
+  Mesh *pm = pmy_mesh;
+  auto &indcs = pm->mb_indcs;
+  const int is = indcs.is, ie = indcs.ie, js = indcs.js, je = indcs.je;
+  const int ks = indcs.ks, ke = indcs.ke;
+  const int nx1 = indcs.nx1, nx2 = indcs.nx2, nx3 = indcs.nx3;
+  const bool f2 = pm->multi_d, f3 = pm->three_d;
+  const int sffc[3] = {nx2*nx3, nx1*nx3, nx1*nx2};
+  const int my_rank = global_variable::my_rank;
+  const int old_nmb = pm->nmb_total;
+  const int nranks = global_variable::nranks;
+  const int new_nmb = new_gids_eachrank[nranks-1] + new_nmb_eachrank[nranks-1];
+  const int nrb[3] = {pm->nmb_rootx1, pm->nmb_rootx2, pm->nmb_rootx3};
+  ffc_send.clear();
+  ffc_recv.clear();
+
+  // Step FFC1. Construct a hash map of MeshBlocks before refinement
+  std::map<std::tuple<int, int, int, int>, int> locmap;
+  for (int i=0; i<old_nmb; ++i) {
+    const LogicalLocation &loc = pm->lloc_eachmb[i];
+    if (loc.level > pm->root_level) {
+      locmap[std::make_tuple(loc.lx1, loc.lx2, loc.lx3, loc.level)] = i;
+    }
+  }
+
+  // Step FFC2. Find pairs that need face field correction
+  int s = 0;
+  for (int n=0; n<new_nmb; ++n) {
+    const LogicalLocation &nloc = new_lloc_eachmb[n];
+    if (pm->lloc_eachmb[newtoold[n]].level >= nloc.level) continue;  // not refined
+    const int xf[3] = {static_cast<int>(nloc.lx1 & 1), static_cast<int>(nloc.lx2 & 1),
+                       static_cast<int>(nloc.lx3 & 1)};
+    for (int d=0; d<3; ++d) {
+      if ((d == 1 && !f2) || (d == 2 && !f3)) continue;
+      int floc[3] = {nloc.lx1, nloc.lx2, nloc.lx3};
+      floc[d] += 2*xf[d] - 1;
+      const int nlev = nrb[d] << (nloc.level - pm->root_level);
+      if (floc[d] < 0) {
+        if (pm->mesh_bcs[2*d] != BoundaryFlag::periodic) continue;
+        floc[d] = nlev - 1;
+      } else if (floc[d] >= nlev) {
+        if (pm->mesh_bcs[2*d+1] != BoundaryFlag::periodic) continue;
+        floc[d] = 0;
+      }
+      auto itr = locmap.find(std::make_tuple(floc[0], floc[1], floc[2], nloc.level));
+      if (itr == locmap.end()) continue;
+      const int i = itr->second;
+      if (pm->rank_eachmb[i] == my_rank) {
+        FaceFieldCorrection f;
+        f.from = i; f.to = n; f.face = (xf[d]^1) + 2*d; f.size = sffc[d]; f.src = -1;
+        f.buf = DvceArray1D<Real>("ffc_send", sffc[d]);
+        ffc_send.push_back(f);
+        if (new_rank_eachmb[n] == my_rank) {
+          FaceFieldCorrection t;
+          t.from = i; t.to = n; t.face = xf[d] + 2*d; t.size = 0; t.src = s;
+          ffc_recv.push_back(t);
+        }
+        s++;
+      } else if (new_rank_eachmb[n] == my_rank) {
+        FaceFieldCorrection t;
+        t.from = i; t.to = n; t.face = xf[d] + 2*d; t.size = sffc[d]; t.src = -1;
+        t.buf = DvceArray1D<Real>("ffc_recv", sffc[d]);
+        ffc_recv.push_back(t);
+      }
+    }
+  }
+
+  // Step FFC3. Initiate MPI receive
+#if MPI_PARALLEL_ENABLED
+  for (FaceFieldCorrection &t : ffc_recv) {
+    if (pm->rank_eachmb[t.from] != my_rank) {
+      int lid = t.to - new_gids_eachrank[new_rank_eachmb[t.to]];
+      int tag = CreateFFC_MPI_Tag(lid, t.face);
+      MPI_Irecv(t.buf.data(), t.size, MPI_ATHENA_REAL, pm->rank_eachmb[t.from], tag,
+                ffc_comm, &(t.req));
+    }
+  }
+#endif
+
+  // Step FFC4. Pack and send shared face fields
+  for (FaceFieldCorrection &f : ffc_send) {
+    const int om = f.from - pm->gids_eachrank[my_rank];
+    auto buf = f.buf;
+    switch (f.face) {
+      case BoundaryFace::inner_x1:
+      case BoundaryFace::outer_x1: {
+        const int fi = (f.face == BoundaryFace::inner_x1) ? is : ie+1;
+        par_for("ffc_pack1", DevExeSpace(), ks, ke, js, je,
+        KOKKOS_LAMBDA(const int k, const int j) {
+          buf((k-ks)*nx2 + (j-js)) = b.x1f(om,k,j,fi);
+        });
+        break;
+      }
+      case BoundaryFace::inner_x2:
+      case BoundaryFace::outer_x2: {
+        const int fj = (f.face == BoundaryFace::inner_x2) ? js : je+1;
+        par_for("ffc_pack2", DevExeSpace(), ks, ke, is, ie,
+        KOKKOS_LAMBDA(const int k, const int i) {
+          buf((k-ks)*nx1 + (i-is)) = b.x2f(om,k,fj,i);
+        });
+        break;
+      }
+      case BoundaryFace::inner_x3:
+      case BoundaryFace::outer_x3: {
+        const int fk = (f.face == BoundaryFace::inner_x3) ? ks : ke+1;
+        par_for("ffc_pack3", DevExeSpace(), js, je, is, ie,
+        KOKKOS_LAMBDA(const int j, const int i) {
+          buf((j-js)*nx1 + (i-is)) = b.x3f(om,fk,j,i);
+        });
+        break;
+      }
+      default:
+        break;
+    }
+#if MPI_PARALLEL_ENABLED
+    if (new_rank_eachmb[f.to] != my_rank) {
+      Kokkos::fence();
+      int face = f.face^1;
+      int tag = CreateFFC_MPI_Tag(f.to - new_gids_eachrank[new_rank_eachmb[f.to]], face);
+      MPI_Isend(f.buf.data(), f.size, MPI_ATHENA_REAL, new_rank_eachmb[f.to], tag,
+                ffc_comm, &(f.req));
+    }
+#endif
+  }
+  Kokkos::fence();
+  return;
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn void MeshRefinement::ReceiveAndSetFaceFieldCorrection
+//! \brief Steps FFC5-FFC7 of the face field correction in Athena++. Called after b0 has
+//! the new mesh layout and before RefineFC, which skips the flagged faces (Step FFC8).
+
+void MeshRefinement::ReceiveAndSetFaceFieldCorrection(DvceFaceFld4D<Real> &b) {
+  Mesh *pm = pmy_mesh;
+  auto &indcs = pm->mb_indcs;
+  const int is = indcs.is, ie = indcs.ie, js = indcs.js, je = indcs.je;
+  const int ks = indcs.ks, ke = indcs.ke;
+  const int nx1 = indcs.nx1, nx2 = indcs.nx2;
+  const int my_rank = global_variable::my_rank;
+  const int new_nmb = new_nmb_eachrank[my_rank];
+
+  // Step FFC5. clear face field correction flags
+  Kokkos::realloc(ffc_recv_flag, std::max(new_nmb, 1), 6);
+  for (int m=0; m<new_nmb; ++m) {
+    for (int f=0; f<6; ++f) {ffc_recv_flag.view_host()(m,f) = 0;}
+  }
+
+  // Step FFC6. wait and unpack/set
+  for (FaceFieldCorrection &t : ffc_recv) {
+    const int nm = t.to - new_gids_eachrank[my_rank];
+    ffc_recv_flag.view_host()(nm,t.face) = 1;
+    DvceArray1D<Real> buf = t.buf;
+    if (pm->rank_eachmb[t.from] == my_rank) {  // local copy
+      buf = ffc_send[t.src].buf;
+#if MPI_PARALLEL_ENABLED
+    } else {  // MPI
+      MPI_Wait(&(t.req), MPI_STATUS_IGNORE);
+#endif
+    }
+    switch (t.face) {
+      case BoundaryFace::inner_x1:
+      case BoundaryFace::outer_x1: {
+        const int fi = (t.face == BoundaryFace::inner_x1) ? is : ie+1;
+        par_for("ffc_unpack1", DevExeSpace(), ks, ke, js, je,
+        KOKKOS_LAMBDA(const int k, const int j) {
+          b.x1f(nm,k,j,fi) = buf((k-ks)*nx2 + (j-js));
+        });
+        break;
+      }
+      case BoundaryFace::inner_x2:
+      case BoundaryFace::outer_x2: {
+        const int fj = (t.face == BoundaryFace::inner_x2) ? js : je+1;
+        par_for("ffc_unpack2", DevExeSpace(), ks, ke, is, ie,
+        KOKKOS_LAMBDA(const int k, const int i) {
+          b.x2f(nm,k,fj,i) = buf((k-ks)*nx1 + (i-is));
+        });
+        break;
+      }
+      case BoundaryFace::inner_x3:
+      case BoundaryFace::outer_x3: {
+        const int fk = (t.face == BoundaryFace::inner_x3) ? ks : ke+1;
+        par_for("ffc_unpack3", DevExeSpace(), js, je, is, ie,
+        KOKKOS_LAMBDA(const int j, const int i) {
+          b.x3f(nm,fk,j,i) = buf((j-js)*nx1 + (i-is));
+        });
+        break;
+      }
+      default:
+        break;
+    }
+  }
+  ffc_recv_flag.template modify<HostMemSpace>();
+  ffc_recv_flag.template sync<DevExeSpace>();
+
+  // Step FFC7. Finalize MPI send
+#if MPI_PARALLEL_ENABLED
+  for (FaceFieldCorrection &f : ffc_send) {
+    if (new_rank_eachmb[f.to] != my_rank) {
+      MPI_Wait(&(f.req), MPI_STATUS_IGNORE);
+    }
+  }
+#endif
+  Kokkos::fence();
+  ffc_send.clear();
+  ffc_recv.clear();
   return;
 }
 
@@ -1322,7 +1576,7 @@ void MeshRefinement::RepairAMRFC(DvceFaceFld4D<Real> &b) {
 
   par_for("RepairAMRFC",DevExeSpace(), 0,(nmb-1), cks,cke, cjs,cje, cis,cie,
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
-    if (repair.d_view(m + mbs) != 0) {
+    if (repair.view_device()(m + mbs) != 0) {
       int fi = (i - cis)*2 + is;
       int fj = (j - cjs)*2 + js;
       int fk = (k - cks)*2 + ks;
@@ -1523,18 +1777,18 @@ void MeshRefinement::InitInterpWghts() {
   for (int k = 0; k < 3; k++) {
     for (int j = 0; j < 3; j++) {
       for (int i = 0; i < 3; i++) {
-        pro_2nd.h_view(k,j,i) = wght2[k]*wght2[j]*wght2[i];
+        pro_2nd.view_host()(k,j,i) = wght2[k]*wght2[j]*wght2[i];
       }
     }
   }
-  /*pro_2nd.h_view(0) = 0.15625;
-  pro_2nd.h_view(1) = 0.9375;
-  pro_2nd.h_view(2) = -0.09375;*/
+  /*pro_2nd.view_host()(0) = 0.15625;
+  pro_2nd.view_host()(1) = 0.9375;
+  pro_2nd.view_host()(2) = -0.09375;*/
 
   // 2nd order restriction weights
-  res_2nd.h_view(0) = 0.375;
-  res_2nd.h_view(1) = 0.75;
-  res_2nd.h_view(2) = -0.125;
+  res_2nd.view_host()(0) = 0.375;
+  res_2nd.view_host()(1) = 0.75;
+  res_2nd.view_host()(2) = -0.125;
 
   // 4th order prolongation weights
   const Real wght4[5] = {-0.02197265625, 0.205078125, 0.9228515625,
@@ -1542,29 +1796,29 @@ void MeshRefinement::InitInterpWghts() {
   for (int k = 0; k < 5; k++) {
     for (int j = 0; j < 5; j++) {
       for (int i = 0; i < 5; i++) {
-        pro_4th.h_view(k,j,i) = wght4[k]*wght4[j]*wght4[i];
+        pro_4th.view_host()(k,j,i) = wght4[k]*wght4[j]*wght4[i];
       }
     }
   }
-  /*pro_4th.h_view(0) = -0.02197265625;
-  pro_4th.h_view(1) = 0.205078125;
-  pro_4th.h_view(2) = 0.9228515625;
-  pro_4th.h_view(3) = -0.123046875;
-  pro_4th.h_view(4) = 0.01708984375;*/
+  /*pro_4th.view_host()(0) = -0.02197265625;
+  pro_4th.view_host()(1) = 0.205078125;
+  pro_4th.view_host()(2) = 0.9228515625;
+  pro_4th.view_host()(3) = -0.123046875;
+  pro_4th.view_host()(4) = 0.01708984375;*/
 
   // 4th order restriction weights
-  res_4th.h_view(0) = -0.0390625;
-  res_4th.h_view(1) = 0.46875;
-  res_4th.h_view(2) = 0.703125;
-  res_4th.h_view(3) = -0.15625;
-  res_4th.h_view(4) = 0.0234375;
+  res_4th.view_host()(0) = -0.0390625;
+  res_4th.view_host()(1) = 0.46875;
+  res_4th.view_host()(2) = 0.703125;
+  res_4th.view_host()(3) = -0.15625;
+  res_4th.view_host()(4) = 0.0234375;
 
   // 4th order restriction weights at edge
-  res_4th_e.h_view(0) = 0.2734375;
-  res_4th_e.h_view(1) = 1.09375;
-  res_4th_e.h_view(2) = -0.546875;
-  res_4th_e.h_view(3) = 0.21875;
-  res_4th_e.h_view(4) = -0.0390625;
+  res_4th_e.view_host()(0) = 0.2734375;
+  res_4th_e.view_host()(1) = 1.09375;
+  res_4th_e.view_host()(2) = -0.546875;
+  res_4th_e.view_host()(3) = 0.21875;
+  res_4th_e.view_host()(4) = -0.0390625;
 
   // sync dual arrays
   pro_2nd.template modify<HostMemSpace>();

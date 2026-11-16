@@ -226,12 +226,12 @@ void ProblemGenerator::DivBAMR(ParameterInput *pin, const bool restart) {
 
   par_for("divb_amr_vector_potential", DevExeSpace(), 0, nmb-1, ks, ke+1, js, je+1,
   is, ie+1, KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    const Real x1min = size.d_view(m).x1min;
-    const Real x1max = size.d_view(m).x1max;
-    const Real x2min = size.d_view(m).x2min;
-    const Real x2max = size.d_view(m).x2max;
-    const Real x3min = size.d_view(m).x3min;
-    const Real x3max = size.d_view(m).x3max;
+    const Real x1min = size.view_device()(m).x1min;
+    const Real x1max = size.view_device()(m).x1max;
+    const Real x2min = size.view_device()(m).x2min;
+    const Real x2max = size.view_device()(m).x2max;
+    const Real x3min = size.view_device()(m).x3min;
+    const Real x3max = size.view_device()(m).x3max;
 
     const Real x1v = CellCenterX(i - is, nx1, x1min, x1max);
     const Real x1f = LeftEdgeX(i - is, nx1, x1min, x1max);
@@ -249,28 +249,28 @@ void ProblemGenerator::DivBAMR(ParameterInput *pin, const bool restart) {
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
     Real b1 = cfg.guide_b1;
     if (multi_d) {
-      b1 += (a3(m,k,j+1,i) - a3(m,k,j,i))/size.d_view(m).dx2;
+      b1 += (a3(m,k,j+1,i) - a3(m,k,j,i))/size.view_device()(m).dx2;
     }
     if (three_d) {
-      b1 -= (a2(m,k+1,j,i) - a2(m,k,j,i))/size.d_view(m).dx3;
+      b1 -= (a2(m,k+1,j,i) - a2(m,k,j,i))/size.view_device()(m).dx3;
     }
     b0.x1f(m,k,j,i) = b1;
   });
 
   par_for("divb_amr_b2", DevExeSpace(), 0, nmb-1, ks, ke, js, je+1, is, ie,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real b2 = cfg.guide_b2 - (a3(m,k,j,i+1) - a3(m,k,j,i))/size.d_view(m).dx1;
+    Real b2 = cfg.guide_b2 - (a3(m,k,j,i+1) - a3(m,k,j,i))/size.view_device()(m).dx1;
     if (three_d) {
-      b2 += (a1(m,k+1,j,i) - a1(m,k,j,i))/size.d_view(m).dx3;
+      b2 += (a1(m,k+1,j,i) - a1(m,k,j,i))/size.view_device()(m).dx3;
     }
     b0.x2f(m,k,j,i) = b2;
   });
 
   par_for("divb_amr_b3", DevExeSpace(), 0, nmb-1, ks, ke+1, js, je, is, ie,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real b3 = cfg.guide_b3 + (a2(m,k,j,i+1) - a2(m,k,j,i))/size.d_view(m).dx1;
+    Real b3 = cfg.guide_b3 + (a2(m,k,j,i+1) - a2(m,k,j,i))/size.view_device()(m).dx1;
     if (multi_d) {
-      b3 -= (a1(m,k,j+1,i) - a1(m,k,j,i))/size.d_view(m).dx2;
+      b3 -= (a1(m,k,j+1,i) - a1(m,k,j,i))/size.view_device()(m).dx2;
     }
     b0.x3f(m,k,j,i) = b3;
   });
@@ -312,12 +312,12 @@ void DivBAMRRefinementCondition(MeshBlockPack *pmbp) {
 
   par_for("divb_amr_refinement", DevExeSpace(), 0, nmb-1, KOKKOS_LAMBDA(int m) {
     const bool refine_region = InRefinementPattern(
-        mb_size.d_view(m), mesh_size, phase, multi_d, three_d);
-    const int level = mblev.d_view(m);
+        mb_size.view_device()(m), mesh_size, phase, multi_d, three_d);
+    const int level = mblev.view_device()(m);
     if (refine_region && (level < cfg.target_level)) {
-      refine_flag.d_view(m + mbs) = 1;
+      refine_flag.view_device()(m + mbs) = 1;
     } else if ((!refine_region) && (level > root_level)) {
-      refine_flag.d_view(m + mbs) = -1;
+      refine_flag.view_device()(m + mbs) = -1;
     }
   });
 
@@ -370,18 +370,18 @@ void DivBAMRHistory(HistoryData *pdata, Mesh *pm) {
     j += js;
     k += ks;
 
-    Real divb = (b.x1f(m,k,j,i+1) - b.x1f(m,k,j,i))/size.d_view(m).dx1;
-    Real dx_min = size.d_view(m).dx1;
-    Real vol = size.d_view(m).dx1;
+    Real divb = (b.x1f(m,k,j,i+1) - b.x1f(m,k,j,i))/size.view_device()(m).dx1;
+    Real dx_min = size.view_device()(m).dx1;
+    Real vol = size.view_device()(m).dx1;
     if (multi_d) {
-      divb += (b.x2f(m,k,j+1,i) - b.x2f(m,k,j,i))/size.d_view(m).dx2;
-      dx_min = fmin(dx_min, size.d_view(m).dx2);
-      vol *= size.d_view(m).dx2;
+      divb += (b.x2f(m,k,j+1,i) - b.x2f(m,k,j,i))/size.view_device()(m).dx2;
+      dx_min = fmin(dx_min, size.view_device()(m).dx2);
+      vol *= size.view_device()(m).dx2;
     }
     if (three_d) {
-      divb += (b.x3f(m,k+1,j,i) - b.x3f(m,k,j,i))/size.d_view(m).dx3;
-      dx_min = fmin(dx_min, size.d_view(m).dx3);
-      vol *= size.d_view(m).dx3;
+      divb += (b.x3f(m,k+1,j,i) - b.x3f(m,k,j,i))/size.view_device()(m).dx3;
+      dx_min = fmin(dx_min, size.view_device()(m).dx3);
+      vol *= size.view_device()(m).dx3;
     }
 
     const Real abs_divb = fabs(divb);

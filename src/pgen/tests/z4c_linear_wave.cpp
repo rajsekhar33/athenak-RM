@@ -113,12 +113,12 @@ void ProblemGenerator::Z4cLinearWave(ParameterInput *pin, const bool restart) {
 
   par_for("pgen_linwave1", DevExeSpace(), 0, (pmbp->nmb_thispack - 1),
       ks, ke, js, je, is, ie, KOKKOS_LAMBDA(int m, int k, int j, int i) {
-        Real &x1min = size.d_view(m).x1min;
-        Real &x1max = size.d_view(m).x1max;
-        Real &x2min = size.d_view(m).x2min;
-        Real &x2max = size.d_view(m).x2max;
-        Real &x3min = size.d_view(m).x3min;
-        Real &x3max = size.d_view(m).x3max;
+        Real &x1min = size.view_device()(m).x1min;
+        Real &x1max = size.view_device()(m).x1max;
+        Real &x2min = size.view_device()(m).x2min;
+        Real &x2max = size.view_device()(m).x2max;
+        Real &x3min = size.view_device()(m).x3min;
+        Real &x3max = size.view_device()(m).x3max;
 
         int nx1 = indcs.nx1;
         int nx2 = indcs.nx2;
@@ -201,7 +201,8 @@ void Z4cLinearWaveErrors(ParameterInput *pin, Mesh *pm) {
       k += ks;
       j += js;
 
-      Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+      Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2
+          *size.view_device()(m).dx3;
 
       // g_ij's:
       array_sum::GlobalSum evars;
@@ -333,9 +334,9 @@ void RefinementCondition(MeshBlockPack* pmbp) {
       Kokkos::Max<Real>(team_dmax));
 
     if (team_dmax > 0) {
-      refine_flag.d_view(m + mbs) = 1;
+      refine_flag.view_device()(m + mbs) = 1;
     } else {
-      refine_flag.d_view(m + mbs) = -1;
+      refine_flag.view_device()(m + mbs) = -1;
     }
   });
 

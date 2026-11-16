@@ -73,10 +73,10 @@ TaskStatus MeshBoundaryValuesCC::PackAndSendCC(DvceArray5D<Real> &a,
     const int v = (tmember.league_rank() - m*(nnghbr*nvar) - n*nvar);
 
     // only load buffers when neighbor exists
-    if (nghbr.d_view(m,n).gid >= 0) {
+    if (nghbr.view_device()(m,n).gid >= 0) {
       // if neighbor is at coarser level, use coar indices to pack buffer
       int il, iu, jl, ju, kl, ku;
-      if (nghbr.d_view(m,n).lev < mblev.d_view(m)) {
+      if (nghbr.view_device()(m,n).lev < mblev.view_device()(m)) {
         il = sbuf[n].icoar[0].bis;
         iu = sbuf[n].icoar[0].bie;
         jl = sbuf[n].icoar[0].bjs;
@@ -84,7 +84,7 @@ TaskStatus MeshBoundaryValuesCC::PackAndSendCC(DvceArray5D<Real> &a,
         kl = sbuf[n].icoar[0].bks;
         ku = sbuf[n].icoar[0].bke;
       // if neighbor is at same level, use same indices to pack buffer
-      } else if (nghbr.d_view(m,n).lev == mblev.d_view(m)) {
+      } else if (nghbr.view_device()(m,n).lev == mblev.view_device()(m)) {
         il = sbuf[n].isame[0].bis;
         iu = sbuf[n].isame[0].bie;
         jl = sbuf[n].isame[0].bjs;
@@ -107,8 +107,8 @@ TaskStatus MeshBoundaryValuesCC::PackAndSendCC(DvceArray5D<Real> &a,
 
       // indices of recv'ing (destination) MB and buffer: MB IDs are stored sequentially
       // in MeshBlockPacks, so array index equals (target_id - first_id)
-      int dm = nghbr.d_view(m,n).gid - mbgid.d_view(0);
-      int dn = nghbr.d_view(m,n).dest;
+      int dm = nghbr.view_device()(m,n).gid - mbgid.view_device()(0);
+      int dn = nghbr.view_device()(m,n).dest;
 
       // Middle loop over k,j
       Kokkos::parallel_for(Kokkos::TeamThreadRange<>(tmember, nkj), [&](const int idx) {
@@ -119,9 +119,9 @@ TaskStatus MeshBoundaryValuesCC::PackAndSendCC(DvceArray5D<Real> &a,
         // Inner (vector) loop over i
         // copy directly into recv buffer if MeshBlocks on same rank
 
-        if (nghbr.d_view(m,n).rank == my_rank) {
+        if (nghbr.view_device()(m,n).rank == my_rank) {
           // if neighbor is at same or finer level, load data from u0
-          if (nghbr.d_view(m,n).lev >= mblev.d_view(m)) {
+          if (nghbr.view_device()(m,n).lev >= mblev.view_device()(m)) {
             Kokkos::parallel_for(Kokkos::ThreadVectorRange(tmember,il,iu+1),
             [&](const int i) {
               rbuf[dn].vars(dm, (i-il + ni*(j-jl + nj*(k-kl + nk*v))) ) = a(m,v,k,j,i);
@@ -141,7 +141,7 @@ TaskStatus MeshBoundaryValuesCC::PackAndSendCC(DvceArray5D<Real> &a,
           // off-rank: write straight into the rank-packed aggregate send buffer
           // at this entry's base offset (fuses the former RankPackAgg kernel).
           int base = sendoff(m*nnghbr + n);
-          if (nghbr.d_view(m,n).lev >= mblev.d_view(m)) {
+          if (nghbr.view_device()(m,n).lev >= mblev.view_device()(m)) {
             Kokkos::parallel_for(Kokkos::ThreadVectorRange(tmember,il,iu+1),
             [&](const int i) {
               aggsbuf(base + (i-il + ni*(j-jl + nj*(k-kl + nk*v))) ) = a(m,v,k,j,i);
@@ -154,7 +154,7 @@ TaskStatus MeshBoundaryValuesCC::PackAndSendCC(DvceArray5D<Real> &a,
           }
 #else
           // if neighbor is at same or finer level, load data from u0
-          if (nghbr.d_view(m,n).lev >= mblev.d_view(m)) {
+          if (nghbr.view_device()(m,n).lev >= mblev.view_device()(m)) {
             Kokkos::parallel_for(Kokkos::ThreadVectorRange(tmember,il,iu+1),
             [&](const int i) {
               sbuf[n].vars(m, (i-il + ni*(j-jl + nj*(k-kl + nk*v))) ) = a(m,v,k,j,i);
@@ -179,11 +179,12 @@ TaskStatus MeshBoundaryValuesCC::PackAndSendCC(DvceArray5D<Real> &a,
     const int v = (tmember.league_rank() - m*(nnghbr*nvar) - n*nvar);
 
     // only load buffers when neighbor exists
-    if (nghbr.d_view(m,n).gid >= 0) {
+    if (nghbr.view_device()(m,n).gid >= 0) {
       int il, iu, jl, ju, kl, ku;
       // If neighbor is at same level and data is for Z4c module, append data from coarse
       // array for higher-order prolongation
-      if ((nghbr.d_view(m,n).lev == mblev.d_view(m)) && (is_z4c) && (multilevel)) {
+      if ((nghbr.view_device()(m,n).lev == mblev.view_device()(m)) && (is_z4c)
+          && (multilevel)) {
         il = sbuf[n].isame_z4c.bis;
         iu = sbuf[n].isame_z4c.bie;
         jl = sbuf[n].isame_z4c.bjs;
@@ -198,8 +199,8 @@ TaskStatus MeshBoundaryValuesCC::PackAndSendCC(DvceArray5D<Real> &a,
 
         // indices of recv'ing (destination) MB and buffer: MB IDs are stored sequentially
         // in MeshBlockPacks, so array index equals (target_id - first_id)
-        int dm = nghbr.d_view(m,n).gid - mbgid.d_view(0);
-        int dn = nghbr.d_view(m,n).dest;
+        int dm = nghbr.view_device()(m,n).gid - mbgid.view_device()(0);
+        int dn = nghbr.view_device()(m,n).dest;
 
         // Middle loop over k,j
         Kokkos::parallel_for(Kokkos::TeamThreadRange<>(tmember, nkj), [&](const int idx) {
@@ -209,7 +210,7 @@ TaskStatus MeshBoundaryValuesCC::PackAndSendCC(DvceArray5D<Real> &a,
 
           // Inner (vector) loop over i
           // copy directly into recv buffer if MeshBlocks on same rank
-          if (nghbr.d_view(m,n).rank == my_rank) {
+          if (nghbr.view_device()(m,n).rank == my_rank) {
             // load data from coarse_u0
             Kokkos::parallel_for(Kokkos::ThreadVectorRange(tmember,il,iu+1),
             [&](const int i) {
@@ -323,10 +324,10 @@ TaskStatus MeshBoundaryValuesCC::RecvAndUnpackCC(DvceArray5D<Real> &a,
     const int v = (tmember.league_rank() - m*(nnghbr*nvar) - n*nvar);
 
     // only unpack buffers when neighbor exists
-    if (nghbr.d_view(m,n).gid >= 0) {
+    if (nghbr.view_device()(m,n).gid >= 0) {
       int il, iu, jl, ju, kl, ku;
       // if neighbor is at coarser level, use coar indices to unpack buffer
-      if (nghbr.d_view(m,n).lev < mblev.d_view(m)) {
+      if (nghbr.view_device()(m,n).lev < mblev.view_device()(m)) {
         il = rbuf[n].icoar[0].bis;
         iu = rbuf[n].icoar[0].bie;
         jl = rbuf[n].icoar[0].bjs;
@@ -334,7 +335,7 @@ TaskStatus MeshBoundaryValuesCC::RecvAndUnpackCC(DvceArray5D<Real> &a,
         kl = rbuf[n].icoar[0].bks;
         ku = rbuf[n].icoar[0].bke;
       // if neighbor is at same level, use same indices to unpack buffer
-      } else if (nghbr.d_view(m,n).lev == mblev.d_view(m)) {
+      } else if (nghbr.view_device()(m,n).lev == mblev.view_device()(m)) {
         il = rbuf[n].isame[0].bis;
         iu = rbuf[n].isame[0].bie;
         jl = rbuf[n].isame[0].bjs;
@@ -367,7 +368,7 @@ TaskStatus MeshBoundaryValuesCC::RecvAndUnpackCC(DvceArray5D<Real> &a,
         k += kl;
 
         // if neighbor is at same or finer level, load data directly into u0
-        if (nghbr.d_view(m,n).lev >= mblev.d_view(m)) {
+        if (nghbr.view_device()(m,n).lev >= mblev.view_device()(m)) {
           Kokkos::parallel_for(Kokkos::ThreadVectorRange(tmember,il,iu+1),
           [&](const int i) {
             const int bi = (i-il + ni*(j-jl + nj*(k-kl + nk*v)));
@@ -401,11 +402,12 @@ TaskStatus MeshBoundaryValuesCC::RecvAndUnpackCC(DvceArray5D<Real> &a,
     const int n = (tmember.league_rank() - m*(nnghbr*nvar))/nvar;
     const int v = (tmember.league_rank() - m*(nnghbr*nvar) - n*nvar);
     // only unpack buffers when neighbor exists
-    if (nghbr.d_view(m,n).gid >= 0) {
+    if (nghbr.view_device()(m,n).gid >= 0) {
       int il, iu, jl, ju, kl, ku;
       // If neighbor is at same level and data is for Z4c module, unpack data from coarse
       // array for higher-order prolongation
-      if ((nghbr.d_view(m,n).lev == mblev.d_view(m)) && (is_z4c) && (multilevel)) {
+      if ((nghbr.view_device()(m,n).lev == mblev.view_device()(m)) && (is_z4c)
+          && (multilevel)) {
         il = rbuf[n].isame_z4c.bis;
         iu = rbuf[n].isame_z4c.bie;
         jl = rbuf[n].isame_z4c.bjs;

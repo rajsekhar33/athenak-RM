@@ -88,8 +88,8 @@ void Resistivity::AddEMFConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
       Real intBy = 0.5*(bcc0(m,IBY,ks,js,i) + bcc0(m,IBY,ks,js,i-1));
       Real intBz = 0.5*(bcc0(m,IBZ,ks,js,i) + bcc0(m,IBZ,ks,js,i-1));
 
-      Real intJ2 = EdgeJ2(m,ks,js,i,b0,size.d_view(m),three_d);
-      Real intJ3 = EdgeJ3(m,ks,js,i,b0,size.d_view(m),multi_d);
+      Real intJ2 = EdgeJ2(m,ks,js,i,b0,size.view_device()(m),three_d);
+      Real intJ3 = EdgeJ3(m,ks,js,i,b0,size.view_device()(m),multi_d);
 
       Real Bsq = SQR(intBx) + SQR(intBy) + SQR(intBz);
       Real JdotB = intJ2*intBy + intJ3*intBz;
@@ -111,13 +111,13 @@ void Resistivity::AddEMFConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
     par_for("amb_emf2", DevExeSpace(), 0, nmb1, js, je+1, is, ie+1,
     KOKKOS_LAMBDA(const int m, const int j, const int i) {
       // --- e1 at (cell i, face j) ---
-      Real intJ1_e1 = EdgeJ1(m,ks,j,i,b0,size.d_view(m),multi_d,three_d);
-      Real intJ2_e1 = 0.25*(EdgeJ2(m,ks,j-1,i  ,b0,size.d_view(m),three_d)
-                          + EdgeJ2(m,ks,j-1,i+1,b0,size.d_view(m),three_d)
-                          + EdgeJ2(m,ks,j,  i  ,b0,size.d_view(m),three_d)
-                          + EdgeJ2(m,ks,j,  i+1,b0,size.d_view(m),three_d));
-      Real intJ3_e1 = 0.5*(EdgeJ3(m,ks,j,i  ,b0,size.d_view(m),multi_d)
-                         + EdgeJ3(m,ks,j,i+1,b0,size.d_view(m),multi_d));
+      Real intJ1_e1 = EdgeJ1(m,ks,j,i,b0,size.view_device()(m),multi_d,three_d);
+      Real intJ2_e1 = 0.25*(EdgeJ2(m,ks,j-1,i  ,b0,size.view_device()(m),three_d)
+                          + EdgeJ2(m,ks,j-1,i+1,b0,size.view_device()(m),three_d)
+                          + EdgeJ2(m,ks,j,  i  ,b0,size.view_device()(m),three_d)
+                          + EdgeJ2(m,ks,j,  i+1,b0,size.view_device()(m),three_d));
+      Real intJ3_e1 = 0.5*(EdgeJ3(m,ks,j,i  ,b0,size.view_device()(m),multi_d)
+                         + EdgeJ3(m,ks,j,i+1,b0,size.view_device()(m),multi_d));
 
       Real intBx_e1 = 0.5*(bcc0(m,IBX,ks,j,i) + bcc0(m,IBX,ks,j-1,i));
       Real intBy_e1 = b0.x2f(m,ks,j,i);
@@ -130,13 +130,14 @@ void Resistivity::AddEMFConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
       e1(m,ke+1,j,i) += e1_amb;
 
       // --- e2 at (face i, cell j) ---
-      Real intJ1_e2 = 0.25*(EdgeJ1(m,ks,j,  i-1,b0,size.d_view(m),multi_d,three_d)
-                          + EdgeJ1(m,ks,j,  i  ,b0,size.d_view(m),multi_d,three_d)
-                          + EdgeJ1(m,ks,j+1,i-1,b0,size.d_view(m),multi_d,three_d)
-                          + EdgeJ1(m,ks,j+1,i  ,b0,size.d_view(m),multi_d,three_d));
-      Real intJ2_e2 = EdgeJ2(m,ks,j,i,b0,size.d_view(m),three_d);
-      Real intJ3_e2 = 0.5*(EdgeJ3(m,ks,j,  i,b0,size.d_view(m),multi_d)
-                         + EdgeJ3(m,ks,j+1,i,b0,size.d_view(m),multi_d));
+      Real intJ1_e2 = 0.25*(EdgeJ1(m,ks,j,  i-1,b0,size.view_device()(m),multi_d,three_d)
+                          + EdgeJ1(m,ks,j,  i  ,b0,size.view_device()(m),multi_d,three_d)
+                          + EdgeJ1(m,ks,j+1,i-1,b0,size.view_device()(m),multi_d,three_d)
+                          + EdgeJ1(m,ks,j+1,i  ,b0,size.view_device()(m),multi_d,
+                              three_d));
+      Real intJ2_e2 = EdgeJ2(m,ks,j,i,b0,size.view_device()(m),three_d);
+      Real intJ3_e2 = 0.5*(EdgeJ3(m,ks,j,  i,b0,size.view_device()(m),multi_d)
+                         + EdgeJ3(m,ks,j+1,i,b0,size.view_device()(m),multi_d));
 
       Real intBx_e2 = b0.x1f(m,ks,j,i);
       Real intBy_e2 = 0.5*(bcc0(m,IBY,ks,j,i) + bcc0(m,IBY,ks,j,i-1));
@@ -149,11 +150,11 @@ void Resistivity::AddEMFConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
       e2(m,ke+1,j,i) += e2_amb;
 
       // --- e3 at (face i, face j) ---
-      Real intJ1_e3 = 0.5*(EdgeJ1(m,ks,j,i-1,b0,size.d_view(m),multi_d,three_d)
-                         + EdgeJ1(m,ks,j,i  ,b0,size.d_view(m),multi_d,three_d));
-      Real intJ2_e3 = 0.5*(EdgeJ2(m,ks,j-1,i,b0,size.d_view(m),three_d)
-                         + EdgeJ2(m,ks,j,  i,b0,size.d_view(m),three_d));
-      Real intJ3_e3 = EdgeJ3(m,ks,j,i,b0,size.d_view(m),multi_d);
+      Real intJ1_e3 = 0.5*(EdgeJ1(m,ks,j,i-1,b0,size.view_device()(m),multi_d,three_d)
+                         + EdgeJ1(m,ks,j,i  ,b0,size.view_device()(m),multi_d,three_d));
+      Real intJ2_e3 = 0.5*(EdgeJ2(m,ks,j-1,i,b0,size.view_device()(m),three_d)
+                         + EdgeJ2(m,ks,j,  i,b0,size.view_device()(m),three_d));
+      Real intJ3_e3 = EdgeJ3(m,ks,j,i,b0,size.view_device()(m),multi_d);
 
       Real intBx_e3 = 0.5*(b0.x1f(m,ks,j,i) + b0.x1f(m,ks,j-1,i));
       Real intBy_e3 = 0.5*(b0.x2f(m,ks,j,i) + b0.x2f(m,ks,j,i-1));
@@ -174,15 +175,15 @@ void Resistivity::AddEMFConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
   par_for("amb_emf3", DevExeSpace(), 0, nmb1, ks, ke+1, js, je+1, is, ie+1,
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
     // --- e1 at x1-edge (cell i, face j, face k) ---
-    Real intJ1_e1 = EdgeJ1(m,k,j,i,b0,size.d_view(m),multi_d,three_d);
-    Real intJ2_e1 = 0.25*(EdgeJ2(m,k,j-1,i  ,b0,size.d_view(m),three_d)
-                        + EdgeJ2(m,k,j-1,i+1,b0,size.d_view(m),three_d)
-                        + EdgeJ2(m,k,j,  i  ,b0,size.d_view(m),three_d)
-                        + EdgeJ2(m,k,j,  i+1,b0,size.d_view(m),three_d));
-    Real intJ3_e1 = 0.25*(EdgeJ3(m,k-1,j,i  ,b0,size.d_view(m),multi_d)
-                        + EdgeJ3(m,k-1,j,i+1,b0,size.d_view(m),multi_d)
-                        + EdgeJ3(m,k,  j,i  ,b0,size.d_view(m),multi_d)
-                        + EdgeJ3(m,k,  j,i+1,b0,size.d_view(m),multi_d));
+    Real intJ1_e1 = EdgeJ1(m,k,j,i,b0,size.view_device()(m),multi_d,three_d);
+    Real intJ2_e1 = 0.25*(EdgeJ2(m,k,j-1,i  ,b0,size.view_device()(m),three_d)
+                        + EdgeJ2(m,k,j-1,i+1,b0,size.view_device()(m),three_d)
+                        + EdgeJ2(m,k,j,  i  ,b0,size.view_device()(m),three_d)
+                        + EdgeJ2(m,k,j,  i+1,b0,size.view_device()(m),three_d));
+    Real intJ3_e1 = 0.25*(EdgeJ3(m,k-1,j,i  ,b0,size.view_device()(m),multi_d)
+                        + EdgeJ3(m,k-1,j,i+1,b0,size.view_device()(m),multi_d)
+                        + EdgeJ3(m,k,  j,i  ,b0,size.view_device()(m),multi_d)
+                        + EdgeJ3(m,k,  j,i+1,b0,size.view_device()(m),multi_d));
 
     Real intBx_e1 = 0.25*(bcc0(m,IBX,k,j,i) + bcc0(m,IBX,k-1,j,i)
                          + bcc0(m,IBX,k,j-1,i) + bcc0(m,IBX,k-1,j-1,i));
@@ -194,15 +195,15 @@ void Resistivity::AddEMFConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
     e1(m,k,j,i) += eta * (Bsq_e1*intJ1_e1 - JdotB_e1*intBx_e1);
 
     // --- e2 at x2-edge (face i, cell j, face k) ---
-    Real intJ1_e2 = 0.25*(EdgeJ1(m,k,j,  i-1,b0,size.d_view(m),multi_d,three_d)
-                        + EdgeJ1(m,k,j,  i  ,b0,size.d_view(m),multi_d,three_d)
-                        + EdgeJ1(m,k,j+1,i-1,b0,size.d_view(m),multi_d,three_d)
-                        + EdgeJ1(m,k,j+1,i  ,b0,size.d_view(m),multi_d,three_d));
-    Real intJ2_e2 = EdgeJ2(m,k,j,i,b0,size.d_view(m),three_d);
-    Real intJ3_e2 = 0.25*(EdgeJ3(m,k-1,j,  i,b0,size.d_view(m),multi_d)
-                        + EdgeJ3(m,k-1,j+1,i,b0,size.d_view(m),multi_d)
-                        + EdgeJ3(m,k,  j,  i,b0,size.d_view(m),multi_d)
-                        + EdgeJ3(m,k,  j+1,i,b0,size.d_view(m),multi_d));
+    Real intJ1_e2 = 0.25*(EdgeJ1(m,k,j,  i-1,b0,size.view_device()(m),multi_d,three_d)
+                        + EdgeJ1(m,k,j,  i  ,b0,size.view_device()(m),multi_d,three_d)
+                        + EdgeJ1(m,k,j+1,i-1,b0,size.view_device()(m),multi_d,three_d)
+                        + EdgeJ1(m,k,j+1,i  ,b0,size.view_device()(m),multi_d,three_d));
+    Real intJ2_e2 = EdgeJ2(m,k,j,i,b0,size.view_device()(m),three_d);
+    Real intJ3_e2 = 0.25*(EdgeJ3(m,k-1,j,  i,b0,size.view_device()(m),multi_d)
+                        + EdgeJ3(m,k-1,j+1,i,b0,size.view_device()(m),multi_d)
+                        + EdgeJ3(m,k,  j,  i,b0,size.view_device()(m),multi_d)
+                        + EdgeJ3(m,k,  j+1,i,b0,size.view_device()(m),multi_d));
 
     Real intBx_e2 = 0.5*(b0.x1f(m,k,j,i) + b0.x1f(m,k-1,j,i));
     Real intBy_e2 = 0.25*(bcc0(m,IBY,k,j,i) + bcc0(m,IBY,k-1,j,i)
@@ -214,15 +215,15 @@ void Resistivity::AddEMFConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
     e2(m,k,j,i) += eta * (Bsq_e2*intJ2_e2 - JdotB_e2*intBy_e2);
 
     // --- e3 at x3-edge (face i, face j, cell k) ---
-    Real intJ1_e3 = 0.25*(EdgeJ1(m,k,  j,i-1,b0,size.d_view(m),multi_d,three_d)
-                        + EdgeJ1(m,k,  j,i  ,b0,size.d_view(m),multi_d,three_d)
-                        + EdgeJ1(m,k+1,j,i-1,b0,size.d_view(m),multi_d,three_d)
-                        + EdgeJ1(m,k+1,j,i  ,b0,size.d_view(m),multi_d,three_d));
-    Real intJ2_e3 = 0.25*(EdgeJ2(m,k,  j-1,i,b0,size.d_view(m),three_d)
-                        + EdgeJ2(m,k,  j,  i,b0,size.d_view(m),three_d)
-                        + EdgeJ2(m,k+1,j-1,i,b0,size.d_view(m),three_d)
-                        + EdgeJ2(m,k+1,j,  i,b0,size.d_view(m),three_d));
-    Real intJ3_e3 = EdgeJ3(m,k,j,i,b0,size.d_view(m),multi_d);
+    Real intJ1_e3 = 0.25*(EdgeJ1(m,k,  j,i-1,b0,size.view_device()(m),multi_d,three_d)
+                        + EdgeJ1(m,k,  j,i  ,b0,size.view_device()(m),multi_d,three_d)
+                        + EdgeJ1(m,k+1,j,i-1,b0,size.view_device()(m),multi_d,three_d)
+                        + EdgeJ1(m,k+1,j,i  ,b0,size.view_device()(m),multi_d,three_d));
+    Real intJ2_e3 = 0.25*(EdgeJ2(m,k,  j-1,i,b0,size.view_device()(m),three_d)
+                        + EdgeJ2(m,k,  j,  i,b0,size.view_device()(m),three_d)
+                        + EdgeJ2(m,k+1,j-1,i,b0,size.view_device()(m),three_d)
+                        + EdgeJ2(m,k+1,j,  i,b0,size.view_device()(m),three_d));
+    Real intJ3_e3 = EdgeJ3(m,k,j,i,b0,size.view_device()(m),multi_d);
 
     Real intBx_e3 = 0.5*(b0.x1f(m,k,j,i) + b0.x1f(m,k,j-1,i));
     Real intBy_e3 = 0.5*(b0.x2f(m,k,j,i) + b0.x2f(m,k,j,i-1));
@@ -269,8 +270,8 @@ void Resistivity::AddFluxConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
       Real Bz = 0.5*(bcc(m,IBZ,ks,js,i-1) + bcc(m,IBZ,ks,js,i));
       Real Bsq = SQR(Bx) + SQR(By) + SQR(Bz);
 
-      Real e2_fc = eta * Bsq * EdgeJ2(m,ks,js,i,b0,size.d_view(m),three_d);
-      Real e3_fc = eta * Bsq * EdgeJ3(m,ks,js,i,b0,size.d_view(m),multi_d);
+      Real e2_fc = eta * Bsq * EdgeJ2(m,ks,js,i,b0,size.view_device()(m),three_d);
+      Real e3_fc = eta * Bsq * EdgeJ3(m,ks,js,i,b0,size.view_device()(m),multi_d);
 
       flx1(m,IEN,ks,js,i) += e2_fc*Bz - e3_fc*By;
     });
@@ -288,7 +289,7 @@ void Resistivity::AddFluxConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
       Real By = 0.5*(bcc(m,IBY,ks,j,i-1) + bcc(m,IBY,ks,j,i));
       Real Bz = 0.5*(bcc(m,IBZ,ks,j,i-1) + bcc(m,IBZ,ks,j,i));
       Real e2_fc = eta * (SQR(Bx) + SQR(By) + SQR(Bz))
-                 * EdgeJ2(m,ks,j,i,b0,size.d_view(m),three_d);
+                 * EdgeJ2(m,ks,j,i,b0,size.view_device()(m),three_d);
 
       // e3 at x3-edge (j)
       Bx = 0.5*(b0.x1f(m,ks,j,i) + b0.x1f(m,ks,j-1,i));
@@ -296,7 +297,7 @@ void Resistivity::AddFluxConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
       Bz = 0.25*(bcc(m,IBZ,ks,j,i) + bcc(m,IBZ,ks,j-1,i)
                 + bcc(m,IBZ,ks,j,i-1) + bcc(m,IBZ,ks,j-1,i-1));
       Real e3_j = eta * (SQR(Bx) + SQR(By) + SQR(Bz))
-                * EdgeJ3(m,ks,j,i,b0,size.d_view(m),multi_d);
+                * EdgeJ3(m,ks,j,i,b0,size.view_device()(m),multi_d);
 
       // e3 at x3-edge (j+1)
       Bx = 0.5*(b0.x1f(m,ks,j+1,i) + b0.x1f(m,ks,j,i));
@@ -304,7 +305,7 @@ void Resistivity::AddFluxConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
       Bz = 0.25*(bcc(m,IBZ,ks,j+1,i) + bcc(m,IBZ,ks,j,i)
                 + bcc(m,IBZ,ks,j+1,i-1) + bcc(m,IBZ,ks,j,i-1));
       Real e3_jp1 = eta * (SQR(Bx) + SQR(By) + SQR(Bz))
-                  * EdgeJ3(m,ks,j+1,i,b0,size.d_view(m),multi_d);
+                  * EdgeJ3(m,ks,j+1,i,b0,size.view_device()(m),multi_d);
 
       Real e3_fc = 0.5*(e3_j + e3_jp1);
 
@@ -324,7 +325,7 @@ void Resistivity::AddFluxConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
       Real Bz = 0.25*(bcc(m,IBZ,ks,j,i) + bcc(m,IBZ,ks,j-1,i)
                      + bcc(m,IBZ,ks,j,i-1) + bcc(m,IBZ,ks,j-1,i-1));
       Real e3_i = eta * (SQR(Bx) + SQR(By) + SQR(Bz))
-                * EdgeJ3(m,ks,j,i,b0,size.d_view(m),multi_d);
+                * EdgeJ3(m,ks,j,i,b0,size.view_device()(m),multi_d);
 
       // e3 at x3-edge (i+1)
       Bx = 0.5*(b0.x1f(m,ks,j,i+1) + b0.x1f(m,ks,j-1,i+1));
@@ -332,7 +333,7 @@ void Resistivity::AddFluxConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
       Bz = 0.25*(bcc(m,IBZ,ks,j,i+1) + bcc(m,IBZ,ks,j-1,i+1)
                 + bcc(m,IBZ,ks,j,i) + bcc(m,IBZ,ks,j-1,i));
       Real e3_ip1 = eta * (SQR(Bx) + SQR(By) + SQR(Bz))
-                  * EdgeJ3(m,ks,j,i+1,b0,size.d_view(m),multi_d);
+                  * EdgeJ3(m,ks,j,i+1,b0,size.view_device()(m),multi_d);
 
       Real e3_fc = 0.5*(e3_i + e3_ip1);
 
@@ -341,7 +342,7 @@ void Resistivity::AddFluxConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
       By = b0.x2f(m,ks,j,i);
       Bz = 0.5*(bcc(m,IBZ,ks,j,i) + bcc(m,IBZ,ks,j-1,i));
       Real e1_fc = eta * (SQR(Bx) + SQR(By) + SQR(Bz))
-                 * EdgeJ1(m,ks,j,i,b0,size.d_view(m),multi_d,three_d);
+                 * EdgeJ1(m,ks,j,i,b0,size.view_device()(m),multi_d,three_d);
 
       Real b1_fc = 0.5*(bcc(m,IBX,ks,j-1,i) + bcc(m,IBX,ks,j,i));
       Real b3_fc = 0.5*(bcc(m,IBZ,ks,j-1,i) + bcc(m,IBZ,ks,j,i));
@@ -362,7 +363,7 @@ void Resistivity::AddFluxConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
                    + bcc(m,IBY,k,j,i-1) + bcc(m,IBY,k-1,j,i-1));
     Real Bz = 0.5*(b0.x3f(m,k,j,i) + b0.x3f(m,k,j,i-1));
     Real e2_k = eta * (SQR(Bx) + SQR(By) + SQR(Bz))
-              * EdgeJ2(m,k,j,i,b0,size.d_view(m),three_d);
+              * EdgeJ2(m,k,j,i,b0,size.view_device()(m),three_d);
 
     // e2 at x2-edge (k+1)
     Bx = 0.5*(b0.x1f(m,k+1,j,i) + b0.x1f(m,k,j,i));
@@ -370,7 +371,7 @@ void Resistivity::AddFluxConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
               + bcc(m,IBY,k+1,j,i-1) + bcc(m,IBY,k,j,i-1));
     Bz = 0.5*(b0.x3f(m,k+1,j,i) + b0.x3f(m,k+1,j,i-1));
     Real e2_kp1 = eta * (SQR(Bx) + SQR(By) + SQR(Bz))
-                * EdgeJ2(m,k+1,j,i,b0,size.d_view(m),three_d);
+                * EdgeJ2(m,k+1,j,i,b0,size.view_device()(m),three_d);
 
     Real e2_fc = 0.5*(e2_k + e2_kp1);
 
@@ -380,7 +381,7 @@ void Resistivity::AddFluxConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
     Bz = 0.25*(bcc(m,IBZ,k,j,i) + bcc(m,IBZ,k,j-1,i)
               + bcc(m,IBZ,k,j,i-1) + bcc(m,IBZ,k,j-1,i-1));
     Real e3_j = eta * (SQR(Bx) + SQR(By) + SQR(Bz))
-              * EdgeJ3(m,k,j,i,b0,size.d_view(m),multi_d);
+              * EdgeJ3(m,k,j,i,b0,size.view_device()(m),multi_d);
 
     // e3 at x3-edge (j+1)
     Bx = 0.5*(b0.x1f(m,k,j+1,i) + b0.x1f(m,k,j,i));
@@ -388,7 +389,7 @@ void Resistivity::AddFluxConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
     Bz = 0.25*(bcc(m,IBZ,k,j+1,i) + bcc(m,IBZ,k,j,i)
               + bcc(m,IBZ,k,j+1,i-1) + bcc(m,IBZ,k,j,i-1));
     Real e3_jp1 = eta * (SQR(Bx) + SQR(By) + SQR(Bz))
-                * EdgeJ3(m,k,j+1,i,b0,size.d_view(m),multi_d);
+                * EdgeJ3(m,k,j+1,i,b0,size.view_device()(m),multi_d);
 
     Real e3_fc = 0.5*(e3_j + e3_jp1);
 
@@ -408,7 +409,7 @@ void Resistivity::AddFluxConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
     Real Bz = 0.25*(bcc(m,IBZ,k,j,i) + bcc(m,IBZ,k,j-1,i)
                    + bcc(m,IBZ,k,j,i-1) + bcc(m,IBZ,k,j-1,i-1));
     Real e3_i = eta * (SQR(Bx) + SQR(By) + SQR(Bz))
-              * EdgeJ3(m,k,j,i,b0,size.d_view(m),multi_d);
+              * EdgeJ3(m,k,j,i,b0,size.view_device()(m),multi_d);
 
     // e3 at x3-edge (i+1)
     Bx = 0.5*(b0.x1f(m,k,j,i+1) + b0.x1f(m,k,j-1,i+1));
@@ -416,7 +417,7 @@ void Resistivity::AddFluxConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
     Bz = 0.25*(bcc(m,IBZ,k,j,i+1) + bcc(m,IBZ,k,j-1,i+1)
               + bcc(m,IBZ,k,j,i) + bcc(m,IBZ,k,j-1,i));
     Real e3_ip1 = eta * (SQR(Bx) + SQR(By) + SQR(Bz))
-                * EdgeJ3(m,k,j,i+1,b0,size.d_view(m),multi_d);
+                * EdgeJ3(m,k,j,i+1,b0,size.view_device()(m),multi_d);
 
     Real e3_fc = 0.5*(e3_i + e3_ip1);
 
@@ -426,7 +427,7 @@ void Resistivity::AddFluxConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
     By = 0.5*(b0.x2f(m,k,j,i) + b0.x2f(m,k-1,j,i));
     Bz = 0.5*(b0.x3f(m,k,j,i) + b0.x3f(m,k,j-1,i));
     Real e1_k = eta * (SQR(Bx) + SQR(By) + SQR(Bz))
-              * EdgeJ1(m,k,j,i,b0,size.d_view(m),multi_d,three_d);
+              * EdgeJ1(m,k,j,i,b0,size.view_device()(m),multi_d,three_d);
 
     // e1 at x1-edge (k+1)
     Bx = 0.25*(bcc(m,IBX,k+1,j,i) + bcc(m,IBX,k,j,i)
@@ -434,7 +435,7 @@ void Resistivity::AddFluxConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
     By = 0.5*(b0.x2f(m,k+1,j,i) + b0.x2f(m,k,j,i));
     Bz = 0.5*(b0.x3f(m,k+1,j,i) + b0.x3f(m,k+1,j-1,i));
     Real e1_kp1 = eta * (SQR(Bx) + SQR(By) + SQR(Bz))
-                * EdgeJ1(m,k+1,j,i,b0,size.d_view(m),multi_d,three_d);
+                * EdgeJ1(m,k+1,j,i,b0,size.view_device()(m),multi_d,three_d);
 
     Real e1_fc = 0.5*(e1_k + e1_kp1);
 
@@ -454,7 +455,7 @@ void Resistivity::AddFluxConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
     Real By = 0.5*(b0.x2f(m,k,j,i) + b0.x2f(m,k-1,j,i));
     Real Bz = 0.5*(b0.x3f(m,k,j,i) + b0.x3f(m,k,j-1,i));
     Real e1_j = eta * (SQR(Bx) + SQR(By) + SQR(Bz))
-              * EdgeJ1(m,k,j,i,b0,size.d_view(m),multi_d,three_d);
+              * EdgeJ1(m,k,j,i,b0,size.view_device()(m),multi_d,three_d);
 
     // e1 at x1-edge (j+1)
     Bx = 0.25*(bcc(m,IBX,k,j+1,i) + bcc(m,IBX,k-1,j+1,i)
@@ -462,7 +463,7 @@ void Resistivity::AddFluxConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
     By = 0.5*(b0.x2f(m,k,j+1,i) + b0.x2f(m,k-1,j+1,i));
     Bz = 0.5*(b0.x3f(m,k,j+1,i) + b0.x3f(m,k,j,i));
     Real e1_jp1 = eta * (SQR(Bx) + SQR(By) + SQR(Bz))
-                * EdgeJ1(m,k,j+1,i,b0,size.d_view(m),multi_d,three_d);
+                * EdgeJ1(m,k,j+1,i,b0,size.view_device()(m),multi_d,three_d);
 
     Real e1_fc = 0.5*(e1_j + e1_jp1);
 
@@ -472,7 +473,7 @@ void Resistivity::AddFluxConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
               + bcc(m,IBY,k,j,i-1) + bcc(m,IBY,k-1,j,i-1));
     Bz = 0.5*(b0.x3f(m,k,j,i) + b0.x3f(m,k,j,i-1));
     Real e2_i = eta * (SQR(Bx) + SQR(By) + SQR(Bz))
-              * EdgeJ2(m,k,j,i,b0,size.d_view(m),three_d);
+              * EdgeJ2(m,k,j,i,b0,size.view_device()(m),three_d);
 
     // e2 at x2-edge (i+1)
     Bx = 0.5*(b0.x1f(m,k,j,i+1) + b0.x1f(m,k-1,j,i+1));
@@ -480,7 +481,7 @@ void Resistivity::AddFluxConstantAmbipolar(const DvceFaceFld4D<Real> &b0,
               + bcc(m,IBY,k,j,i) + bcc(m,IBY,k-1,j,i));
     Bz = 0.5*(b0.x3f(m,k,j,i+1) + b0.x3f(m,k,j,i));
     Real e2_ip1 = eta * (SQR(Bx) + SQR(By) + SQR(Bz))
-                * EdgeJ2(m,k,j,i+1,b0,size.d_view(m),three_d);
+                * EdgeJ2(m,k,j,i+1,b0,size.view_device()(m),three_d);
 
     Real e2_fc = 0.5*(e2_i + e2_ip1);
 

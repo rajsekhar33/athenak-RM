@@ -187,36 +187,37 @@ void ProblemGenerator::CShock(ParameterInput *pin, const bool restart) {
   // shksol indices refer to:  0=di, 1=dn, 2=vix, 3=vnx, 4=viy, 5=vny, 6=by
   DualArray1D<TwoFluidVars> shksol("shksol",npts);
   for (int n=0; n<npts; ++n) {
-    shksol.h_view(n).di  = 0.0;
-    shksol.h_view(n).dn  = 0.0;
-    shksol.h_view(n).vix = 0.0;
-    shksol.h_view(n).vnx = 0.0;
-    shksol.h_view(n).viy = 0.0;
-    shksol.h_view(n).vny = 0.0;
-    shksol.h_view(n).bx  = 0.0;
-    shksol.h_view(n).by  = 0.0;
+    shksol.view_host()(n).di  = 0.0;
+    shksol.view_host()(n).dn  = 0.0;
+    shksol.view_host()(n).vix = 0.0;
+    shksol.view_host()(n).vnx = 0.0;
+    shksol.view_host()(n).viy = 0.0;
+    shksol.view_host()(n).vny = 0.0;
+    shksol.view_host()(n).bx  = 0.0;
+    shksol.view_host()(n).by  = 0.0;
     for (int m=0; m<(NFACT); ++m) {
-      shksol.h_view(n).di  += init.di*init.vix/soln(m + (NFACT)*n).vix;
-      shksol.h_view(n).dn  += init.dn*init.vnx/soln(m + (NFACT)*n).vnx;
-      shksol.h_view(n).vix += soln(m + (NFACT)*n).vix;
-      shksol.h_view(n).vnx += soln(m + (NFACT)*n).vnx;
-      shksol.h_view(n).viy += soln(m + (NFACT)*n).viy;
-      shksol.h_view(n).vny += soln(m + (NFACT)*n).vny;
-      shksol.h_view(n).bx  += init.bx;
+      shksol.view_host()(n).di  += init.di*init.vix/soln(m + (NFACT)*n).vix;
+      shksol.view_host()(n).dn  += init.dn*init.vnx/soln(m + (NFACT)*n).vnx;
+      shksol.view_host()(n).vix += soln(m + (NFACT)*n).vix;
+      shksol.view_host()(n).vnx += soln(m + (NFACT)*n).vnx;
+      shksol.view_host()(n).viy += soln(m + (NFACT)*n).viy;
+      shksol.view_host()(n).vny += soln(m + (NFACT)*n).vny;
+      shksol.view_host()(n).bx  += init.bx;
       if (init.bx==0.0) {  // perpendicular shock
-        shksol.h_view(n).by  += init.by*init.vix/soln(m + (NFACT)*n).vix;
+        shksol.view_host()(n).by  += init.by*init.vix/soln(m + (NFACT)*n).vix;
       } else {             // oblique shock
-        shksol.h_view(n).by  += init.bx*soln(m + (NFACT)*n).viy/soln(m + (NFACT)*n).vix;
+        shksol.view_host()(n).by  += init.bx*soln(m + (NFACT)*n).viy
+            /soln(m + (NFACT)*n).vix;
       }
     }
-    shksol.h_view(n).di  /= static_cast<Real> (NFACT);
-    shksol.h_view(n).dn  /= static_cast<Real> (NFACT);
-    shksol.h_view(n).vix /= static_cast<Real> (NFACT);
-    shksol.h_view(n).vnx /= static_cast<Real> (NFACT);
-    shksol.h_view(n).viy /= static_cast<Real> (NFACT);
-    shksol.h_view(n).vny /= static_cast<Real> (NFACT);
-    shksol.h_view(n).bx  /= static_cast<Real> (NFACT);
-    shksol.h_view(n).by  /= static_cast<Real> (NFACT);
+    shksol.view_host()(n).di  /= static_cast<Real> (NFACT);
+    shksol.view_host()(n).dn  /= static_cast<Real> (NFACT);
+    shksol.view_host()(n).vix /= static_cast<Real> (NFACT);
+    shksol.view_host()(n).vnx /= static_cast<Real> (NFACT);
+    shksol.view_host()(n).viy /= static_cast<Real> (NFACT);
+    shksol.view_host()(n).vny /= static_cast<Real> (NFACT);
+    shksol.view_host()(n).bx  /= static_cast<Real> (NFACT);
+    shksol.view_host()(n).by  /= static_cast<Real> (NFACT);
   }
   shksol.template modify<HostMemSpace>();
   shksol.template sync<DevExeSpace>();
@@ -226,35 +227,35 @@ void ProblemGenerator::CShock(ParameterInput *pin, const bool restart) {
   auto ui_in = pmbp->pmhd->pbval_u->u_in;
   auto bi_in = pmbp->pmhd->pbval_b->b_in;
   if (shk_dir == 1) {
-    un_in.h_view(IDN,BoundaryFace::inner_x1) = init.dn;
-    ui_in.h_view(IDN,BoundaryFace::inner_x1) = init.di;
-    un_in.h_view(IM1,BoundaryFace::inner_x1) = init.dn*init.vnx;
-    ui_in.h_view(IM1,BoundaryFace::inner_x1) = init.di*init.vix;
-    un_in.h_view(IM2,BoundaryFace::inner_x1) = init.dn*init.vny;
-    ui_in.h_view(IM2,BoundaryFace::inner_x1) = init.di*init.viy;
-    bi_in.h_view(IBX,BoundaryFace::inner_x1) = init.bx;
-    bi_in.h_view(IBY,BoundaryFace::inner_x1) = init.by;
-    bi_in.h_view(IBZ,BoundaryFace::inner_x1) = 0.0;
+    un_in.view_host()(IDN,BoundaryFace::inner_x1) = init.dn;
+    ui_in.view_host()(IDN,BoundaryFace::inner_x1) = init.di;
+    un_in.view_host()(IM1,BoundaryFace::inner_x1) = init.dn*init.vnx;
+    ui_in.view_host()(IM1,BoundaryFace::inner_x1) = init.di*init.vix;
+    un_in.view_host()(IM2,BoundaryFace::inner_x1) = init.dn*init.vny;
+    ui_in.view_host()(IM2,BoundaryFace::inner_x1) = init.di*init.viy;
+    bi_in.view_host()(IBX,BoundaryFace::inner_x1) = init.bx;
+    bi_in.view_host()(IBY,BoundaryFace::inner_x1) = init.by;
+    bi_in.view_host()(IBZ,BoundaryFace::inner_x1) = 0.0;
   } else if (shk_dir == 2) {
-    un_in.h_view(IDN,BoundaryFace::inner_x2) = init.dn;
-    ui_in.h_view(IDN,BoundaryFace::inner_x2) = init.di;
-    un_in.h_view(IM2,BoundaryFace::inner_x2) = init.dn*init.vnx;
-    ui_in.h_view(IM2,BoundaryFace::inner_x2) = init.di*init.vix;
-    un_in.h_view(IM3,BoundaryFace::inner_x2) = init.dn*init.vny;
-    ui_in.h_view(IM3,BoundaryFace::inner_x2) = init.di*init.viy;
-    bi_in.h_view(IBY,BoundaryFace::inner_x2) = init.bx;
-    bi_in.h_view(IBZ,BoundaryFace::inner_x2) = init.by;
-    bi_in.h_view(IBX,BoundaryFace::inner_x2) = 0.0;
+    un_in.view_host()(IDN,BoundaryFace::inner_x2) = init.dn;
+    ui_in.view_host()(IDN,BoundaryFace::inner_x2) = init.di;
+    un_in.view_host()(IM2,BoundaryFace::inner_x2) = init.dn*init.vnx;
+    ui_in.view_host()(IM2,BoundaryFace::inner_x2) = init.di*init.vix;
+    un_in.view_host()(IM3,BoundaryFace::inner_x2) = init.dn*init.vny;
+    ui_in.view_host()(IM3,BoundaryFace::inner_x2) = init.di*init.viy;
+    bi_in.view_host()(IBY,BoundaryFace::inner_x2) = init.bx;
+    bi_in.view_host()(IBZ,BoundaryFace::inner_x2) = init.by;
+    bi_in.view_host()(IBX,BoundaryFace::inner_x2) = 0.0;
   } else {
-    un_in.h_view(IDN,BoundaryFace::inner_x3) = init.dn;
-    ui_in.h_view(IDN,BoundaryFace::inner_x3) = init.di;
-    un_in.h_view(IM3,BoundaryFace::inner_x3) = init.dn*init.vnx;
-    ui_in.h_view(IM3,BoundaryFace::inner_x3) = init.di*init.vix;
-    un_in.h_view(IM1,BoundaryFace::inner_x3) = init.dn*init.vny;
-    ui_in.h_view(IM1,BoundaryFace::inner_x3) = init.di*init.viy;
-    bi_in.h_view(IBZ,BoundaryFace::inner_x3) = init.bx;
-    bi_in.h_view(IBX,BoundaryFace::inner_x3) = init.by;
-    bi_in.h_view(IBY,BoundaryFace::inner_x3) = 0.0;
+    un_in.view_host()(IDN,BoundaryFace::inner_x3) = init.dn;
+    ui_in.view_host()(IDN,BoundaryFace::inner_x3) = init.di;
+    un_in.view_host()(IM3,BoundaryFace::inner_x3) = init.dn*init.vnx;
+    ui_in.view_host()(IM3,BoundaryFace::inner_x3) = init.di*init.vix;
+    un_in.view_host()(IM1,BoundaryFace::inner_x3) = init.dn*init.vny;
+    ui_in.view_host()(IM1,BoundaryFace::inner_x3) = init.di*init.viy;
+    bi_in.view_host()(IBZ,BoundaryFace::inner_x3) = init.bx;
+    bi_in.view_host()(IBX,BoundaryFace::inner_x3) = init.by;
+    bi_in.view_host()(IBY,BoundaryFace::inner_x3) = 0.0;
   }
   un_in.template modify<HostMemSpace>();
   un_in.template sync<DevExeSpace>();
@@ -283,7 +284,7 @@ void ProblemGenerator::CShock(ParameterInput *pin, const bool restart) {
     for (int m=0; m<(pmbp->nmb_thispack); m++) {
       int igid = pmbp->gids + m;
       LogicalLocation lloc=pm->lloc_eachmb[igid];
-      ioff.h_view(m) = lloc.lx1*(pm->mb_indcs.nx1);
+      ioff.view_host()(m) = lloc.lx1*(pm->mb_indcs.nx1);
     }
     // sync with device
     ioff.template modify<HostMemSpace>();
@@ -291,20 +292,24 @@ void ProblemGenerator::CShock(ParameterInput *pin, const bool restart) {
 
     par_for("pgen_cshock", DevExeSpace(),0,(pmbp->nmb_thispack-1),ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m,int k, int j, int i) {
-      int io = ioff.d_view(m);
-      u0_mhd(m,IDN,k,j,i) = shksol.d_view(io+i-is).di;
-      u0_hyd(m,IDN,k,j,i) = shksol.d_view(io+i-is).dn;
-      u0_mhd(m,IM1,k,j,i) = shksol.d_view(io+i-is).di*shksol.d_view(io+i-is).vix;
-      u0_hyd(m,IM1,k,j,i) = shksol.d_view(io+i-is).dn*shksol.d_view(io+i-is).vnx;
-      u0_mhd(m,IM2,k,j,i) = shksol.d_view(io+i-is).di*shksol.d_view(io+i-is).viy;
-      u0_hyd(m,IM2,k,j,i) = shksol.d_view(io+i-is).dn*shksol.d_view(io+i-is).vny;
+      int io = ioff.view_device()(m);
+      u0_mhd(m,IDN,k,j,i) = shksol.view_device()(io+i-is).di;
+      u0_hyd(m,IDN,k,j,i) = shksol.view_device()(io+i-is).dn;
+      u0_mhd(m,IM1,k,j,i) = shksol.view_device()(io+i-is).di
+          *shksol.view_device()(io+i-is).vix;
+      u0_hyd(m,IM1,k,j,i) = shksol.view_device()(io+i-is).dn
+          *shksol.view_device()(io+i-is).vnx;
+      u0_mhd(m,IM2,k,j,i) = shksol.view_device()(io+i-is).di
+          *shksol.view_device()(io+i-is).viy;
+      u0_hyd(m,IM2,k,j,i) = shksol.view_device()(io+i-is).dn
+          *shksol.view_device()(io+i-is).vny;
       u0_hyd(m,IM3,k,j,i) = 0.0;
       u0_mhd(m,IM3,k,j,i) = 0.0;
       b0.x1f(m,k,j,i) = init.bx;
-      b0.x2f(m,k,j,i) = shksol.d_view(io+i-is).by;
+      b0.x2f(m,k,j,i) = shksol.view_device()(io+i-is).by;
       b0.x3f(m,k,j,i) = 0.0;
       if (i==ie) b0.x1f(m,k,j,i+1) = init.bx;
-      if (j==je) b0.x2f(m,k,j+1,i) = shksol.d_view(io+i-is).by;
+      if (j==je) b0.x2f(m,k,j+1,i) = shksol.view_device()(io+i-is).by;
       if (k==ke) b0.x3f(m,k+1,j,i) = 0.0;
     });
   } else if (shk_dir==2) {
@@ -313,7 +318,7 @@ void ProblemGenerator::CShock(ParameterInput *pin, const bool restart) {
     for (int m=0; m<(pmbp->nmb_thispack); m++) {
       int igid = pmbp->gids + m;
       LogicalLocation lloc=pm->lloc_eachmb[igid];
-      joff.h_view(m) = lloc.lx2*(pm->mb_indcs.nx2);
+      joff.view_host()(m) = lloc.lx2*(pm->mb_indcs.nx2);
     }
     // sync with device
     joff.template modify<HostMemSpace>();
@@ -321,21 +326,25 @@ void ProblemGenerator::CShock(ParameterInput *pin, const bool restart) {
 
     par_for("pgen_cshock", DevExeSpace(),0,(pmbp->nmb_thispack-1),ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m,int k, int j, int i) {
-      int jo = joff.d_view(m);
-      u0_mhd(m,IDN,k,j,i) = shksol.d_view(jo+j-js).di;
-      u0_hyd(m,IDN,k,j,i) = shksol.d_view(jo+j-js).dn;
-      u0_mhd(m,IM2,k,j,i) = shksol.d_view(jo+j-js).di*shksol.d_view(jo+j-js).vix;
-      u0_hyd(m,IM2,k,j,i) = shksol.d_view(jo+j-js).dn*shksol.d_view(jo+j-js).vnx;
-      u0_mhd(m,IM3,k,j,i) = shksol.d_view(jo+j-js).di*shksol.d_view(jo+j-js).viy;
-      u0_hyd(m,IM3,k,j,i) = shksol.d_view(jo+j-js).dn*shksol.d_view(jo+j-js).vny;
+      int jo = joff.view_device()(m);
+      u0_mhd(m,IDN,k,j,i) = shksol.view_device()(jo+j-js).di;
+      u0_hyd(m,IDN,k,j,i) = shksol.view_device()(jo+j-js).dn;
+      u0_mhd(m,IM2,k,j,i) = shksol.view_device()(jo+j-js).di
+          *shksol.view_device()(jo+j-js).vix;
+      u0_hyd(m,IM2,k,j,i) = shksol.view_device()(jo+j-js).dn
+          *shksol.view_device()(jo+j-js).vnx;
+      u0_mhd(m,IM3,k,j,i) = shksol.view_device()(jo+j-js).di
+          *shksol.view_device()(jo+j-js).viy;
+      u0_hyd(m,IM3,k,j,i) = shksol.view_device()(jo+j-js).dn
+          *shksol.view_device()(jo+j-js).vny;
       u0_hyd(m,IM1,k,j,i) = 0.0;
       u0_mhd(m,IM1,k,j,i) = 0.0;
       b0.x2f(m,k,j,i) = init.bx;
-      b0.x3f(m,k,j,i) = shksol.d_view(jo+j-js).by;
+      b0.x3f(m,k,j,i) = shksol.view_device()(jo+j-js).by;
       b0.x1f(m,k,j,i) = 0.0;
       if (i==ie) b0.x1f(m,k,j,i+1) = 0.0;
       if (j==je) b0.x2f(m,k,j+1,i) = init.bx;
-      if (k==ke) b0.x3f(m,k+1,j,i) = shksol.d_view(jo+j-js).by;
+      if (k==ke) b0.x3f(m,k+1,j,i) = shksol.view_device()(jo+j-js).by;
     });
   } else {
     // Calculate index-offset of MeshBlocks in shksol array
@@ -343,7 +352,7 @@ void ProblemGenerator::CShock(ParameterInput *pin, const bool restart) {
     for (int m=0; m<(pmbp->nmb_thispack); m++) {
       int igid = pmbp->gids + m;
       LogicalLocation lloc=pm->lloc_eachmb[igid];
-      koff.h_view(m) = lloc.lx3*(pm->mb_indcs.nx3);
+      koff.view_host()(m) = lloc.lx3*(pm->mb_indcs.nx3);
     }
     // sync with device
     koff.template modify<HostMemSpace>();
@@ -351,19 +360,23 @@ void ProblemGenerator::CShock(ParameterInput *pin, const bool restart) {
 
     par_for("pgen_cshock", DevExeSpace(),0,(pmbp->nmb_thispack-1),ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m,int k, int j, int i) {
-      int ko = koff.d_view(m);
-      u0_mhd(m,IDN,k,j,i) = shksol.d_view(ko+k-ks).di;
-      u0_hyd(m,IDN,k,j,i) = shksol.d_view(ko+k-ks).dn;
-      u0_mhd(m,IM3,k,j,i) = shksol.d_view(ko+k-ks).di*shksol.d_view(ko+k-ks).vix;
-      u0_hyd(m,IM3,k,j,i) = shksol.d_view(ko+k-ks).dn*shksol.d_view(ko+k-ks).vnx;
-      u0_mhd(m,IM1,k,j,i) = shksol.d_view(ko+k-ks).di*shksol.d_view(ko+k-ks).viy;
-      u0_hyd(m,IM1,k,j,i) = shksol.d_view(ko+k-ks).dn*shksol.d_view(ko+k-ks).vny;
+      int ko = koff.view_device()(m);
+      u0_mhd(m,IDN,k,j,i) = shksol.view_device()(ko+k-ks).di;
+      u0_hyd(m,IDN,k,j,i) = shksol.view_device()(ko+k-ks).dn;
+      u0_mhd(m,IM3,k,j,i) = shksol.view_device()(ko+k-ks).di
+          *shksol.view_device()(ko+k-ks).vix;
+      u0_hyd(m,IM3,k,j,i) = shksol.view_device()(ko+k-ks).dn
+          *shksol.view_device()(ko+k-ks).vnx;
+      u0_mhd(m,IM1,k,j,i) = shksol.view_device()(ko+k-ks).di
+          *shksol.view_device()(ko+k-ks).viy;
+      u0_hyd(m,IM1,k,j,i) = shksol.view_device()(ko+k-ks).dn
+          *shksol.view_device()(ko+k-ks).vny;
       u0_hyd(m,IM2,k,j,i) = 0.0;
       u0_mhd(m,IM2,k,j,i) = 0.0;
       b0.x3f(m,k,j,i) = init.bx;
-      b0.x1f(m,k,j,i) = shksol.d_view(ko+k-ks).by;
+      b0.x1f(m,k,j,i) = shksol.view_device()(ko+k-ks).by;
       b0.x2f(m,k,j,i) = 0.0;
-      if (i==ie) b0.x1f(m,k,j,i+1) = shksol.d_view(ko+k-ks).by;
+      if (i==ie) b0.x1f(m,k,j,i+1) = shksol.view_device()(ko+k-ks).by;
       if (j==je) b0.x2f(m,k,j+1,i) = 0.0;
       if (k==ke) b0.x3f(m,k+1,j,i) = init.bx;
     });

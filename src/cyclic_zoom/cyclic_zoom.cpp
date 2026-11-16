@@ -6,6 +6,7 @@
 //! \file cyclic_zoom.cpp
 //! \brief Implementation of constructor and functions in CyclicZoom class
 
+#include <cfloat>
 #include <iostream>
 #include <string>
 

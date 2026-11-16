@@ -247,7 +247,7 @@ void SourceTerms::SelfGravity(const DvceArray5D<Real> &w0, const EOS_Data &eos_d
   // x1-direction momentum and energy source terms
   par_for("selfgrav_x1",DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real dx1 = mbsize.d_view(m).dx1;
+    Real dx1 = mbsize.view_device()(m).dx1;
     Real hdtodx1 = 0.5*bdt/dx1;
     Real dpl = -(phi(m,0,k,j,i  ) - phi(m,0,k,j,i-1));
     Real dpr = -(phi(m,0,k,j,i+1) - phi(m,0,k,j,i  ));
@@ -266,7 +266,7 @@ void SourceTerms::SelfGravity(const DvceArray5D<Real> &w0, const EOS_Data &eos_d
     // x2-direction momentum and energy source terms
     par_for("selfgrav_x2",DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real dx2 = mbsize.d_view(m).dx2;
+      Real dx2 = mbsize.view_device()(m).dx2;
       Real hdtodx2 = 0.5*bdt/dx2;
       Real dpl = -(phi(m,0,k,j,  i) - phi(m,0,k,j-1,i));
       Real dpr = -(phi(m,0,k,j+1,i) - phi(m,0,k,j,  i));
@@ -286,7 +286,7 @@ void SourceTerms::SelfGravity(const DvceArray5D<Real> &w0, const EOS_Data &eos_d
     // x3-direction momentum and energy source terms
     par_for("selfgrav_x3",DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real dx3 = mbsize.d_view(m).dx3;
+      Real dx3 = mbsize.view_device()(m).dx3;
       Real hdtodx3 = 0.5*bdt/dx3;
       Real dpl = -(phi(m,0,k,  j,i) - phi(m,0,k-1,j,i));
       Real dpr = -(phi(m,0,k+1,j,i) - phi(m,0,k,  j,i));
@@ -333,16 +333,16 @@ void SourceTerms::BeamSource(DvceArray5D<Real> &i0, const Real bdt) {
   auto &tet_c_ = pmy_pack->prad->tet_c;
   par_for("rad_beam",DevExeSpace(),0,nmb1,ks,ke,js,je,is,ie,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
     Real glower[4][4], gupper[4][4];
@@ -387,13 +387,15 @@ void SourceTerms::BeamSource(DvceArray5D<Real> &i0, const Real bdt) {
 
     // Go through angles
     for (int n=0; n<=nang1; ++n) {
-      Real mu = (nh_c_.d_view(n,1) * dtc1
-               + nh_c_.d_view(n,2) * dtc2
-               + nh_c_.d_view(n,3) * dtc3);
+      Real mu = (nh_c_.view_device()(n,1) * dtc1
+               + nh_c_.view_device()(n,2) * dtc2
+               + nh_c_.view_device()(n,3) * dtc3);
       if ((dx_sq < SQR(width_/2.0)) && (mu > mu_min)) {
         Real n0 = tet_c_(m,0,0,k,j,i);
-        Real n_0 = tc(m,0,0,k,j,i)*nh_c_.d_view(n,0) + tc(m,1,0,k,j,i)*nh_c_.d_view(n,1)
-                 + tc(m,2,0,k,j,i)*nh_c_.d_view(n,2) + tc(m,3,0,k,j,i)*nh_c_.d_view(n,3);
+        Real n_0 = tc(m,0,0,k,j,i)*nh_c_.view_device()(n,0) + tc(m,1,0,k,j,i)
+            *nh_c_.view_device()(n,1)
+                 + tc(m,2,0,k,j,i)*nh_c_.view_device()(n,2) + tc(m,3,0,k,j,i)
+                     *nh_c_.view_device()(n,3);
         i0(m,n,k,j,i) += n0*n_0*dii_dt_*bdt;
       }
     }

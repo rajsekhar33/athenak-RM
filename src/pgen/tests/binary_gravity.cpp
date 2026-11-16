@@ -98,10 +98,10 @@ void ProblemGenerator::BinaryGravity(ParameterInput *pin, const bool restart) {
   par_for(
       "binary_gravity_init", DevExeSpace(), 0, nmb - 1, ks, ke, js, je, is, ie,
       KOKKOS_LAMBDA(int m, int k, int j, int i) {
-        Real x1min = size.d_view(m).x1min, x1max = size.d_view(m).x1max;
-        Real x2min = size.d_view(m).x2min, x2max = size.d_view(m).x2max;
-        Real x3min = size.d_view(m).x3min, x3max = size.d_view(m).x3max;
-        Real dx = size.d_view(m).dx1;
+        Real x1min = size.view_device()(m).x1min, x1max = size.view_device()(m).x1max;
+        Real x2min = size.view_device()(m).x2min, x2max = size.view_device()(m).x2max;
+        Real x3min = size.view_device()(m).x3min, x3max = size.view_device()(m).x3max;
+        Real dx = size.view_device()(m).dx1;
         Real dd = 0.1 * dx;
         Real dv = 1.0e-3;
         Real dr = 0.6 * static_cast<Real>(1.7320508075688772) * dx;  // sqrt(3)
@@ -180,7 +180,8 @@ void ProblemGenerator::BinaryGravity(ParameterInput *pin, const bool restart) {
         int kk = (idx / (ni * nj)) % nk;
         int mm = idx / (ni * nj * nk);
         int i = is + ii, j = js + jj, k = ks + kk;
-        Real vol = size.d_view(mm).dx1 * size.d_view(mm).dx2 * size.d_view(mm).dx3;
+        Real vol = size.view_device()(mm).dx1 * size.view_device()(mm).dx2
+            * size.view_device()(mm).dx3;
         lm += u0(mm, IDN, k, j, i) * vol;
       },
       local_mass);
@@ -284,12 +285,12 @@ void BinaryGravityErrors(ParameterInput *pin, Mesh *pm) {
         int mm = idx / (ni * nj * nk);
         int i = is + ii, j = js + jj, k = ks + kk;
 
-        Real x1min = size.d_view(mm).x1min, x1max = size.d_view(mm).x1max;
-        Real x2min = size.d_view(mm).x2min, x2max = size.d_view(mm).x2max;
-        Real x3min = size.d_view(mm).x3min, x3max = size.d_view(mm).x3max;
-        Real dx = size.d_view(mm).dx1;
-        Real dy = size.d_view(mm).dx2;
-        Real dz = size.d_view(mm).dx3;
+        Real x1min = size.view_device()(mm).x1min, x1max = size.view_device()(mm).x1max;
+        Real x2min = size.view_device()(mm).x2min, x2max = size.view_device()(mm).x2max;
+        Real x3min = size.view_device()(mm).x3min, x3max = size.view_device()(mm).x3max;
+        Real dx = size.view_device()(mm).dx1;
+        Real dy = size.view_device()(mm).dx2;
+        Real dz = size.view_device()(mm).dx3;
         Real vol = dx * dy * dz;
 
         Real x = CellCenterX(i - is, indcs.nx1, x1min, x1max);

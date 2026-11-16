@@ -131,18 +131,18 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     auto u0 = pmbp->phydro->u0;
     par_for("floop0", DevExeSpace(), 0,(pmbp->nmb_thispack-1),ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       int nx1 = indcs.nx1;
       Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
 
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
       int nx2 = indcs.nx2;
       Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
 
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       int nx3 = indcs.nx3;
       Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
 
@@ -191,17 +191,17 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     auto nmb = pmbp->nmb_thispack;
     par_for("floop1", DevExeSpace(), 0,(nmb-1),ks,ke+1,js,je+1,is,ie+1,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       Real x1f    = LeftEdgeX  (i-is, nx1, x1min, x1max);
       Real x1v    = CellCenterX(i-is, nx1, x1min, x1max);
 
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
       Real x2f   = LeftEdgeX(j  -js, nx2, x2min, x2max);
 
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       Real x3f    = LeftEdgeX  (k-ks, nx3, x3min, x3max);
       Real x3v    = CellCenterX(k-ks, nx3, x3min, x3max);
 
@@ -274,9 +274,9 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     auto &bcc0 = pmbp->pmhd->bcc0;
     par_for("floop2", DevExeSpace(), 0,(nmb-1),ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real dx1 = size.d_view(m).dx1;
-      Real dx2 = size.d_view(m).dx2;
-      Real dx3 = size.d_view(m).dx3;
+      Real dx1 = size.view_device()(m).dx1;
+      Real dx2 = size.view_device()(m).dx2;
+      Real dx3 = size.view_device()(m).dx3;
 
       b0.x1f(m,k,j,i) = (az(m,k,j+1,i) - az(m,k,j,i))/dx2 -
                         (ay(m,k+1,j,i) - ay(m,k,j,i))/dx3;
@@ -336,13 +336,13 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     }
     par_for("shear1", DevExeSpace(), 0,(pmbp->nmb_thispack-1),ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       int nx1 = indcs.nx1;
       Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
 
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
       int nx2 = indcs.nx2;
       Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
 

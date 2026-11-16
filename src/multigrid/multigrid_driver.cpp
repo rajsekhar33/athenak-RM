@@ -133,9 +133,9 @@ void MultigridDriver::SyncRootToHost() {
   if (mgroot_->on_host_) return;
   if (root_sync_state_ != RootSyncState::DEVICE_MODIFIED) return;
   int lev = mgroot_->current_level_;
-  Kokkos::deep_copy(mgroot_->u_[lev].h_view, mgroot_->u_[lev].d_view);
-  Kokkos::deep_copy(mgroot_->uold_[lev].h_view, mgroot_->uold_[lev].d_view);
-  Kokkos::deep_copy(mgroot_->src_[lev].h_view, mgroot_->src_[lev].d_view);
+  Kokkos::deep_copy(mgroot_->u_[lev].view_host(), mgroot_->u_[lev].view_device());
+  Kokkos::deep_copy(mgroot_->uold_[lev].view_host(), mgroot_->uold_[lev].view_device());
+  Kokkos::deep_copy(mgroot_->src_[lev].view_host(), mgroot_->src_[lev].view_device());
   root_sync_state_ = RootSyncState::SYNCED;
 }
 
@@ -148,8 +148,8 @@ void MultigridDriver::SyncRootToDevice() {
   if (mgroot_->on_host_) return;
   if (root_sync_state_ != RootSyncState::HOST_MODIFIED) return;
   int lev = mgroot_->current_level_;
-  Kokkos::deep_copy(mgroot_->u_[lev].d_view, mgroot_->u_[lev].h_view);
-  Kokkos::deep_copy(mgroot_->src_[lev].d_view, mgroot_->src_[lev].h_view);
+  Kokkos::deep_copy(mgroot_->u_[lev].view_device(), mgroot_->u_[lev].view_host());
+  Kokkos::deep_copy(mgroot_->src_[lev].view_device(), mgroot_->src_[lev].view_host());
   root_sync_state_ = RootSyncState::SYNCED;
 }
 
@@ -479,16 +479,16 @@ void MultigridDriver::BuildRootFlatBuffers() {
 void MultigridDriver::TransferFromBlocksToRoot(bool initflag) {
   const int nv = nvar_;
   auto rootbuf = rootbuf_;
-  const auto &src = mglevels_->src_[0].d_view;
-  const auto &u = mglevels_->u_[0].d_view;
+  const auto &src = mglevels_->src_[0].view_device();
+  const auto &u = mglevels_->u_[0].view_device();
   const int ngh_mb = mglevels_->ngh_;
   int nmmb = mglevels_->nmmb_ - 1;
   int padding = nslist_[global_variable::my_rank];
   par_for("Multigrid:SaveToRoot", DevExeSpace(), 0, nmmb, KOKKOS_LAMBDA(const int m) {
     for (int v = 0; v < nv; ++v) {
-      rootbuf.d_view(v,    m+padding) = src(m, v, ngh_mb, ngh_mb, ngh_mb);
+      rootbuf.view_device()(v,    m+padding) = src(m, v, ngh_mb, ngh_mb, ngh_mb);
       if (!initflag)
-        rootbuf.d_view(v+nv, m+padding) = u(m, v, ngh_mb, ngh_mb, ngh_mb);
+        rootbuf.view_device()(v+nv, m+padding) = u(m, v, ngh_mb, ngh_mb, ngh_mb);
     }
   });
   rootbuf.template modify<DevExeSpace>();
@@ -498,7 +498,7 @@ void MultigridDriver::TransferFromBlocksToRoot(bool initflag) {
   for (int v = 0; v < ncomm; ++v) {
     MPI_Allgatherv(MPI_IN_PLACE,
         nblist_[global_variable::my_rank],
-        MPI_ATHENA_REAL, &rootbuf.h_view(v,0),
+        MPI_ATHENA_REAL, &rootbuf.view_host()(v,0),
         nblist_, nslist_, MPI_ATHENA_REAL,
         MPI_COMM_WORLD);
   }
@@ -517,9 +517,9 @@ void MultigridDriver::TransferFromBlocksToRoot(bool initflag) {
     int k = static_cast<int>(loc[n].lx3);
     if (loc[n].level == rootlevel) {
       for (int v = 0; v < nv; ++v) {
-        root_src_h(0, v, k+ngh, j+ngh, i+ngh) = rootbuf.h_view(v, n);
+        root_src_h(0, v, k+ngh, j+ngh, i+ngh) = rootbuf.view_host()(v, n);
         if (!initflag)
-          root_u_h(0, v, k+ngh, j+ngh, i+ngh) = rootbuf.h_view(v+nv, n);
+          root_u_h(0, v, k+ngh, j+ngh, i+ngh) = rootbuf.view_host()(v+nv, n);
       }
     } else {
       LogicalLocation oloc;
@@ -534,9 +534,9 @@ void MultigridDriver::TransferFromBlocksToRoot(bool initflag) {
       int ok = (k & 1) + ngh;
       MGOctet &oct = octets_[olev][oid];
       for (int v = 0; v < nv; ++v) {
-        oct.Src(v, ok, oj, oi) = rootbuf.h_view(v, n);
+        oct.Src(v, ok, oj, oi) = rootbuf.view_host()(v, n);
         if (!initflag)
-          oct.U(v, ok, oj, oi) = rootbuf.h_view(v+nv, n);
+          oct.U(v, ok, oj, oi) = rootbuf.view_host()(v+nv, n);
       }
     }
   }
@@ -2214,7 +2214,7 @@ void MultigridDriver::CalculateMultipoleCoefficients() {
   if (mporder_ <= 0 || nmpcoeff_ == 0) return;
   std::memset(mpcoeff_, 0, sizeof(Real) * nmpcoeff_);
 
-  auto src = mglevels_->src_[mglevels_->nlevel_-1].d_view;
+  auto src = mglevels_->src_[mglevels_->nlevel_-1].view_device();
   int nmb = mglevels_->nmmb_;
   int ngh = mglevels_->ngh_;
   int nx1 = mglevels_->indcs_.nx1;
@@ -2231,25 +2231,25 @@ void MultigridDriver::CalculateMultipoleCoefficients() {
 
   par_for("MGMultipoleCoeffs", DevExeSpace(), 0, nmb-1,
   KOKKOS_LAMBDA(const int m) {
-    Real dx1 = (mb_size.d_view(m).x1max - mb_size.d_view(m).x1min)
+    Real dx1 = (mb_size.view_device()(m).x1max - mb_size.view_device()(m).x1min)
                / static_cast<Real>(nx1);
-    Real dx2 = (mb_size.d_view(m).x2max - mb_size.d_view(m).x2min)
+    Real dx2 = (mb_size.view_device()(m).x2max - mb_size.view_device()(m).x2min)
                / static_cast<Real>(nx2);
-    Real dx3 = (mb_size.d_view(m).x3max - mb_size.d_view(m).x3min)
+    Real dx3 = (mb_size.view_device()(m).x3max - mb_size.view_device()(m).x3min)
                / static_cast<Real>(nx3);
     Real vol = dx1 * dx2 * dx3;
 
     Real mp[25] = {};
 
     for (int k = ngh; k < ngh + nx3; ++k) {
-      Real z = mb_size.d_view(m).x3min + (k - ngh + 0.5) * dx3 - zorigin;
+      Real z = mb_size.view_device()(m).x3min + (k - ngh + 0.5) * dx3 - zorigin;
       Real z2 = z * z;
       for (int j = ngh; j < ngh + nx2; ++j) {
-        Real y = mb_size.d_view(m).x2min + (j - ngh + 0.5) * dx2 - yorigin;
+        Real y = mb_size.view_device()(m).x2min + (j - ngh + 0.5) * dx2 - yorigin;
         Real y2 = y * y;
         Real yz = y * z;
         for (int i = ngh; i < ngh + nx1; ++i) {
-          Real x = mb_size.d_view(m).x1min + (i - ngh + 0.5) * dx1 - xorigin;
+          Real x = mb_size.view_device()(m).x1min + (i - ngh + 0.5) * dx1 - xorigin;
           Real x2 = x * x;
           Real xy = x * y;
           Real zx = z * x;
@@ -2374,7 +2374,7 @@ void MultigridDriver::ScaleMultipoleCoefficients() {
 void MultigridDriver::CalculateCenterOfMass() {
   if (mporder_ <= 0) return;
 
-  auto src = mglevels_->src_[mglevels_->nlevel_-1].d_view;
+  auto src = mglevels_->src_[mglevels_->nlevel_-1].view_device();
   int nmb = mglevels_->nmmb_;
   int ngh = mglevels_->ngh_;
   int nx1 = mglevels_->indcs_.nx1;
@@ -2386,20 +2386,20 @@ void MultigridDriver::CalculateCenterOfMass() {
 
   par_for("MGCenterOfMass", DevExeSpace(), 0, nmb-1,
   KOKKOS_LAMBDA(const int m) {
-    Real dx1 = (mb_size.d_view(m).x1max - mb_size.d_view(m).x1min)
+    Real dx1 = (mb_size.view_device()(m).x1max - mb_size.view_device()(m).x1min)
                / static_cast<Real>(nx1);
-    Real dx2 = (mb_size.d_view(m).x2max - mb_size.d_view(m).x2min)
+    Real dx2 = (mb_size.view_device()(m).x2max - mb_size.view_device()(m).x2min)
                / static_cast<Real>(nx2);
-    Real dx3 = (mb_size.d_view(m).x3max - mb_size.d_view(m).x3min)
+    Real dx3 = (mb_size.view_device()(m).x3max - mb_size.view_device()(m).x3min)
                / static_cast<Real>(nx3);
     Real vol = dx1 * dx2 * dx3;
     Real m0 = 0.0, m1 = 0.0, m2 = 0.0, m3 = 0.0;
     for (int k = ngh; k < ngh + nx3; ++k) {
-      Real z = mb_size.d_view(m).x3min + (k - ngh + 0.5) * dx3;
+      Real z = mb_size.view_device()(m).x3min + (k - ngh + 0.5) * dx3;
       for (int j = ngh; j < ngh + nx2; ++j) {
-        Real y = mb_size.d_view(m).x2min + (j - ngh + 0.5) * dx2;
+        Real y = mb_size.view_device()(m).x2min + (j - ngh + 0.5) * dx2;
         for (int i = ngh; i < ngh + nx1; ++i) {
-          Real x = mb_size.d_view(m).x1min + (i - ngh + 0.5) * dx1;
+          Real x = mb_size.view_device()(m).x1min + (i - ngh + 0.5) * dx1;
           Real s = src(m, 0, k, j, i) * vol;
           m0 += s;
           m1 += s * y;

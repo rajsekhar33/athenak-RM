@@ -80,7 +80,7 @@ void BCHelperRadiation(MeshBlockPack *ppack, DualArray2D<Real> i_in, DvceArray5D
     par_for("radiationbc_x1", DevExeSpace(), 0,(nmb-1),0,(nvar-1),0,(n3-1),0,(n2-1),
     KOKKOS_LAMBDA(int m, int n, int k, int j) {
       // apply physical boundaries to inner_x1
-      switch (mb_bcs.d_view(m,BoundaryFace::inner_x1)) {
+      switch (mb_bcs.view_device()(m,BoundaryFace::inner_x1)) {
         case BoundaryFlag::outflow:
           for (int i=0; i<ng; ++i) {
             i0(m,n,k,j,is-i-1) = i0(m,n,k,j,is);
@@ -88,7 +88,7 @@ void BCHelperRadiation(MeshBlockPack *ppack, DualArray2D<Real> i_in, DvceArray5D
           break;
         case BoundaryFlag::inflow:
           for (int i=0; i<ng; ++i) {
-            i0(m,n,k,j,is-i-1) = i_in.d_view(n,BoundaryFace::inner_x1);
+            i0(m,n,k,j,is-i-1) = i_in.view_device()(n,BoundaryFace::inner_x1);
           }
           break;
         default:
@@ -96,7 +96,7 @@ void BCHelperRadiation(MeshBlockPack *ppack, DualArray2D<Real> i_in, DvceArray5D
       }
 
       // apply physical boundaries to outer_x1
-      switch (mb_bcs.d_view(m,BoundaryFace::outer_x1)) {
+      switch (mb_bcs.view_device()(m,BoundaryFace::outer_x1)) {
         case BoundaryFlag::outflow:
           for (int i=0; i<ng; ++i) {
             i0(m,n,k,j,ie+i+1) = i0(m,n,k,j,ie);
@@ -104,7 +104,7 @@ void BCHelperRadiation(MeshBlockPack *ppack, DualArray2D<Real> i_in, DvceArray5D
           break;
         case BoundaryFlag::inflow:
           for (int i=0; i<ng; ++i) {
-            i0(m,n,k,j,ie+i+1) = i_in.d_view(n,BoundaryFace::outer_x1);
+            i0(m,n,k,j,ie+i+1) = i_in.view_device()(n,BoundaryFace::outer_x1);
           }
           break;
         default:
@@ -119,7 +119,7 @@ void BCHelperRadiation(MeshBlockPack *ppack, DualArray2D<Real> i_in, DvceArray5D
     par_for("radiationbc_x2", DevExeSpace(), 0,(nmb-1),0,(nvar-1),0,(n3-1),0,(n1-1),
     KOKKOS_LAMBDA(int m, int n, int k, int i) {
       // apply physical boundaries to inner_x2
-      switch (mb_bcs.d_view(m,BoundaryFace::inner_x2)) {
+      switch (mb_bcs.view_device()(m,BoundaryFace::inner_x2)) {
         case BoundaryFlag::outflow:
           for (int j=0; j<ng; ++j) {
             i0(m,n,k,js-j-1,i) = i0(m,n,k,js,i);
@@ -127,7 +127,7 @@ void BCHelperRadiation(MeshBlockPack *ppack, DualArray2D<Real> i_in, DvceArray5D
           break;
         case BoundaryFlag::inflow:
           for (int j=0; j<ng; ++j) {
-            i0(m,n,k,js-j-1,i) = i_in.d_view(n,BoundaryFace::inner_x2);
+            i0(m,n,k,js-j-1,i) = i_in.view_device()(n,BoundaryFace::inner_x2);
           }
           break;
         default:
@@ -135,7 +135,7 @@ void BCHelperRadiation(MeshBlockPack *ppack, DualArray2D<Real> i_in, DvceArray5D
       }
 
       // apply physical boundaries to outer_x2
-      switch (mb_bcs.d_view(m,BoundaryFace::outer_x2)) {
+      switch (mb_bcs.view_device()(m,BoundaryFace::outer_x2)) {
         case BoundaryFlag::outflow:
           for (int j=0; j<ng; ++j) {
             i0(m,n,k,je+j+1,i) = i0(m,n,k,je,i);
@@ -143,7 +143,7 @@ void BCHelperRadiation(MeshBlockPack *ppack, DualArray2D<Real> i_in, DvceArray5D
           break;
         case BoundaryFlag::inflow:
           for (int j=0; j<ng; ++j) {
-            i0(m,n,k,je+j+1,i) = i_in.d_view(n,BoundaryFace::outer_x2);
+            i0(m,n,k,je+j+1,i) = i_in.view_device()(n,BoundaryFace::outer_x2);
           }
           break;
         default:
@@ -158,7 +158,7 @@ void BCHelperRadiation(MeshBlockPack *ppack, DualArray2D<Real> i_in, DvceArray5D
   par_for("radiationbc_x3", DevExeSpace(), 0,(nmb-1),0,(nvar-1),0,(n2-1),0,(n1-1),
   KOKKOS_LAMBDA(int m, int n, int j, int i) {
     // apply physical boundaries to inner_x3
-    switch (mb_bcs.d_view(m,BoundaryFace::inner_x3)) {
+    switch (mb_bcs.view_device()(m,BoundaryFace::inner_x3)) {
       case BoundaryFlag::outflow:
         for (int k=0; k<ng; ++k) {
           i0(m,n,ks-k-1,j,i) = i0(m,n,ks,j,i);
@@ -166,7 +166,7 @@ void BCHelperRadiation(MeshBlockPack *ppack, DualArray2D<Real> i_in, DvceArray5D
         break;
       case BoundaryFlag::inflow:
         for (int k=0; k<ng; ++k) {
-          i0(m,n,ks-k-1,j,i) = i_in.d_view(n,BoundaryFace::inner_x3);
+          i0(m,n,ks-k-1,j,i) = i_in.view_device()(n,BoundaryFace::inner_x3);
         }
         break;
       default:
@@ -174,7 +174,7 @@ void BCHelperRadiation(MeshBlockPack *ppack, DualArray2D<Real> i_in, DvceArray5D
     }
 
     // apply physical boundaries to outer_x3
-    switch (mb_bcs.d_view(m,BoundaryFace::outer_x3)) {
+    switch (mb_bcs.view_device()(m,BoundaryFace::outer_x3)) {
       case BoundaryFlag::outflow:
         for (int k=0; k<ng; ++k) {
           i0(m,n,ke+k+1,j,i) = i0(m,n,ke,j,i);
@@ -182,7 +182,7 @@ void BCHelperRadiation(MeshBlockPack *ppack, DualArray2D<Real> i_in, DvceArray5D
         break;
       case BoundaryFlag::inflow:
         for (int k=0; k<ng; ++k) {
-          i0(m,n,ke+k+1,j,i) = i_in.d_view(n,BoundaryFace::outer_x3);
+          i0(m,n,ke+k+1,j,i) = i_in.view_device()(n,BoundaryFace::outer_x3);
         }
         break;
       default:

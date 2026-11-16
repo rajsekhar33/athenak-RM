@@ -72,9 +72,9 @@ void Hydro::RecomputeTimeStepFromCurrentState(Driver *pdrive, bool update_source
       k += ks;
       j += js;
 
-      min_dt1 = fmin((mbsize.d_view(m).dx1/fabs(w0_(m,IVX,k,j,i))), min_dt1);
-      min_dt2 = fmin((mbsize.d_view(m).dx2/fabs(w0_(m,IVY,k,j,i))), min_dt2);
-      min_dt3 = fmin((mbsize.d_view(m).dx3/fabs(w0_(m,IVZ,k,j,i))), min_dt3);
+      min_dt1 = fmin((mbsize.view_device()(m).dx1/fabs(w0_(m,IVX,k,j,i))), min_dt1);
+      min_dt2 = fmin((mbsize.view_device()(m).dx2/fabs(w0_(m,IVY,k,j,i))), min_dt2);
+      min_dt3 = fmin((mbsize.view_device()(m).dx3/fabs(w0_(m,IVZ,k,j,i))), min_dt3);
     }, Kokkos::Min<Real>(dt1), Kokkos::Min<Real>(dt2),Kokkos::Min<Real>(dt3));
   } else {
     // find smallest dx/(v +/- Cs) in each direction for hydrodynamic problems
@@ -121,9 +121,9 @@ void Hydro::RecomputeTimeStepFromCurrentState(Driver *pdrive, bool update_source
         max_dv2 = fabs(w0_(m,IVY,k,j,i)) + cs;
         max_dv3 = fabs(w0_(m,IVZ,k,j,i)) + cs;
       }
-      min_dt1 = fmin((mbsize.d_view(m).dx1/max_dv1), min_dt1);
-      min_dt2 = fmin((mbsize.d_view(m).dx2/max_dv2), min_dt2);
-      min_dt3 = fmin((mbsize.d_view(m).dx3/max_dv3), min_dt3);
+      min_dt1 = fmin((mbsize.view_device()(m).dx1/max_dv1), min_dt1);
+      min_dt2 = fmin((mbsize.view_device()(m).dx2/max_dv2), min_dt2);
+      min_dt3 = fmin((mbsize.view_device()(m).dx3/max_dv3), min_dt3);
     }, Kokkos::Min<Real>(dt1), Kokkos::Min<Real>(dt2),Kokkos::Min<Real>(dt3));
   }
 
@@ -131,6 +131,10 @@ void Hydro::RecomputeTimeStepFromCurrentState(Driver *pdrive, bool update_source
   dtnew = dt1;
   if (pmy_pack->pmesh->multi_d) { dtnew = std::min(dtnew, dt2); }
   if (pmy_pack->pmesh->three_d) { dtnew = std::min(dtnew, dt3); }
+
+  // Represent an unconstrained kinematic CFL bound with a finite timestep
+  // sentinel, preserving the minimum-reduction convention used by this owner.
+  dtnew = std::min(dtnew, std::numeric_limits<Real>::max());
 
   // compute timestep for diffusion
   if (pcond != nullptr) {

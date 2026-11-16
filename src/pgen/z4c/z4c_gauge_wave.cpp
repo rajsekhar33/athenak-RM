@@ -72,8 +72,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
   par_for("pgen_gauge_wave", DevExeSpace(), 0, (pmbp->nmb_thispack - 1),
       ksg, keg, jsg, jeg, isg, ieg, KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
 
     int nx1 = indcs.nx1;
 

@@ -49,8 +49,8 @@ void ShearingBoxCC::SourceTermsCC(const DvceArray5D<Real> &w0, const EOS_Data &e
       u0(m,IM1,k,j,i) += coef1*mom2;
       u0(m,IM2,k,j,i) -= coef2*mom1;
       if (is_strat) {
-        Real &x3min = size.d_view(m).x3min;
-        Real &x3max = size.d_view(m).x3max;
+        Real &x3min = size.view_device()(m).x3min;
+        Real &x3max = size.view_device()(m).x3max;
         int nx3 = indcs.nx3;
         Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
         u0(m,IM3,k,j,i) -= coef3*den*x3v;
@@ -115,8 +115,8 @@ void ShearingBoxCC::SourceTermsCC(
       u0(m,IM1,k,j,i) += coef1*mom2;
       u0(m,IM2,k,j,i) -= coef2*mom1;
       if (is_strat) {
-        Real &x3min = size.d_view(m).x3min;
-        Real &x3max = size.d_view(m).x3max;
+        Real &x3min = size.view_device()(m).x3min;
+        Real &x3max = size.view_device()(m).x3max;
         int nx3 = indcs.nx3;
         Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
         u0(m,IM3,k,j,i) -= coef3*den*x3v;
@@ -181,8 +181,8 @@ void ShearingBoxFC::SourceTermsFC(const DvceFaceFld4D<Real> &b0,
     par_for_outer("acc0", DevExeSpace(), scr_size, scr_level, 0, nmb1, js, je+1,
     KOKKOS_LAMBDA(TeamMember_t member, const int m, const int j) {
       par_for_inner(member, is, ie+1, [&](const int i) {
-        Real &x1min = size.d_view(m).x1min;
-        Real &x1max = size.d_view(m).x1max;
+        Real &x1min = size.view_device()(m).x1min;
+        Real &x1max = size.view_device()(m).x1max;
         int nx1 = indcs.nx1;
         Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
 

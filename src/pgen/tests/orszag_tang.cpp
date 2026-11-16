@@ -69,13 +69,13 @@ void ProblemGenerator::OrszagTang(ParameterInput *pin, const bool restart) {
 
   par_for("pgen_ot1", DevExeSpace(), 0,(pmbp->nmb_thispack-1),ks,ke,js,je,is,ie,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     int nx1 = indcs.nx1;
     Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     int nx2 = indcs.nx2;
     Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
 
@@ -90,8 +90,8 @@ void ProblemGenerator::OrszagTang(ParameterInput *pin, const bool restart) {
     Real x1fp1 = LeftEdgeX(i+1-is, nx1, x1min, x1max);
     Real x2f   = LeftEdgeX(j  -js, nx2, x2min, x2max);
     Real x2fp1 = LeftEdgeX(j+1-js, nx2, x2min, x2max);
-    Real dx1 = size.d_view(m).dx1;
-    Real dx2 = size.d_view(m).dx2;
+    Real dx1 = size.view_device()(m).dx1;
+    Real dx2 = size.view_device()(m).dx2;
 
     b0.x1f(m,k,j,i) =  (A3(x1f,  x2fp1,B0) - A3(x1f,x2f,B0))/dx2;
     b0.x2f(m,k,j,i) = -(A3(x1fp1,x2f  ,B0) - A3(x1f,x2f,B0))/dx1;

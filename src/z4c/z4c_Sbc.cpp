@@ -44,7 +44,8 @@ static void Z4cSommerfeld(const Z4c::Z4c_vars& z4c, const Z4c::Z4c_vars& rhs,
   // Psuedoradial vector
   AthenaPointTensor<Real, TensorSymm::NONE, 3, 1> s_u;
 
-  Real idx[] = {1./size.d_view(m).dx1, 1./size.d_view(m).dx2, 1./size.d_view(m).dx3};
+  Real idx[] = {1./size.view_device()(m).dx1, 1./size.view_device()(m).dx2, 1.
+      /size.view_device()(m).dx3};
 
   // -------------------------------------------------------------------------------------
   // First derivatives
@@ -71,12 +72,12 @@ static void Z4cSommerfeld(const Z4c::Z4c_vars& z4c, const Z4c::Z4c_vars& rhs,
   // -------------------------------------------------------------------------------------
   // Compute psuedo-radial vector
   //
-  Real &x1min = size.d_view(m).x1min;
-  Real &x1max = size.d_view(m).x1max;
-  Real &x2min = size.d_view(m).x2min;
-  Real &x2max = size.d_view(m).x2max;
-  Real &x3min = size.d_view(m).x3min;
-  Real &x3max = size.d_view(m).x3max;
+  Real &x1min = size.view_device()(m).x1min;
+  Real &x1max = size.view_device()(m).x1max;
+  Real &x2min = size.view_device()(m).x2min;
+  Real &x2max = size.view_device()(m).x2max;
+  Real &x3min = size.view_device()(m).x3min;
+  Real &x3max = size.view_device()(m).x3max;
 
   Real x1v = CellCenterX(i-indcs.is, indcs.nx1, x1min, x1max);
   Real x2v = CellCenterX(j-indcs.js, indcs.nx2, x2min, x2max);
@@ -154,7 +155,7 @@ TaskStatus Z4c::Z4cBoundaryRHS(Driver *pdriver, int stage) {
     par_for("z4crhs_bc_x1", DevExeSpace(), 0, (nmb-1), ks, ke, js, je,
     KOKKOS_LAMBDA(int m, int k, int j) {
       // Inner boundary
-      switch(mb_bcs.d_view(m,BoundaryFace::inner_x1)) {
+      switch(mb_bcs.view_device()(m,BoundaryFace::inner_x1)) {
         case BoundaryFlag::diode:
         case BoundaryFlag::vacuum:
         case BoundaryFlag::outflow:
@@ -169,7 +170,7 @@ TaskStatus Z4c::Z4cBoundaryRHS(Driver *pdriver, int stage) {
           break;
       }
       // Outer boundary
-      switch (mb_bcs.d_view(m,BoundaryFace::outer_x1)) {
+      switch (mb_bcs.view_device()(m,BoundaryFace::outer_x1)) {
         case BoundaryFlag::diode:
         case BoundaryFlag::vacuum:
         case BoundaryFlag::outflow:
@@ -196,7 +197,7 @@ TaskStatus Z4c::Z4cBoundaryRHS(Driver *pdriver, int stage) {
     par_for("z4crhs_bc_x2", DevExeSpace(), 0, (nmb-1), ks, ke, is, ie,
     KOKKOS_LAMBDA(int m, int k, int i) {
       // Inner boundary
-      switch(mb_bcs.d_view(m,BoundaryFace::inner_x2)) {
+      switch(mb_bcs.view_device()(m,BoundaryFace::inner_x2)) {
         case BoundaryFlag::diode:
         case BoundaryFlag::vacuum:
         case BoundaryFlag::outflow:
@@ -211,7 +212,7 @@ TaskStatus Z4c::Z4cBoundaryRHS(Driver *pdriver, int stage) {
           break;
       }
       // Outer boundary
-      switch (mb_bcs.d_view(m,BoundaryFace::outer_x2)) {
+      switch (mb_bcs.view_device()(m,BoundaryFace::outer_x2)) {
         case BoundaryFlag::diode:
         case BoundaryFlag::vacuum:
         case BoundaryFlag::outflow:
@@ -238,7 +239,7 @@ TaskStatus Z4c::Z4cBoundaryRHS(Driver *pdriver, int stage) {
     par_for("z4crhs_bc_x3", DevExeSpace(), 0, (nmb-1), js, je, is, ie,
     KOKKOS_LAMBDA(int m, int j, int i) {
       // Inner boundary
-      switch(mb_bcs.d_view(m,BoundaryFace::inner_x3)) {
+      switch(mb_bcs.view_device()(m,BoundaryFace::inner_x3)) {
         case BoundaryFlag::diode:
         case BoundaryFlag::vacuum:
         case BoundaryFlag::outflow:
@@ -253,7 +254,7 @@ TaskStatus Z4c::Z4cBoundaryRHS(Driver *pdriver, int stage) {
           break;
       }
       // Outer boundary
-      switch (mb_bcs.d_view(m,BoundaryFace::outer_x3)) {
+      switch (mb_bcs.view_device()(m,BoundaryFace::outer_x3)) {
         case BoundaryFlag::diode:
         case BoundaryFlag::vacuum:
         case BoundaryFlag::outflow:

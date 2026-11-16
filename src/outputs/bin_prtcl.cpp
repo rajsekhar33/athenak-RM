@@ -255,7 +255,7 @@ void ParticleBinaryOutput::LoadOutputData(Mesh *pm) {
     // Find MeshBlock containing this particle
     int m = -1;
     for (int mb=0; mb<nmb; ++mb) {
-      if (mb_gid.d_view(mb) == pgid) {
+      if (mb_gid.view_device()(mb) == pgid) {
         m = mb;
         break;
       }
@@ -263,12 +263,12 @@ void ParticleBinaryOutput::LoadOutputData(Mesh *pm) {
 
     if (m >= 0) {
       // Get MeshBlock bounds
-      Real &x1min = mbsize.d_view(m).x1min;
-      Real &x1max = mbsize.d_view(m).x1max;
-      Real &x2min = mbsize.d_view(m).x2min;
-      Real &x2max = mbsize.d_view(m).x2max;
-      Real &x3min = mbsize.d_view(m).x3min;
-      Real &x3max = mbsize.d_view(m).x3max;
+      Real &x1min = mbsize.view_device()(m).x1min;
+      Real &x1max = mbsize.view_device()(m).x1max;
+      Real &x2min = mbsize.view_device()(m).x2min;
+      Real &x2max = mbsize.view_device()(m).x2max;
+      Real &x3min = mbsize.view_device()(m).x3min;
+      Real &x3max = mbsize.view_device()(m).x3max;
 
       // Safety net: a particle position that went numerically unstable (or NaN)
       // upstream would otherwise reach CellCenterIndex's unguarded

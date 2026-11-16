@@ -51,19 +51,22 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     pi(PGID,p) = gids + m;
 
     Real rand = rand_gen.frand();
-    pr(IPX,p) = (1. - rand)*mbsize.d_view(m).x1min + rand*mbsize.d_view(m).x1max;
-    pr(IPX,p) = fmin(pr(IPX,p),mbsize.d_view(m).x1max);
-    pr(IPX,p) = fmax(pr(IPX,p),mbsize.d_view(m).x1min);
+    pr(IPX,p) = (1. - rand)*mbsize.view_device()(m).x1min + rand
+        *mbsize.view_device()(m).x1max;
+    pr(IPX,p) = fmin(pr(IPX,p),mbsize.view_device()(m).x1max);
+    pr(IPX,p) = fmax(pr(IPX,p),mbsize.view_device()(m).x1min);
 
     rand = rand_gen.frand();
-    pr(IPY,p) = (1. - rand)*mbsize.d_view(m).x2min + rand*mbsize.d_view(m).x2max;
-    pr(IPY,p) = fmin(pr(IPY,p),mbsize.d_view(m).x2max);
-    pr(IPY,p) = fmax(pr(IPY,p),mbsize.d_view(m).x2min);
+    pr(IPY,p) = (1. - rand)*mbsize.view_device()(m).x2min + rand
+        *mbsize.view_device()(m).x2max;
+    pr(IPY,p) = fmin(pr(IPY,p),mbsize.view_device()(m).x2max);
+    pr(IPY,p) = fmax(pr(IPY,p),mbsize.view_device()(m).x2min);
 
     rand = rand_gen.frand();
-    pr(IPZ,p) = (1. - rand)*mbsize.d_view(m).x3min + rand*mbsize.d_view(m).x3max;
-    pr(IPZ,p) = fmin(pr(IPZ,p),mbsize.d_view(m).x3max);
-    pr(IPZ,p) = fmax(pr(IPZ,p),mbsize.d_view(m).x3min);
+    pr(IPZ,p) = (1. - rand)*mbsize.view_device()(m).x3min + rand
+        *mbsize.view_device()(m).x3max;
+    pr(IPZ,p) = fmin(pr(IPZ,p),mbsize.view_device()(m).x3max);
+    pr(IPZ,p) = fmax(pr(IPZ,p),mbsize.view_device()(m).x3min);
 
     pr(IPVX,p) = 2.0*(rand_gen.frand() - 0.5);
     pr(IPVY,p) = 2.0*(rand_gen.frand() - 0.5);
@@ -76,8 +79,8 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   // Assumes uniform mesh (no SMR or AMR)
   // Assumes velocities normalized to one, so dt=min(dx)
   Real &dtnew_ = pmbp->ppart->dtnew;
-  dtnew_ = std::min(mbsize.h_view(0).dx1, mbsize.h_view(0).dx2);
-  dtnew_ = std::min(dtnew_, mbsize.h_view(0).dx3);
+  dtnew_ = std::min(mbsize.view_host()(0).dx1, mbsize.view_host()(0).dx2);
+  dtnew_ = std::min(dtnew_, mbsize.view_host()(0).dx3);
 
   return;
 }

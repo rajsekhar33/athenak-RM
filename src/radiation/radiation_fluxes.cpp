@@ -46,8 +46,10 @@ TaskStatus Radiation::CalculateFluxes(Driver *pdriver, int stage) {
   par_for("rflux_x1",DevExeSpace(),0,nmb1,0,nang1,ks,ke,js,je,is,ie+1,
   KOKKOS_LAMBDA(int m, int n, int k, int j, int i) {
     // calculate n^1 (hence determining upwinding direction)
-    Real n1 = t1d1(m,0,k,j,i)*nh_c_.d_view(n,0) + t1d1(m,1,k,j,i)*nh_c_.d_view(n,1)
-            + t1d1(m,2,k,j,i)*nh_c_.d_view(n,2) + t1d1(m,3,k,j,i)*nh_c_.d_view(n,3);
+    Real n1 = t1d1(m,0,k,j,i)*nh_c_.view_device()(n,0) + t1d1(m,1,k,j,i)
+        *nh_c_.view_device()(n,1)
+            + t1d1(m,2,k,j,i)*nh_c_.view_device()(n,2) + t1d1(m,3,k,j,i)
+                *nh_c_.view_device()(n,3);
 
     // convert to primitive n_0 I
     Real iim1, iicc, iim2, iip1, iim3, iip2;
@@ -106,8 +108,10 @@ TaskStatus Radiation::CalculateFluxes(Driver *pdriver, int stage) {
     par_for("rflux_x2",DevExeSpace(),0,nmb1,0,nang1,ks,ke,js,je+1,is,ie,
     KOKKOS_LAMBDA(int m, int n, int k, int j, int i) {
       // calculate n^2 (hence determining upwinding direction)
-      Real n2 = t2d2(m,0,k,j,i)*nh_c_.d_view(n,0) + t2d2(m,1,k,j,i)*nh_c_.d_view(n,1)
-              + t2d2(m,2,k,j,i)*nh_c_.d_view(n,2) + t2d2(m,3,k,j,i)*nh_c_.d_view(n,3);
+      Real n2 = t2d2(m,0,k,j,i)*nh_c_.view_device()(n,0) + t2d2(m,1,k,j,i)
+          *nh_c_.view_device()(n,1)
+              + t2d2(m,2,k,j,i)*nh_c_.view_device()(n,2) + t2d2(m,3,k,j,i)
+                  *nh_c_.view_device()(n,3);
 
       // convert to primitive n_0 I
       Real iim1, iicc, iim2, iip1, iim3, iip2;
@@ -167,8 +171,10 @@ TaskStatus Radiation::CalculateFluxes(Driver *pdriver, int stage) {
     par_for("rflux_x3",DevExeSpace(),0,nmb1,0,nang1,ks,ke+1,js,je,is,ie,
     KOKKOS_LAMBDA(int m, int n, int k, int j, int i) {
       // calculate n^3 (hence determining upwinding direction)
-      Real n3 = t3d3(m,0,k,j,i)*nh_c_.d_view(n,0) + t3d3(m,1,k,j,i)*nh_c_.d_view(n,1)
-              + t3d3(m,2,k,j,i)*nh_c_.d_view(n,2) + t3d3(m,3,k,j,i)*nh_c_.d_view(n,3);
+      Real n3 = t3d3(m,0,k,j,i)*nh_c_.view_device()(n,0) + t3d3(m,1,k,j,i)
+          *nh_c_.view_device()(n,1)
+              + t3d3(m,2,k,j,i)*nh_c_.view_device()(n,2) + t3d3(m,3,k,j,i)
+                  *nh_c_.view_device()(n,3);
 
       // convert to primitive n_0 I
       Real iim1, iicc, iim2, iip1, iim3, iip2;
@@ -234,12 +240,13 @@ TaskStatus Radiation::CalculateFluxes(Driver *pdriver, int stage) {
     par_for("rflux_angular",DevExeSpace(),0,nmb1,0,nang1,ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m, int n, int k, int j, int i) {
       divfa_(m,n,k,j,i) = 0.0;
-      for (int nb=0; nb<numn.d_view(n); ++nb) {
+      for (int nb=0; nb<numn.view_device()(n); ++nb) {
         Real flx_edge = na_(m,n,k,j,i,nb) *
                         ((na_(m,n,k,j,i,nb) < 0.0) ?
-                         i0_(m,indn.d_view(n,nb),k,j,i)/tet_c_(m,0,0,k,j,i) :
+                         i0_(m,indn.view_device()(n,nb),k,j,i)/tet_c_(m,0,0,k,j,i) :
                          i0_(m,n,k,j,i)/tet_c_(m,0,0,k,j,i));
-        divfa_(m,n,k,j,i) += (arcl.d_view(n,nb)*flx_edge/solid_angles_.d_view(n));
+        divfa_(m,n,k,j,i)
+            += (arcl.view_device()(n,nb)*flx_edge/solid_angles_.view_device()(n));
       }
     });
   }

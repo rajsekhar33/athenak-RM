@@ -9,6 +9,7 @@
 #include <math.h>
 
 #include <algorithm>
+#include <cfloat>
 #include <sstream>
 #include <string>
 #include <iostream>
@@ -267,16 +268,16 @@ void SetADMVariablesToBBH(MeshBlockPack *pmbp) {
 
   par_for("update_adm_vars", DevExeSpace(), 0,nmb-1,0,(n3-1),0,(n2-1),0,(n1-1),
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
     struct four_metric met4;
@@ -1036,10 +1037,10 @@ void RefineAlphaMin(MeshBlockPack *pmbp) {
       Kokkos::Min<Real>(team_dmin));
 
     if (team_dmin < bbh_.alpha_thr) {
-      refine_flag.d_view(m + mbs) = 1;
+      refine_flag.view_device()(m + mbs) = 1;
     }
     if (team_dmin > 1.25 * bbh_.alpha_thr) {
-      refine_flag.d_view(m + mbs) = -1;
+      refine_flag.view_device()(m + mbs) = -1;
     }
   });
 
@@ -1067,12 +1068,12 @@ void RefineTracker(MeshBlockPack *pmbp) {
   Real x3_BH2 = bbh_traj[Z2];
   for (int m = 0; m < nmb; ++m) {
     // extract MeshBlock bounds
-    Real &x1min = size.h_view(m).x1min;
-    Real &x1max = size.h_view(m).x1max;
-    Real &x2min = size.h_view(m).x2min;
-    Real &x2max = size.h_view(m).x2max;
-    Real &x3min = size.h_view(m).x3min;
-    Real &x3max = size.h_view(m).x3max;
+    Real &x1min = size.view_host()(m).x1min;
+    Real &x1max = size.view_host()(m).x1max;
+    Real &x2min = size.view_host()(m).x2min;
+    Real &x2max = size.view_host()(m).x2max;
+    Real &x3min = size.view_host()(m).x3min;
+    Real &x3max = size.view_host()(m).x3max;
 
     Real d2_bh1[8] = {
       SQR(x1min - x1_BH1) + SQR(x2min - x2_BH1) + SQR(x3min - x3_BH1),
@@ -1108,9 +1109,9 @@ void RefineTracker(MeshBlockPack *pmbp) {
 
     if (dmin2_bh1 < SQR(bbh.radius_thr) || dmin2_bh2 < SQR(bbh.radius_thr) ||
         iscontained_bh1 || iscontained_bh2) {
-      refine_flag.d_view(m + mbs) = 1;
+      refine_flag.view_device()(m + mbs) = 1;
     } else {
-      refine_flag.d_view(m + mbs) = -1;
+      refine_flag.view_device()(m + mbs) = -1;
     }
   }
 
