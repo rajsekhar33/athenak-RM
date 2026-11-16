@@ -8,6 +8,8 @@
 //! \file mesh_refinement.hpp
 //! \brief defines MeshRefinement class containing data and functions controlling SMR/AMR
 
+#include <vector>
+
 //----------------------------------------------------------------------------------------
 //! \fn int CreateAMR_MPI_Tag(int lid, int ox1, int ox2, int ox3)
 //! \brief calculate an MPI tag for AMR communications.  Note maximum size of
@@ -17,6 +19,29 @@
 inline int CreateAMR_MPI_Tag(int lid, int ox1, int ox2, int ox3) {
   return (ox1<<(NUM_BITS_LID+2)) | (ox2<<(NUM_BITS_LID+1))| (ox3<<(NUM_BITS_LID)) | lid;
 }
+
+//----------------------------------------------------------------------------------------
+//! \fn int CreateFFC_MPI_Tag(int lid, int face)
+//! \brief MPI tag for face field correction; same formula as Athena++
+//! Mesh::CreateFaceFieldCorrectionMPITag. lid is that of the *receiving* MeshBlock.
+inline int CreateFFC_MPI_Tag(int lid, int face) {
+  return (lid<<8) | (face<<5) | 1;
+}
+
+//----------------------------------------------------------------------------------------
+//! \struct FaceFieldCorrection
+//! \brief A face of a newly refined MeshBlock shared with a MeshBlock that already
+//! existed at the same level before refinement (Athena++ struct of the same name).
+//! from: old gid of the existing MeshBlock; to: new gid of the refined MeshBlock;
+//! face: BoundaryFace packed (send) or set (receive); size: buffer length (0 for a
+//! same-rank receive); src: index of the same-rank send entry holding the data, else -1.
+struct FaceFieldCorrection {
+  int from, to, face, size, src;
+  DvceArray1D<Real> buf;
+#if MPI_PARALLEL_ENABLED
+  MPI_Request req;
+#endif
+};
 
 //----------------------------------------------------------------------------------------
 //! \struct AMRBufferData
@@ -59,6 +84,10 @@ class MeshRefinement {
   // following 2x Views are dimensioned [nmb_total]
   DualArray1D<int> refine_flag;    // refinement flag for each MeshBlock
   DualArray1D<int> fc_amr_repair;  // marks MBs needing post-AMR FC interior repair
+  // Face field correction (Athena++ Steps FFC1-FFC8): faces of newly refined MBs
+  // set from MBs that existed before refinement, and per new local MB/BoundaryFace flags
+  std::vector<FaceFieldCorrection> ffc_send, ffc_recv;
+  DualArray2D<int> ffc_recv_flag;
   HostArray1D<int> ncyc_since_ref; // # of cycles since MB last refined/derefined
 
   // following 4x arrays allocated with length [nranks] only with AMR
@@ -93,6 +122,7 @@ class MeshRefinement {
 #if MPI_PARALLEL_ENABLED
   int nmb_send, nmb_recv;
   MPI_Comm amr_comm;                           // unique communicator for AMR
+  MPI_Comm ffc_comm;                           // face field correction communicator
   DualArray1D<AMRBufferData> sendbuf, recvbuf; // send/recv buffer metadata
   MPI_Request *send_req, *recv_req;
   DvceArray1D<Real> send_data, recv_data;      // send/recv device data
@@ -119,6 +149,8 @@ class MeshRefinement {
                            DvceArray5D<Real> &ca, const EOS_Data &eos);
   void RefineFC(DualArray1D<int> &n2o, DvceFaceFld4D<Real> &b, DvceFaceFld4D<Real> &cb);
   void RepairAMRFC(DvceFaceFld4D<Real> &b);
+  void PrepareAndSendFaceFieldCorrection(DvceFaceFld4D<Real> &b);
+  void ReceiveAndSetFaceFieldCorrection(DvceFaceFld4D<Real> &b);
 
   void RestrictCC(DvceArray5D<Real> &a, DvceArray5D<Real> &ca, bool is_z4c=false);
   void RestrictFC(DvceFaceFld4D<Real> &b, DvceFaceFld4D<Real> &cb);
