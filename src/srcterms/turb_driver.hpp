@@ -10,6 +10,7 @@
 //  randomly forced turbulence which evolves via an Ornstein-Uhlenbeck stochastic process
 
 #include <array>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -70,10 +71,14 @@ class TurbulenceDriver {
   TaskStatus AddForcing(Driver *pdrive, int stage);
   TaskStatus NewTimeStep(Driver *pdrive, int stage);
   void UpdateTimeStepConstraint();
+  int64_t UpdateBoundariesReached(const Real t) const;
   void Initialize();
+  void ResetForNewMesh();
 
  private:
   MeshBlockPack *pmy_pack;  // ptr to MeshBlockPack containing this TurbulenceDriver
+  bool rms_acceleration_ = false;
+  Real accel_rms_ = 0.0;  // volume-weighted vector acceleration RMS
 
   // Integer wavevector triplets (nkx,nky,nkz) driven by the turbulence forcing, built by
   // BuildModeList(). mode_count == mode_list_.size().
