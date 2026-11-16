@@ -70,15 +70,15 @@ void MultigridBoundaryValues::BuildRankPackedMGMetadata(const int nvars, const i
 
   for (int m = 0; m < nmb; ++m) {
     for (int n = 0; n < nnghbr; ++n) {
-      if (nghbr.h_view(m, n).gid < 0) continue;
-      int nlev = nghbr.h_view(m, n).lev;
-      int mlev = mblev.h_view(m);
+      if (nghbr.view_host()(m, n).gid < 0) continue;
+      int nlev = nghbr.view_host()(m, n).lev;
+      int mlev = mblev.view_host()(m);
       bool is_fc = (nlev != mlev);
       if (is_fc && skip_fc) continue;
-      int drank = nghbr.h_view(m, n).rank;
+      int drank = nghbr.view_host()(m, n).rank;
       if (drank == my_rank) continue;
-      int lid = nghbr.h_view(m, n).gid - pmy_pack->pmesh->gids_eachrank[drank];
-      int dn = nghbr.h_view(m, n).dest;
+      int lid = nghbr.view_host()(m, n).gid - pmy_pack->pmesh->gids_eachrank[drank];
+      int dn = nghbr.view_host()(m, n).dest;
 
       int send_size = 0;
       int recv_size = 0;
@@ -1123,9 +1123,9 @@ TaskStatus MultigridBoundaryValues::ProlongateFCMG(DvceArray5D<Real> &u) {
 
   int nmb = pmy_pack->nmb_thispack;
   int nnghbr = pmy_pack->pmb->nnghbr;
-  auto nghbr_d = pmy_pack->pmb->nghbr.d_view;
-  auto mblev_d = pmy_pack->pmb->mb_lev.d_view;
-  auto mbgid_d = pmy_pack->pmb->mb_gid.d_view;
+  auto nghbr_d = pmy_pack->pmb->nghbr.view_device();
+  auto mblev_d = pmy_pack->pmb->mb_lev.view_device();
+  auto mbgid_d = pmy_pack->pmb->mb_gid.view_device();
   auto fc_cx = pmy_mg->fc_childx_;
   auto fc_cy = pmy_mg->fc_childy_;
   auto fc_cz = pmy_mg->fc_childz_;
@@ -1382,9 +1382,9 @@ TaskStatus MultigridBoundaryValues::FillFineCoarseMGGhosts(DvceArray5D<Real> &u)
   int nmb = pmy_pack->nmb_thispack;
   int nnghbr = pmy_pack->pmb->nnghbr;
   int my_rank = global_variable::my_rank;
-  auto nghbr_d = pmy_pack->pmb->nghbr.d_view;
-  auto mblev_d = pmy_pack->pmb->mb_lev.d_view;
-  auto mbgid_d = pmy_pack->pmb->mb_gid.d_view;
+  auto nghbr_d = pmy_pack->pmb->nghbr.view_device();
+  auto mblev_d = pmy_pack->pmb->mb_lev.view_device();
+  auto mbgid_d = pmy_pack->pmb->mb_gid.view_device();
 
 #ifndef NDEBUG
   {
@@ -1394,11 +1394,12 @@ TaskStatus MultigridBoundaryValues::FillFineCoarseMGGhosts(DvceArray5D<Real> &u)
       auto &mblev_h = pmy_pack->pmb->mb_lev;
       for (int m = 0; m < nmb && !warned_cross_rank_fc; ++m) {
         for (int n = 0; n < nnghbr && !warned_cross_rank_fc; ++n) {
-          if (nghbr_h.h_view(m,n).gid >= 0
-              && nghbr_h.h_view(m,n).lev != mblev_h.h_view(m)
-              && nghbr_h.h_view(m,n).rank != my_rank) {
+          if (nghbr_h.view_host()(m,n).gid >= 0
+              && nghbr_h.view_host()(m,n).lev != mblev_h.view_host()(m)
+              && nghbr_h.view_host()(m,n).rank != my_rank) {
             std::cout << "### MG WARNING: cross-rank fine-coarse neighbor detected "
-                      << "(m=" << m << " n=" << n << " rank=" << nghbr_h.h_view(m,n).rank
+                      << "(m=" << m << " n=" << n << " rank="
+                          << nghbr_h.view_host()(m,n).rank
                       << "). FillFineCoarseMGGhosts skips cross-rank neighbors."
                       << std::endl;
             warned_cross_rank_fc = true;
@@ -1777,10 +1778,10 @@ TaskStatus MultigridBoundaryValues::FillFineCoarseMGGhosts(DvceArray5D<Real> &u)
               for (int f1_ = 0; f1_ <= f1_max; ++f1_) {
                 int nn = NeighborIndex(ox1, ox2, ox3, f1_, f2_);
                 if (nn < 0 || nn >= nnghbr) continue;
-                if (nghbr_h.h_view(m,nn).gid < 0) continue;
-                int nlev_n = nghbr_h.h_view(m,nn).lev;
-                if (nlev_n == mblev_h.h_view(m)) continue;
-                if (nghbr_h.h_view(m,nn).rank == my_rank) continue;
+                if (nghbr_h.view_host()(m,nn).gid < 0) continue;
+                int nlev_n = nghbr_h.view_host()(m,nn).lev;
+                if (nlev_n == mblev_h.view_host()(m)) continue;
+                if (nghbr_h.view_host()(m,nn).rank == my_rank) continue;
                 FCPair p;
                 p.m = m; p.n = nn;
                 p.ox1 = ox1; p.ox2 = ox2; p.ox3 = ox3;
@@ -1788,10 +1789,10 @@ TaskStatus MultigridBoundaryValues::FillFineCoarseMGGhosts(DvceArray5D<Real> &u)
                 p.nface = (ox1 != 0 ? 1 : 0)
                           + (ox2 != 0 ? 1 : 0)
                           + (ox3 != 0 ? 1 : 0);
-                p.remote_rank = nghbr_h.h_view(m,nn).rank;
-                p.remote_gid = nghbr_h.h_view(m,nn).gid;
+                p.remote_rank = nghbr_h.view_host()(m,nn).rank;
+                p.remote_gid = nghbr_h.view_host()(m,nn).gid;
                 p.nlev = nlev_n;
-                p.m_lev = mblev_h.h_view(m);
+                p.m_lev = mblev_h.view_host()(m);
                 pairs.push_back(p);
               }
             }
@@ -1825,7 +1826,7 @@ TaskStatus MultigridBoundaryValues::FillFineCoarseMGGhosts(DvceArray5D<Real> &u)
             for (int j = 0; j < ntot; ++j)
               for (int i = 0; i < ntot; ++i)
                 sdata[p][idx++] = u(bm, v, k, j, i);
-        int dn = nghbr_h.h_view(bm, pairs[p].n).dest;
+        int dn = nghbr_h.view_host()(bm, pairs[p].n).dest;
         int rlid = pairs[p].remote_gid
                    - pmy_pack->pmesh->gids_eachrank[pairs[p].remote_rank];
         int stag = CreateBvals_MPI_Tag(rlid, dn + 64);
@@ -1840,7 +1841,7 @@ TaskStatus MultigridBoundaryValues::FillFineCoarseMGGhosts(DvceArray5D<Real> &u)
         auto &pr = pairs[p];
         int ml = pr.m;
         // Compute child offsets from global LogicalLocation data
-        int gid_ml = pmy_pack->pmb->mb_gid.h_view(ml);
+        int gid_ml = pmy_pack->pmb->mb_gid.view_host()(ml);
         LogicalLocation &loc_ml = pmy_pack->pmesh->lloc_eachmb[gid_ml];
         int root_level = pmy_pack->pmesh->root_level;
         int cx = (loc_ml.level > root_level) ?
@@ -2244,13 +2245,13 @@ TaskStatus MultigridBoundaryValues::PackAndSendMG(const DvceArray5D<Real> &u) {
     const int n = (tmember.league_rank() - m * nnghbr * nvar) / nvar;
     const int v = tmember.league_rank() - m * nnghbr * nvar - n * nvar;
 
-    if (nghbr.d_view(m, n).gid < 0) {
+    if (nghbr.view_device()(m, n).gid < 0) {
       tmember.team_barrier();
       return;
     }
 
-    int nlev = nghbr.d_view(m, n).lev;
-    int mlev = mblev.d_view(m);
+    int nlev = nghbr.view_device()(m, n).lev;
+    int mlev = mblev.view_device()(m);
 
     bool is_fc = (nlev != mlev);
     if (is_fc && skip_fc_this_level) {
@@ -2280,8 +2281,8 @@ TaskStatus MultigridBoundaryValues::PackAndSendMG(const DvceArray5D<Real> &u) {
     int nk = ku - kl + 1;
     int nkj = nk * nj;
 
-    int dm = nghbr.d_view(m, n).gid - mbgid.d_view(0);
-    int dn = nghbr.d_view(m, n).dest;
+    int dm = nghbr.view_device()(m, n).gid - mbgid.view_device()(0);
+    int dn = nghbr.view_device()(m, n).dest;
 
     if (is_coarser) {
       // Restricted data is pre-computed in coarse_buf_ by FillCoarseMG:
@@ -2292,7 +2293,7 @@ TaskStatus MultigridBoundaryValues::PackAndSendMG(const DvceArray5D<Real> &u) {
         int k = idx / nj;
         int j = (idx - k * nj) + jl;
         k += kl;
-        if (nghbr.d_view(m, n).rank == my_rank) {
+        if (nghbr.view_device()(m, n).rank == my_rank) {
           Kokkos::parallel_for(Kokkos::ThreadVectorRange(tmember, il, iu + 1),
           [&](const int i) {
             rbuf[dn].vars(dm, (i-il + ni*(j-jl + nj*(k-kl + nk*v))))
@@ -2317,7 +2318,7 @@ TaskStatus MultigridBoundaryValues::PackAndSendMG(const DvceArray5D<Real> &u) {
         int j = (idx - k * nj) + jl;
         k += kl;
 
-        if (nghbr.d_view(m, n).rank == my_rank) {
+        if (nghbr.view_device()(m, n).rank == my_rank) {
           Kokkos::parallel_for(Kokkos::ThreadVectorRange(tmember, il, iu + 1),
           [&](const int i) {
             rbuf[dn].vars(dm, (i-il + ni*(j-jl + nj*(k-kl + nk*v))))
@@ -2344,9 +2345,9 @@ TaskStatus MultigridBoundaryValues::PackAndSendMG(const DvceArray5D<Real> &u) {
   bool has_cross_rank = false;
   for (int m=0; m<nmb && !has_cross_rank; ++m) {
     for (int n=0; n<nnghbr && !has_cross_rank; ++n) {
-      if (nghbr.h_view(m,n).gid >= 0 && nghbr.h_view(m,n).rank != my_rank) {
-        int nlev_h = nghbr.h_view(m,n).lev;
-        int mlev_h = mblev.h_view(m);
+      if (nghbr.view_host()(m,n).gid >= 0 && nghbr.view_host()(m,n).rank != my_rank) {
+        int nlev_h = nghbr.view_host()(m,n).lev;
+        int mlev_h = mblev.view_host()(m);
         bool is_fc_h = (nlev_h != mlev_h);
         if (is_fc_h && skip_fc_this_level) continue;
         has_cross_rank = true;
@@ -2446,13 +2447,13 @@ TaskStatus MultigridBoundaryValues::RecvAndUnpackMG(DvceArray5D<Real> &u) {
     const int n = (tmember.league_rank() - m * nnghbr * nvar) / nvar;
     const int v = tmember.league_rank() - m * nnghbr * nvar - n * nvar;
 
-    if (nghbr.d_view(m, n).gid < 0) {
+    if (nghbr.view_device()(m, n).gid < 0) {
       tmember.team_barrier();
       return;
     }
 
-    int nlev = nghbr.d_view(m, n).lev;
-    int mlev = mblev.d_view(m);
+    int nlev = nghbr.view_device()(m, n).lev;
+    int mlev = mblev.view_device()(m);
 
     bool is_fc = (nlev != mlev);
     if (is_fc && skip_fc_this_level) {

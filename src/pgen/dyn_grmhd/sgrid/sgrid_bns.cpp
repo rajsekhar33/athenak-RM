@@ -182,9 +182,9 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   // TODO(JMF): This needs to be tested on CPUs to ensure that it functions
   // properly; In theory, create_mirror_view shouldn't copy the data unless it's
   // in a different memory space.
-  HostArray5D<Real>::HostMirror host_u_adm = create_mirror_view(u_adm);
-  HostArray5D<Real>::HostMirror host_w0 = create_mirror_view(w0);
-  HostArray5D<Real>::HostMirror host_u_z4c = create_mirror_view(u_z4c);
+  HostArray5D<Real>::host_mirror_type host_u_adm = create_mirror_view(u_adm);
+  HostArray5D<Real>::host_mirror_type host_w0 = create_mirror_view(w0);
+  HostArray5D<Real>::host_mirror_type host_u_z4c = create_mirror_view(u_z4c);
   adm::ADM::ADMhost_vars host_adm;
   host_adm.alpha.InitWithShallowSlice(host_u_z4c, z4c::Z4c::I_Z4C_ALPHA);
   host_adm.beta_u.InitWithShallowSlice(host_u_z4c, z4c::Z4c::I_Z4C_BETAX,
@@ -208,18 +208,18 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     for (int k = 0; k < ncells3; k++)
       for (int j = 0; j < ncells2; j++)
         for (int i = 0; i < ncells1; i++) {
-          Real &x1min = size.h_view(m).x1min;
+          Real &x1min = size.view_host()(m).x1min;
           // not to be confused by xmax1, which is used by SGRID
-          Real &x1max = size.h_view(m).x1max;
+          Real &x1max = size.view_host()(m).x1max;
           int nx1 = indcs.nx1;
 
-          Real &x2min = size.h_view(m).x2min;
+          Real &x2min = size.view_host()(m).x2min;
           // not to be confused by xmax2, which is used by SGRID
-          Real &x2max = size.h_view(m).x2max;
+          Real &x2max = size.view_host()(m).x2max;
           int nx2 = indcs.nx2;
 
-          Real &x3min = size.h_view(m).x3min;
-          Real &x3max = size.h_view(m).x3max;
+          Real &x3min = size.view_host()(m).x3min;
+          Real &x3max = size.view_host()(m).x3max;
           int nx3 = indcs.nx3;
 
           const Real z = CellCenterX(k - ks, nx3, x3min, x3max);

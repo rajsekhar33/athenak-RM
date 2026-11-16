@@ -93,46 +93,46 @@ void CoarsenedBinaryOutput::LoadOutputData(Mesh *pm) {
     // check for slicing in each dimension, adjust start/end indices accordingly
     if (out_params.slice1) {
       // skip this MB if slice is out of range
-      if (out_params.slice_x1 <  size.h_view(m).x1min ||
-          out_params.slice_x1 >= size.h_view(m).x1max) { continue; }
+      if (out_params.slice_x1 <  size.view_host()(m).x1min ||
+          out_params.slice_x1 >= size.view_host()(m).x1max) { continue; }
       // set index of slice
       ois = CellCenterIndex(out_params.slice_x1, indcs.nx1,
-                            size.h_view(m).x1min, size.h_view(m).x1max);
+                            size.view_host()(m).x1min, size.view_host()(m).x1max);
       ois += indcs.is;
       oie = ois;
     }
 
     if (out_params.slice2) {
       // skip this MB if slice is out of range
-      if (out_params.slice_x2 <  size.h_view(m).x2min ||
-          out_params.slice_x2 >= size.h_view(m).x2max) { continue; }
+      if (out_params.slice_x2 <  size.view_host()(m).x2min ||
+          out_params.slice_x2 >= size.view_host()(m).x2max) { continue; }
       // set index of slice
       ojs = CellCenterIndex(out_params.slice_x2, indcs.nx2,
-                            size.h_view(m).x2min, size.h_view(m).x2max);
+                            size.view_host()(m).x2min, size.view_host()(m).x2max);
       ojs += indcs.js;
       oje = ojs;
     }
 
     if (out_params.slice3) {
       // skip this MB if slice is out of range
-      if (out_params.slice_x3 <  size.h_view(m).x3min ||
-          out_params.slice_x3 >= size.h_view(m).x3max) { continue; }
+      if (out_params.slice_x3 <  size.view_host()(m).x3min ||
+          out_params.slice_x3 >= size.view_host()(m).x3max) { continue; }
       // set index of slice
       oks = CellCenterIndex(out_params.slice_x3, indcs.nx3,
-                            size.h_view(m).x3min, size.h_view(m).x3max);
+                            size.view_host()(m).x3min, size.view_host()(m).x3max);
       oks += indcs.ks;
       oke = oks;
     }
 
     // set coordinate geometry information for MB
-    Real x1min = size.h_view(m).x1min;
-    Real x1max = size.h_view(m).x1max;
-    Real x2min = size.h_view(m).x2min;
-    Real x2max = size.h_view(m).x2max;
-    Real x3min = size.h_view(m).x3min;
-    Real x3max = size.h_view(m).x3max;
+    Real x1min = size.view_host()(m).x1min;
+    Real x1max = size.view_host()(m).x1max;
+    Real x2min = size.view_host()(m).x2min;
+    Real x2max = size.view_host()(m).x2max;
+    Real x3min = size.view_host()(m).x3min;
+    Real x3max = size.view_host()(m).x3max;
 
-    int id = pm->pmb_pack->pmb->mb_gid.h_view(m);
+    int id = pm->pmb_pack->pmb->mb_gid.view_host()(m);
     outmbs.emplace_back(id,ois,oie,ojs,oje,oks,oke,x1min,x1max,x2min,x2max,x3min,x3max);
   }
 
@@ -272,7 +272,7 @@ void CoarsenedBinaryOutput::LoadOutputData(Mesh *pm) {
 
 
       // Now, create a host mirror for the coarsened data.
-      DvceArray4D<Real>::HostMirror h_output_var = Kokkos::create_mirror(
+      DvceArray4D<Real>::host_mirror_type h_output_var = Kokkos::create_mirror(
         d_output_var_coarsened
       );
 

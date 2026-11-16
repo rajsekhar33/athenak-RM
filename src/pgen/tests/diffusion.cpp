@@ -125,9 +125,12 @@ void ViscousHelix(ParameterInput *pin, Mesh *pm, const bool restart) {
           idx.ks, idx.ke, idx.js, idx.je, idx.is, idx.ie,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
     const Real x[3] = {
-        CellCenterX(i-idx.is,idx.nx1,size.d_view(m).x1min,size.d_view(m).x1max),
-        CellCenterX(j-idx.js,idx.nx2,size.d_view(m).x2min,size.d_view(m).x2max),
-        CellCenterX(k-idx.ks,idx.nx3,size.d_view(m).x3min,size.d_view(m).x3max)};
+        CellCenterX(i-idx.is,idx.nx1,size.view_device()(m).x1min,
+            size.view_device()(m).x1max),
+        CellCenterX(j-idx.js,idx.nx2,size.view_device()(m).x2min,
+            size.view_device()(m).x2max),
+        CellCenterX(k-idx.ks,idx.nx3,size.view_device()(m).x3min,
+            size.view_device()(m).x3max)};
     Real modulation = cos(twopi*(x[0]-domain.x1min)/(domain.x1max-domain.x1min));
     if (multi_d) {
       modulation *= cos(twopi*(x[1]-domain.x2min)/(domain.x2max-domain.x2min));
@@ -226,12 +229,14 @@ void ResistiveHelix(ParameterInput *pin, Mesh *pm, const bool restart) {
   const int nvars = pmhd->nmhd + pmhd->nscalars;
   par_for("pgen_resist_helix", DevExeSpace(), 0, pmbp->nmb_thispack-1,
           ks, ke, js, je, is, ie, KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real x = CellCenterX(i-is, indcs.nx1, size.d_view(m).x1min,
-                        size.d_view(m).x1max);
+    Real x = CellCenterX(i-is, indcs.nx1, size.view_device()(m).x1min,
+                        size.view_device()(m).x1max);
     if (axis == 2) {
-      x = CellCenterX(j-js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
+      x = CellCenterX(j-js, indcs.nx2, size.view_device()(m).x2min,
+          size.view_device()(m).x2max);
     } else if (axis == 3) {
-      x = CellCenterX(k-ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
+      x = CellCenterX(k-ks, indcs.nx3, size.view_device()(m).x3min,
+          size.view_device()(m).x3max);
     }
     const Real bc = amplitude*cos(wave*(x-xmin));
     const Real bs = amplitude*sin(wave*(x-xmin));
@@ -247,17 +252,17 @@ void ResistiveHelix(ParameterInput *pin, Mesh *pm, const bool restart) {
     for (int n=0; n<nvars; ++n) u(m,n,k,j,i) = 0.0;
     Real modulation = 1.0;
     if (density_amp != 0.0) {
-      const Real x1 = CellCenterX(i-is, indcs.nx1, size.d_view(m).x1min,
-                                  size.d_view(m).x1max);
+      const Real x1 = CellCenterX(i-is, indcs.nx1, size.view_device()(m).x1min,
+                                  size.view_device()(m).x1max);
       modulation = cos(twopi*(x1-domain.x1min)/(domain.x1max-domain.x1min));
       if (indcs.nx2 > 1) {
-        const Real x2 = CellCenterX(j-js, indcs.nx2, size.d_view(m).x2min,
-                                    size.d_view(m).x2max);
+        const Real x2 = CellCenterX(j-js, indcs.nx2, size.view_device()(m).x2min,
+                                    size.view_device()(m).x2max);
         modulation *= cos(twopi*(x2-domain.x2min)/(domain.x2max-domain.x2min));
       }
       if (indcs.nx3 > 1) {
-        const Real x3 = CellCenterX(k-ks, indcs.nx3, size.d_view(m).x3min,
-                                    size.d_view(m).x3max);
+        const Real x3 = CellCenterX(k-ks, indcs.nx3, size.view_device()(m).x3min,
+                                    size.view_device()(m).x3max);
         modulation *= cos(twopi*(x3-domain.x3min)/(domain.x3max-domain.x3min));
       }
     }
@@ -433,16 +438,16 @@ void ProblemGenerator::Diffusion(ParameterInput *pin, const bool restart) {
 
     par_for("pgen_diff", DevExeSpace(),0,(pmbp->nmb_thispack-1),ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m,int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
       Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
       Real cons[5];
@@ -491,16 +496,16 @@ void ProblemGenerator::Diffusion(ParameterInput *pin, const bool restart) {
     // Gaussian evaluated at the cell-centered spread coordinates and div(B)=0.
     par_for("pgen_resist_b", DevExeSpace(),0,(pmbp->nmb_thispack-1),ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m,int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
       Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
       Real g = DiffusionGaussian(dv, coef, time, x1v, x2v, x3v);
@@ -589,18 +594,18 @@ void GaussianProfileBCs(Mesh *pm) {
   // X1 boundaries
   par_for("diffbc_x1", DevExeSpace(),0,(nmb-1),0,(n3-1),0,(n2-1),0,(ng-1),
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
     Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
     Real cons[5];
 
     // inner x1
-    if (mb_bcs.d_view(m,BoundaryFace::inner_x1) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::inner_x1) == BoundaryFlag::user) {
       Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
       DiffusionConsState(dv, coef, gamma, time, x1v, x2v, x3v, cons);
       u0(m,IDN,k,j,i) = cons[IDN];
@@ -610,7 +615,7 @@ void GaussianProfileBCs(Mesh *pm) {
       u0(m,IEN,k,j,i) = cons[IEN];
     }
     // outer x1
-    if (mb_bcs.d_view(m,BoundaryFace::outer_x1) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::outer_x1) == BoundaryFlag::user) {
       Real x1v = CellCenterX((ie+i+1)-is, indcs.nx1, x1min, x1max);
       DiffusionConsState(dv, coef, gamma, time, x1v, x2v, x3v, cons);
       u0(m,IDN,k,j,(ie+i+1)) = cons[IDN];
@@ -625,18 +630,18 @@ void GaussianProfileBCs(Mesh *pm) {
   // X2 boundaries
   par_for("diffbc_x2", DevExeSpace(),0,(nmb-1),0,(n3-1),0,(ng-1),0,(n1-1),
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
     Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
     Real cons[5];
 
     // inner x2
-    if (mb_bcs.d_view(m,BoundaryFace::inner_x2) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::inner_x2) == BoundaryFlag::user) {
       Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
       DiffusionConsState(dv, coef, gamma, time, x1v, x2v, x3v, cons);
       u0(m,IDN,k,j,i) = cons[IDN];
@@ -646,7 +651,7 @@ void GaussianProfileBCs(Mesh *pm) {
       u0(m,IEN,k,j,i) = cons[IEN];
     }
     // outer x2
-    if (mb_bcs.d_view(m,BoundaryFace::outer_x2) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::outer_x2) == BoundaryFlag::user) {
       Real x2v = CellCenterX((je+j+1)-js, indcs.nx2, x2min, x2max);
       DiffusionConsState(dv, coef, gamma, time, x1v, x2v, x3v, cons);
       u0(m,IDN,k,(je+j+1),i) = cons[IDN];
@@ -661,18 +666,18 @@ void GaussianProfileBCs(Mesh *pm) {
   // X3 boundaries
   par_for("diffbc_x3", DevExeSpace(),0,(nmb-1),0,(ng-1),0,(n2-1),0,(n1-1),
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
     Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
     Real cons[5];
 
     // inner x3
-    if (mb_bcs.d_view(m,BoundaryFace::inner_x3) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::inner_x3) == BoundaryFlag::user) {
       Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
       DiffusionConsState(dv, coef, gamma, time, x1v, x2v, x3v, cons);
       u0(m,IDN,k,j,i) = cons[IDN];
@@ -682,7 +687,7 @@ void GaussianProfileBCs(Mesh *pm) {
       u0(m,IEN,k,j,i) = cons[IEN];
     }
     // outer x3
-    if (mb_bcs.d_view(m,BoundaryFace::outer_x3) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::outer_x3) == BoundaryFlag::user) {
       Real x3v = CellCenterX((ke+k+1)-ks, indcs.nx3, x3min, x3max);
       DiffusionConsState(dv, coef, gamma, time, x1v, x2v, x3v, cons);
       u0(m,IDN,(ke+k+1),j,i) = cons[IDN];

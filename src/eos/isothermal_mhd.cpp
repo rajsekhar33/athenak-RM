@@ -6,6 +6,8 @@
 //! \file isothermal_mhd.cpp
 //! \brief derived class that implements isothermal EOS for nonrelativistic mhd
 
+#include <cfloat>
+
 #include "athena.hpp"
 #include "parameter_input.hpp"
 #include "mesh/mesh.hpp"

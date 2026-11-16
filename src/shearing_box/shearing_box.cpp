@@ -35,10 +35,10 @@ ShearingBox::ShearingBox(MeshBlockPack *ppack, ParameterInput *pin) :
   std::vector<int> tmp_ix1bndry_gid, tmp_ox1bndry_gid;
   auto &mbbcs = ppack->pmb->mb_bcs;
   for (int m=0; m<(ppack->nmb_thispack); ++m) {
-    if (mbbcs.h_view(m,BoundaryFace::inner_x1) == BoundaryFlag::shear_periodic) {
+    if (mbbcs.view_host()(m,BoundaryFace::inner_x1) == BoundaryFlag::shear_periodic) {
       tmp_ix1bndry_gid.push_back(m + ppack->gids);
     }
-    if (mbbcs.h_view(m,BoundaryFace::outer_x1) == BoundaryFlag::shear_periodic) {
+    if (mbbcs.view_host()(m,BoundaryFace::outer_x1) == BoundaryFlag::shear_periodic) {
       tmp_ox1bndry_gid.push_back(m + ppack->gids);
     }
   }
@@ -52,15 +52,15 @@ ShearingBox::ShearingBox(MeshBlockPack *ppack, ParameterInput *pin) :
   Kokkos::realloc(x1bndry_mbgid, 2, nmb);
   for (int n=0; n<2; ++n) {
     for (int m=0; m<nmb; ++m) {
-      x1bndry_mbgid.h_view(n,m) = -1;
+      x1bndry_mbgid.view_host()(n,m) = -1;
     }
   }
   // load GIDs of meshblocks at x1 boundaries into DualArray
   for (int m=0; m<nmb_x1bndry(0); ++m) {
-    x1bndry_mbgid.h_view(0,m) = tmp_ix1bndry_gid[m];
+    x1bndry_mbgid.view_host()(0,m) = tmp_ix1bndry_gid[m];
   }
   for (int m=0; m<nmb_x1bndry(1); ++m) {
-    x1bndry_mbgid.h_view(1,m) = tmp_ox1bndry_gid[m];
+    x1bndry_mbgid.view_host()(1,m) = tmp_ox1bndry_gid[m];
   }
   // sync with device
   x1bndry_mbgid.template modify<HostMemSpace>();

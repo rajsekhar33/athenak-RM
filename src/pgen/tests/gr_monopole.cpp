@@ -119,16 +119,16 @@ void ProblemGenerator::Monopole(ParameterInput *pin, const bool restart) {
 
   par_for("pgen_monopole1", DevExeSpace(), 0,nmb-1,ks,ke,js,je,is,ie,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
     // Calculate Kerr-Schild r
@@ -169,27 +169,27 @@ void ProblemGenerator::Monopole(ParameterInput *pin, const bool restart) {
 
   par_for("pgen_monopole2", DevExeSpace(), 0,nmb-1,ks,ke+1,js,je+1,is,ie+1,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     int nx1 = indcs.nx1;
     Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
     Real x1f   = LeftEdgeX(i  -is, nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     int nx2 = indcs.nx2;
     Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
     Real x2f   = LeftEdgeX(j  -js, nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     int nx3 = indcs.nx3;
     Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
     Real x3f   = LeftEdgeX(k  -ks, nx3, x3min, x3max);
 
-    Real dx1 = size.d_view(m).dx1;
-    Real dx2 = size.d_view(m).dx2;
-    Real dx3 = size.d_view(m).dx3;
+    Real dx1 = size.view_device()(m).dx1;
+    Real dx2 = size.view_device()(m).dx2;
+    Real dx3 = size.view_device()(m).dx3;
 
     a1(m,k,j,i) = A1(a_norm, spin, x1v, x2f, x3f, r_r);
     a2(m,k,j,i) = A2(a_norm, spin, x1f, x2v, x3f, r_r);
@@ -201,93 +201,96 @@ void ProblemGenerator::Monopole(ParameterInput *pin, const bool restart) {
 
     // Correct A1 at x2-faces, x3-faces, and x2x3-edges
     if ((indcs.nx2 > 1 &&
-        ((nghbr.d_view(m,8 ).lev > mblev.d_view(m) && j==js) ||
-        (nghbr.d_view(m,9 ).lev > mblev.d_view(m) && j==js) ||
-        (nghbr.d_view(m,10).lev > mblev.d_view(m) && j==js) ||
-        (nghbr.d_view(m,11).lev > mblev.d_view(m) && j==js) ||
-        (nghbr.d_view(m,12).lev > mblev.d_view(m) && j==je+1) ||
-        (nghbr.d_view(m,13).lev > mblev.d_view(m) && j==je+1) ||
-        (nghbr.d_view(m,14).lev > mblev.d_view(m) && j==je+1) ||
-        (nghbr.d_view(m,15).lev > mblev.d_view(m) && j==je+1))) ||
+        ((nghbr.view_device()(m,8 ).lev > mblev.view_device()(m) && j==js) ||
+        (nghbr.view_device()(m,9 ).lev > mblev.view_device()(m) && j==js) ||
+        (nghbr.view_device()(m,10).lev > mblev.view_device()(m) && j==js) ||
+        (nghbr.view_device()(m,11).lev > mblev.view_device()(m) && j==js) ||
+        (nghbr.view_device()(m,12).lev > mblev.view_device()(m) && j==je+1) ||
+        (nghbr.view_device()(m,13).lev > mblev.view_device()(m) && j==je+1) ||
+        (nghbr.view_device()(m,14).lev > mblev.view_device()(m) && j==je+1) ||
+        (nghbr.view_device()(m,15).lev > mblev.view_device()(m) && j==je+1))) ||
         (indcs.nx3 > 1 &&
-        ((nghbr.d_view(m,24).lev > mblev.d_view(m) && k==ks) ||
-        (nghbr.d_view(m,25).lev > mblev.d_view(m) && k==ks) ||
-        (nghbr.d_view(m,26).lev > mblev.d_view(m) && k==ks) ||
-        (nghbr.d_view(m,27).lev > mblev.d_view(m) && k==ks) ||
-        (nghbr.d_view(m,28).lev > mblev.d_view(m) && k==ke+1) ||
-        (nghbr.d_view(m,29).lev > mblev.d_view(m) && k==ke+1) ||
-        (nghbr.d_view(m,30).lev > mblev.d_view(m) && k==ke+1) ||
-        (nghbr.d_view(m,31).lev > mblev.d_view(m) && k==ke+1) ||
-        (nghbr.d_view(m,40).lev > mblev.d_view(m) && j==js && k==ks) ||
-        (nghbr.d_view(m,41).lev > mblev.d_view(m) && j==js && k==ks) ||
-        (nghbr.d_view(m,42).lev > mblev.d_view(m) && j==je+1 && k==ks) ||
-        (nghbr.d_view(m,43).lev > mblev.d_view(m) && j==je+1 && k==ks) ||
-        (nghbr.d_view(m,44).lev > mblev.d_view(m) && j==js && k==ke+1) ||
-        (nghbr.d_view(m,45).lev > mblev.d_view(m) && j==js && k==ke+1) ||
-        (nghbr.d_view(m,46).lev > mblev.d_view(m) && j==je+1 && k==ke+1) ||
-        (nghbr.d_view(m,47).lev > mblev.d_view(m) && j==je+1 && k==ke+1)))) {
+        ((nghbr.view_device()(m,24).lev > mblev.view_device()(m) && k==ks) ||
+        (nghbr.view_device()(m,25).lev > mblev.view_device()(m) && k==ks) ||
+        (nghbr.view_device()(m,26).lev > mblev.view_device()(m) && k==ks) ||
+        (nghbr.view_device()(m,27).lev > mblev.view_device()(m) && k==ks) ||
+        (nghbr.view_device()(m,28).lev > mblev.view_device()(m) && k==ke+1) ||
+        (nghbr.view_device()(m,29).lev > mblev.view_device()(m) && k==ke+1) ||
+        (nghbr.view_device()(m,30).lev > mblev.view_device()(m) && k==ke+1) ||
+        (nghbr.view_device()(m,31).lev > mblev.view_device()(m) && k==ke+1) ||
+        (nghbr.view_device()(m,40).lev > mblev.view_device()(m) && j==js && k==ks) ||
+        (nghbr.view_device()(m,41).lev > mblev.view_device()(m) && j==js && k==ks) ||
+        (nghbr.view_device()(m,42).lev > mblev.view_device()(m) && j==je+1 && k==ks) ||
+        (nghbr.view_device()(m,43).lev > mblev.view_device()(m) && j==je+1 && k==ks) ||
+        (nghbr.view_device()(m,44).lev > mblev.view_device()(m) && j==js && k==ke+1) ||
+        (nghbr.view_device()(m,45).lev > mblev.view_device()(m) && j==js && k==ke+1) ||
+        (nghbr.view_device()(m,46).lev > mblev.view_device()(m) && j==je+1 && k==ke+1) ||
+        (nghbr.view_device()(m,47).lev > mblev.view_device()(m) && j==je+1 && k==ke
+            +1)))) {
       Real xl = x1v + 0.25*dx1;
       Real xr = x1v - 0.25*dx1;
       a1(m,k,j,i) = 0.5*(A1(a_norm,spin,xl,x2f,x3f,r_r) + A1(a_norm,spin,xr,x2f,x3f,r_r));
     }
 
     // Correct A2 at x1-faces, x3-faces, and x1x3-edges
-    if ((nghbr.d_view(m,0 ).lev > mblev.d_view(m) && i==is) ||
-        (nghbr.d_view(m,1 ).lev > mblev.d_view(m) && i==is) ||
-        (nghbr.d_view(m,2 ).lev > mblev.d_view(m) && i==is) ||
-        (nghbr.d_view(m,3 ).lev > mblev.d_view(m) && i==is) ||
-        (nghbr.d_view(m,4 ).lev > mblev.d_view(m) && i==ie+1) ||
-        (nghbr.d_view(m,5 ).lev > mblev.d_view(m) && i==ie+1) ||
-        (nghbr.d_view(m,6 ).lev > mblev.d_view(m) && i==ie+1) ||
-        (nghbr.d_view(m,7 ).lev > mblev.d_view(m) && i==ie+1) ||
+    if ((nghbr.view_device()(m,0 ).lev > mblev.view_device()(m) && i==is) ||
+        (nghbr.view_device()(m,1 ).lev > mblev.view_device()(m) && i==is) ||
+        (nghbr.view_device()(m,2 ).lev > mblev.view_device()(m) && i==is) ||
+        (nghbr.view_device()(m,3 ).lev > mblev.view_device()(m) && i==is) ||
+        (nghbr.view_device()(m,4 ).lev > mblev.view_device()(m) && i==ie+1) ||
+        (nghbr.view_device()(m,5 ).lev > mblev.view_device()(m) && i==ie+1) ||
+        (nghbr.view_device()(m,6 ).lev > mblev.view_device()(m) && i==ie+1) ||
+        (nghbr.view_device()(m,7 ).lev > mblev.view_device()(m) && i==ie+1) ||
         (indcs.nx3 > 1 &&
-        ((nghbr.d_view(m,24).lev > mblev.d_view(m) && k==ks) ||
-        (nghbr.d_view(m,25).lev > mblev.d_view(m) && k==ks) ||
-        (nghbr.d_view(m,26).lev > mblev.d_view(m) && k==ks) ||
-        (nghbr.d_view(m,27).lev > mblev.d_view(m) && k==ks) ||
-        (nghbr.d_view(m,28).lev > mblev.d_view(m) && k==ke+1) ||
-        (nghbr.d_view(m,29).lev > mblev.d_view(m) && k==ke+1) ||
-        (nghbr.d_view(m,30).lev > mblev.d_view(m) && k==ke+1) ||
-        (nghbr.d_view(m,31).lev > mblev.d_view(m) && k==ke+1) ||
-        (nghbr.d_view(m,32).lev > mblev.d_view(m) && i==is && k==ks) ||
-        (nghbr.d_view(m,33).lev > mblev.d_view(m) && i==is && k==ks) ||
-        (nghbr.d_view(m,34).lev > mblev.d_view(m) && i==ie+1 && k==ks) ||
-        (nghbr.d_view(m,35).lev > mblev.d_view(m) && i==ie+1 && k==ks) ||
-        (nghbr.d_view(m,36).lev > mblev.d_view(m) && i==is && k==ke+1) ||
-        (nghbr.d_view(m,37).lev > mblev.d_view(m) && i==is && k==ke+1) ||
-        (nghbr.d_view(m,38).lev > mblev.d_view(m) && i==ie+1 && k==ke+1) ||
-        (nghbr.d_view(m,39).lev > mblev.d_view(m) && i==ie+1 && k==ke+1)))) {
+        ((nghbr.view_device()(m,24).lev > mblev.view_device()(m) && k==ks) ||
+        (nghbr.view_device()(m,25).lev > mblev.view_device()(m) && k==ks) ||
+        (nghbr.view_device()(m,26).lev > mblev.view_device()(m) && k==ks) ||
+        (nghbr.view_device()(m,27).lev > mblev.view_device()(m) && k==ks) ||
+        (nghbr.view_device()(m,28).lev > mblev.view_device()(m) && k==ke+1) ||
+        (nghbr.view_device()(m,29).lev > mblev.view_device()(m) && k==ke+1) ||
+        (nghbr.view_device()(m,30).lev > mblev.view_device()(m) && k==ke+1) ||
+        (nghbr.view_device()(m,31).lev > mblev.view_device()(m) && k==ke+1) ||
+        (nghbr.view_device()(m,32).lev > mblev.view_device()(m) && i==is && k==ks) ||
+        (nghbr.view_device()(m,33).lev > mblev.view_device()(m) && i==is && k==ks) ||
+        (nghbr.view_device()(m,34).lev > mblev.view_device()(m) && i==ie+1 && k==ks) ||
+        (nghbr.view_device()(m,35).lev > mblev.view_device()(m) && i==ie+1 && k==ks) ||
+        (nghbr.view_device()(m,36).lev > mblev.view_device()(m) && i==is && k==ke+1) ||
+        (nghbr.view_device()(m,37).lev > mblev.view_device()(m) && i==is && k==ke+1) ||
+        (nghbr.view_device()(m,38).lev > mblev.view_device()(m) && i==ie+1 && k==ke+1) ||
+        (nghbr.view_device()(m,39).lev > mblev.view_device()(m) && i==ie+1 && k==ke
+            +1)))) {
       Real xl = x2v + 0.25*dx2;
       Real xr = x2v - 0.25*dx2;
       a2(m,k,j,i) = 0.5*(A2(a_norm,spin,x1f,xl,x3f,r_r) + A2(a_norm,spin,x1f,xr,x3f,r_r));
     }
 
     // Correct A3 at x1-faces, x2-faces, and x1x2-edges
-    if ((nghbr.d_view(m,0 ).lev > mblev.d_view(m) && i==is) ||
-        (nghbr.d_view(m,1 ).lev > mblev.d_view(m) && i==is) ||
-        (nghbr.d_view(m,2 ).lev > mblev.d_view(m) && i==is) ||
-        (nghbr.d_view(m,3 ).lev > mblev.d_view(m) && i==is) ||
-        (nghbr.d_view(m,4 ).lev > mblev.d_view(m) && i==ie+1) ||
-        (nghbr.d_view(m,5 ).lev > mblev.d_view(m) && i==ie+1) ||
-        (nghbr.d_view(m,6 ).lev > mblev.d_view(m) && i==ie+1) ||
-        (nghbr.d_view(m,7 ).lev > mblev.d_view(m) && i==ie+1) ||
+    if ((nghbr.view_device()(m,0 ).lev > mblev.view_device()(m) && i==is) ||
+        (nghbr.view_device()(m,1 ).lev > mblev.view_device()(m) && i==is) ||
+        (nghbr.view_device()(m,2 ).lev > mblev.view_device()(m) && i==is) ||
+        (nghbr.view_device()(m,3 ).lev > mblev.view_device()(m) && i==is) ||
+        (nghbr.view_device()(m,4 ).lev > mblev.view_device()(m) && i==ie+1) ||
+        (nghbr.view_device()(m,5 ).lev > mblev.view_device()(m) && i==ie+1) ||
+        (nghbr.view_device()(m,6 ).lev > mblev.view_device()(m) && i==ie+1) ||
+        (nghbr.view_device()(m,7 ).lev > mblev.view_device()(m) && i==ie+1) ||
         (indcs.nx2 > 1 &&
-        ((nghbr.d_view(m,8 ).lev > mblev.d_view(m) && j==js) ||
-        (nghbr.d_view(m,9 ).lev > mblev.d_view(m) && j==js) ||
-        (nghbr.d_view(m,10).lev > mblev.d_view(m) && j==js) ||
-        (nghbr.d_view(m,11).lev > mblev.d_view(m) && j==js) ||
-        (nghbr.d_view(m,12).lev > mblev.d_view(m) && j==je+1) ||
-        (nghbr.d_view(m,13).lev > mblev.d_view(m) && j==je+1) ||
-        (nghbr.d_view(m,14).lev > mblev.d_view(m) && j==je+1) ||
-        (nghbr.d_view(m,15).lev > mblev.d_view(m) && j==je+1) ||
-        (nghbr.d_view(m,16).lev > mblev.d_view(m) && i==is && j==js) ||
-        (nghbr.d_view(m,17).lev > mblev.d_view(m) && i==is && j==js) ||
-        (nghbr.d_view(m,18).lev > mblev.d_view(m) && i==ie+1 && j==js) ||
-        (nghbr.d_view(m,19).lev > mblev.d_view(m) && i==ie+1 && j==js) ||
-        (nghbr.d_view(m,20).lev > mblev.d_view(m) && i==is && j==je+1) ||
-        (nghbr.d_view(m,21).lev > mblev.d_view(m) && i==is && j==je+1) ||
-        (nghbr.d_view(m,22).lev > mblev.d_view(m) && i==ie+1 && j==je+1) ||
-        (nghbr.d_view(m,23).lev > mblev.d_view(m) && i==ie+1 && j==je+1)))) {
+        ((nghbr.view_device()(m,8 ).lev > mblev.view_device()(m) && j==js) ||
+        (nghbr.view_device()(m,9 ).lev > mblev.view_device()(m) && j==js) ||
+        (nghbr.view_device()(m,10).lev > mblev.view_device()(m) && j==js) ||
+        (nghbr.view_device()(m,11).lev > mblev.view_device()(m) && j==js) ||
+        (nghbr.view_device()(m,12).lev > mblev.view_device()(m) && j==je+1) ||
+        (nghbr.view_device()(m,13).lev > mblev.view_device()(m) && j==je+1) ||
+        (nghbr.view_device()(m,14).lev > mblev.view_device()(m) && j==je+1) ||
+        (nghbr.view_device()(m,15).lev > mblev.view_device()(m) && j==je+1) ||
+        (nghbr.view_device()(m,16).lev > mblev.view_device()(m) && i==is && j==js) ||
+        (nghbr.view_device()(m,17).lev > mblev.view_device()(m) && i==is && j==js) ||
+        (nghbr.view_device()(m,18).lev > mblev.view_device()(m) && i==ie+1 && j==js) ||
+        (nghbr.view_device()(m,19).lev > mblev.view_device()(m) && i==ie+1 && j==js) ||
+        (nghbr.view_device()(m,20).lev > mblev.view_device()(m) && i==is && j==je+1) ||
+        (nghbr.view_device()(m,21).lev > mblev.view_device()(m) && i==is && j==je+1) ||
+        (nghbr.view_device()(m,22).lev > mblev.view_device()(m) && i==ie+1 && j==je+1) ||
+        (nghbr.view_device()(m,23).lev > mblev.view_device()(m) && i==ie+1 && j==je
+            +1)))) {
       Real xl = x3v + 0.25*dx3;
       Real xr = x3v - 0.25*dx3;
       a3(m,k,j,i) = 0.5*(A3(a_norm,spin,x1f,x2f,xl,r_r) + A3(a_norm,spin,x1f,x2f,xr,r_r));
@@ -298,9 +301,9 @@ void ProblemGenerator::Monopole(ParameterInput *pin, const bool restart) {
   par_for("pgen_torus2", DevExeSpace(), 0,nmb-1,ks,ke,js,je,is,ie,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
     // Compute face-centered fields from curl(A).
-    Real dx1 = size.d_view(m).dx1;
-    Real dx2 = size.d_view(m).dx2;
-    Real dx3 = size.d_view(m).dx3;
+    Real dx1 = size.view_device()(m).dx1;
+    Real dx2 = size.view_device()(m).dx2;
+    Real dx3 = size.view_device()(m).dx3;
 
     b0.x1f(m,k,j,i) = ((a3(m,k,j+1,i) - a3(m,k,j,i))/dx2 -
                        (a2(m,k+1,j,i) - a2(m,k,j,i))/dx3);
@@ -476,7 +479,7 @@ void ReflectingMonopole(Mesh *pm) {
   // Set X1-BCs on b0 and bcc0 if Meshblock face is at the edge of computational domain
   par_for("noinflow_field_x1", DevExeSpace(),0,(nmb-1),0,(n3-1),0,(n2-1),
   KOKKOS_LAMBDA(int m, int k, int j) {
-    if (mb_bcs.d_view(m,BoundaryFace::inner_x1) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::inner_x1) == BoundaryFlag::user) {
       for (int i=0; i<ng; ++i) {
         b0.x1f(m,k,j,is-i-1) = b0.x1f(m,k,j,is);
         b0.x2f(m,k,j,is-i-1) = b0.x2f(m,k,j,is);
@@ -485,7 +488,7 @@ void ReflectingMonopole(Mesh *pm) {
         if (k == n3-1) {b0.x3f(m,k+1,j,is-i-1) = b0.x3f(m,k+1,j,is);}
       }
     }
-    if (mb_bcs.d_view(m,BoundaryFace::outer_x1) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::outer_x1) == BoundaryFlag::user) {
       for (int i=0; i<ng; ++i) {
         b0.x1f(m,k,j,ie+i+2) = b0.x1f(m,k,j,ie+1);
         b0.x2f(m,k,j,ie+i+1) = b0.x2f(m,k,j,ie);
@@ -502,7 +505,7 @@ void ReflectingMonopole(Mesh *pm) {
   // Set X1-BCs on w0 if Meshblock face is at the edge of computational domain
   par_for("noinflow_hydro_x1", DevExeSpace(),0,(nmb-1),0,(nvar-1),0,(n3-1),0,(n2-1),
   KOKKOS_LAMBDA(int m, int n, int k, int j) {
-    if (mb_bcs.d_view(m,BoundaryFace::inner_x1) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::inner_x1) == BoundaryFlag::user) {
       for (int i=0; i<ng; ++i) {
         if (n==(IVX)) {
           w0_(m,n,k,j,is-i-1) = fmin(0.0,w0_(m,n,k,j,is));
@@ -511,7 +514,7 @@ void ReflectingMonopole(Mesh *pm) {
         }
       }
     }
-    if (mb_bcs.d_view(m,BoundaryFace::outer_x1) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::outer_x1) == BoundaryFlag::user) {
       for (int i=0; i<ng; ++i) {
         if (n==(IVX)) {
           w0_(m,n,k,j,ie+i+1) = fmax(0.0,w0_(m,n,k,j,ie));
@@ -529,7 +532,7 @@ void ReflectingMonopole(Mesh *pm) {
   // Set X2-BCs on b0 and bcc0 if Meshblock face is at the edge of computational domain
   par_for("noinflow_field_x2", DevExeSpace(),0,(nmb-1),0,(n3-1),0,(n1-1),
   KOKKOS_LAMBDA(int m, int k, int i) {
-    if (mb_bcs.d_view(m,BoundaryFace::inner_x2) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::inner_x2) == BoundaryFlag::user) {
       for (int j=0; j<ng; ++j) {
         b0.x1f(m,k,js-j-1,i) = b0.x1f(m,k,js,i);
         if (i == n1-1) {b0.x1f(m,k,js-j-1,i+1) = b0.x1f(m,k,js,i+1);}
@@ -538,7 +541,7 @@ void ReflectingMonopole(Mesh *pm) {
         if (k == n3-1) {b0.x3f(m,k+1,js-j-1,i) = b0.x3f(m,k+1,js,i);}
       }
     }
-    if (mb_bcs.d_view(m,BoundaryFace::outer_x2) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::outer_x2) == BoundaryFlag::user) {
       for (int j=0; j<ng; ++j) {
         b0.x1f(m,k,je+j+1,i) = b0.x1f(m,k,je,i);
         if (i == n1-1) {b0.x1f(m,k,je+j+1,i+1) = b0.x1f(m,k,je,i+1);}
@@ -555,7 +558,7 @@ void ReflectingMonopole(Mesh *pm) {
   // Set X2-BCs on w0 if Meshblock face is at the edge of computational domain
   par_for("noinflow_hydro_x2", DevExeSpace(),0,(nmb-1),0,(nvar-1),0,(n3-1),0,(n1-1),
   KOKKOS_LAMBDA(int m, int n, int k, int i) {
-    if (mb_bcs.d_view(m,BoundaryFace::inner_x2) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::inner_x2) == BoundaryFlag::user) {
       for (int j=0; j<ng; ++j) {
         if (n==(IVY)) {
           w0_(m,n,k,js-j-1,i) = fmin(0.0,w0_(m,n,k,js,i));
@@ -564,7 +567,7 @@ void ReflectingMonopole(Mesh *pm) {
         }
       }
     }
-    if (mb_bcs.d_view(m,BoundaryFace::outer_x2) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::outer_x2) == BoundaryFlag::user) {
       for (int j=0; j<ng; ++j) {
         if (n==(IVY)) {
           w0_(m,n,k,je+j+1,i) = fmax(0.0,w0_(m,n,k,je,i));
@@ -582,7 +585,7 @@ void ReflectingMonopole(Mesh *pm) {
   // Set x3-BCs on b0 and bcc0 if Meshblock face is at the edge of computational domain
   par_for("noinflow_field_x3", DevExeSpace(),0,(nmb-1),0,(n2-1),0,(n1-1),
   KOKKOS_LAMBDA(int m, int j, int i) {
-    if (mb_bcs.d_view(m,BoundaryFace::inner_x3) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::inner_x3) == BoundaryFlag::user) {
       for (int k=0; k<ng; ++k) {
         b0.x1f(m,ks-k-1,j,i) = b0.x1f(m,ks,j,i);
         if (i == n1-1) {b0.x1f(m,ks-k-1,j,i+1) = b0.x1f(m,ks,j,i+1);}
@@ -591,7 +594,7 @@ void ReflectingMonopole(Mesh *pm) {
         b0.x3f(m,ks-k-1,j,i) = -b0.x3f(m,ks+1,j,i);
       }
     }
-    if (mb_bcs.d_view(m,BoundaryFace::outer_x3) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::outer_x3) == BoundaryFlag::user) {
       for (int k=0; k<ng; ++k) {
         b0.x1f(m,ke+k+1,j,i) = b0.x1f(m,ke,j,i);
         if (i == n1-1) {b0.x1f(m,ke+k+1,j,i+1) = b0.x1f(m,ke,j,i+1);}
@@ -608,7 +611,7 @@ void ReflectingMonopole(Mesh *pm) {
   // Set x3-BCs on w0 if Meshblock face is at the edge of computational domain
   par_for("noinflow_hydro_x3", DevExeSpace(),0,(nmb-1),0,(nvar-1),0,(n2-1),0,(n1-1),
   KOKKOS_LAMBDA(int m, int n, int j, int i) {
-    if (mb_bcs.d_view(m,BoundaryFace::inner_x3) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::inner_x3) == BoundaryFlag::user) {
       for (int k=0; k<ng; ++k) {
         if (n==(IVZ)) {
           w0_(m,n,ks-k-1,j,i) = -w0_(m,n,ks,j,i);
@@ -617,7 +620,7 @@ void ReflectingMonopole(Mesh *pm) {
         }
       }
     }
-    if (mb_bcs.d_view(m,BoundaryFace::outer_x3) == BoundaryFlag::user) {
+    if (mb_bcs.view_device()(m,BoundaryFace::outer_x3) == BoundaryFlag::user) {
       for (int k=0; k<ng; ++k) {
         if (n==(IVZ)) {
           w0_(m,n,ke+k+1,j,i) = fmax(0.0,w0_(m,n,ke,j,i));
@@ -673,21 +676,21 @@ void MonopoleDiagnostic(ParameterInput *pin, Mesh *pm) {
   for (int n=0; n<psph->nangles; ++n) {
     // extract coordinate data at this angle
     Real r = psph->radius;
-    Real x1 = psph->interp_coord.h_view(n,0);
-    Real x2 = psph->interp_coord.h_view(n,1);
-    Real x3 = psph->interp_coord.h_view(n,2);
+    Real x1 = psph->interp_coord.view_host()(n,0);
+    Real x2 = psph->interp_coord.view_host()(n,1);
+    Real x3 = psph->interp_coord.view_host()(n,2);
     Real glower[4][4], gupper[4][4];
     ComputeMetricAndInverse(x1,x2,x3,flat,spin,glower,gupper);
 
     // extract interpolated primitives
-    Real &int_vx = psph->interp_vals.h_view(n,IVX);
-    Real &int_vy = psph->interp_vals.h_view(n,IVY);
-    Real &int_vz = psph->interp_vals.h_view(n,IVZ);
+    Real &int_vx = psph->interp_vals.view_host()(n,IVX);
+    Real &int_vy = psph->interp_vals.view_host()(n,IVY);
+    Real &int_vz = psph->interp_vals.view_host()(n,IVZ);
 
     // extract interpolated field components
-    Real &int_bx = interpolated_bcc.h_view(n,IBX);
-    Real &int_by = interpolated_bcc.h_view(n,IBY);
-    Real &int_bz = interpolated_bcc.h_view(n,IBZ);
+    Real &int_bx = interpolated_bcc.view_host()(n,IBX);
+    Real &int_by = interpolated_bcc.view_host()(n,IBY);
+    Real &int_bz = interpolated_bcc.view_host()(n,IBZ);
 
     // Compute interpolated u^\mu in CKS
     Real q = glower[1][1]*int_vx*int_vx + 2.0*glower[1][2]*int_vx*int_vy +
@@ -759,9 +762,9 @@ void MonopoleDiagnostic(ParameterInput *pin, Mesh *pm) {
 
     // write diagnostics
     for (int n=0; n<psph->nangles; ++n) {
-      if (psph->interp_coord.h_view(n,2) > 0.0) {
-        std::fprintf(pfile, "%12.5e ", psph->polar_pos.h_view(n,0));
-        std::fprintf(pfile, "%12.5e ", psph->polar_pos.h_view(n,1));
+      if (psph->interp_coord.view_host()(n,2) > 0.0) {
+        std::fprintf(pfile, "%12.5e ", psph->polar_pos.view_host()(n,0));
+        std::fprintf(pfile, "%12.5e ", psph->polar_pos.view_host()(n,1));
         std::fprintf(pfile, "%12.5e ", monopole_diag[n]);
         std::fprintf(pfile, "\n");
       }

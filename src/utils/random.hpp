@@ -8,6 +8,8 @@
 //! \file random.cpp
 //  \brief Random number generators (that can be included in Kokkos parallel for regions)
 
+#include <cfloat>
+
 #include "athena.hpp"
 
 //----------------------------------------------------------------------------------------

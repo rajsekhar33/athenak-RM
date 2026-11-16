@@ -204,9 +204,9 @@ void ProfileOutput::LoadOutputData(Mesh *pm) {
 
   par_for("prof", DevExeSpace(), 0, nmb-1, ks, ke, js, je, is, ie,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real x1min = size.d_view(m).x1min; Real x1max = size.d_view(m).x1max;
-    Real x2min = size.d_view(m).x2min; Real x2max = size.d_view(m).x2max;
-    Real x3min = size.d_view(m).x3min; Real x3max = size.d_view(m).x3max;
+    Real x1min = size.view_device()(m).x1min; Real x1max = size.view_device()(m).x1max;
+    Real x2min = size.view_device()(m).x2min; Real x2max = size.view_device()(m).x2max;
+    Real x3min = size.view_device()(m).x3min; Real x3max = size.view_device()(m).x3max;
     Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
     Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
     Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
@@ -262,7 +262,8 @@ void ProfileOutput::LoadOutputData(Mesh *pm) {
     }
 
     Real var_val = outvars_device(0, m, k, j, i);
-    Real weight = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+    Real weight = size.view_device()(m).dx1*size.view_device()(m).dx2
+        *size.view_device()(m).dx3;
     weight *= mass_weighted == false ? 1.0 : u0_(m, IDN, k, j, i);
 
     if (!Kokkos::isfinite(var_val) || !Kokkos::isfinite(weight)) {

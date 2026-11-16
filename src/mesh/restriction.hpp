@@ -40,9 +40,9 @@ Real RestrictInterpolation(const int m, const int v, const int fk, const int fj,
           int wghti = (offseti) ? ii : NGHOST-ii;
           int wghtj = (offsetj) ? jj : NGHOST-jj;
           int wghtk = (offsetk) ? kk : NGHOST-kk;
-          Real iwght = restrict_2nd.d_view(wghti)
-                       *restrict_2nd.d_view(wghtj)
-                       *restrict_2nd.d_view(wghtk);
+          Real iwght = restrict_2nd.view_device()(wghti)
+                       *restrict_2nd.view_device()(wghtj)
+                       *restrict_2nd.view_device()(wghtk);
           ivals += iwght*a(m,v,refk+kk,refj+jj,refi+ii);
         }
       }
@@ -71,19 +71,19 @@ Real RestrictInterpolation(const int m, const int v, const int fk, const int fj,
           int wghtk = (offsetk) ? kk : NGHOST-kk;
           Real iwght = 1;
           if (fi==NGHOST || fi==NGHOST+nx1-2) {
-            iwght *= restrict_4th_edge.d_view(wghti);
+            iwght *= restrict_4th_edge.view_device()(wghti);
           } else {
-            iwght *= restrict_4th.d_view(wghti);
+            iwght *= restrict_4th.view_device()(wghti);
           }
           if (fj==NGHOST || fj==NGHOST+nx2-2) {
-            iwght *= restrict_4th_edge.d_view(wghtj);
+            iwght *= restrict_4th_edge.view_device()(wghtj);
           } else {
-            iwght *= restrict_4th.d_view(wghtj);
+            iwght *= restrict_4th.view_device()(wghtj);
           }
           if (fk==NGHOST || fk==NGHOST+nx3-2) {
-            iwght *= restrict_4th_edge.d_view(wghtk);
+            iwght *= restrict_4th_edge.view_device()(wghtk);
           } else {
-            iwght *= restrict_4th.d_view(wghtk);
+            iwght *= restrict_4th.view_device()(wghtk);
           }
           ivals += iwght*a(m,v,refk+kk,refj+jj,refi+ii);
         }

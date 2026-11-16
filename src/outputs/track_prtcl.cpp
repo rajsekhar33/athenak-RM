@@ -54,13 +54,13 @@ void TrackedParticleOutput::LoadOutputData(Mesh *pm) {
   par_for("part_update",DevExeSpace(),0,(npart-1), KOKKOS_LAMBDA(const int p) {
     if (pi(PTAG,p) < ntrack_) {
       int index = Kokkos::atomic_fetch_add(pcounter,1);
-      tracked_prtcl.d_view(index).tag = pi(PTAG,p);
-      tracked_prtcl.d_view(index).x   = pr(IPX,p);
-      tracked_prtcl.d_view(index).y   = pr(IPY,p);
-      tracked_prtcl.d_view(index).z   = pr(IPZ,p);
-      tracked_prtcl.d_view(index).vx  = pr(IPVX,p);
-      tracked_prtcl.d_view(index).vy  = pr(IPVY,p);
-      tracked_prtcl.d_view(index).vz  = pr(IPVZ,p);
+      tracked_prtcl.view_device()(index).tag = pi(PTAG,p);
+      tracked_prtcl.view_device()(index).x   = pr(IPX,p);
+      tracked_prtcl.view_device()(index).y   = pr(IPY,p);
+      tracked_prtcl.view_device()(index).z   = pr(IPZ,p);
+      tracked_prtcl.view_device()(index).vx  = pr(IPVX,p);
+      tracked_prtcl.view_device()(index).vy  = pr(IPVY,p);
+      tracked_prtcl.view_device()(index).vz  = pr(IPVZ,p);
     }
   });
   npout = counter;
@@ -76,7 +76,7 @@ void TrackedParticleOutput::LoadOutputData(Mesh *pm) {
 
   // copy host view into host outpart array
   Kokkos::realloc(outpart, npout);
-  Kokkos::deep_copy(outpart, tracked_prtcl.h_view);
+  Kokkos::deep_copy(outpart, tracked_prtcl.view_host());
 }
 
 //----------------------------------------------------------------------------------------

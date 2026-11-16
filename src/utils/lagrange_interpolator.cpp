@@ -102,17 +102,17 @@ void LagrangeInterpolator::SetInterpolationIndices() {
 
   for (int m = 0; m <= nmb1; ++m) {
     // extract MeshBlock bounds
-    Real &x1min = size.h_view(m).x1min;
-    Real &x1max = size.h_view(m).x1max;
-    Real &x2min = size.h_view(m).x2min;
-    Real &x2max = size.h_view(m).x2max;
-    Real &x3min = size.h_view(m).x3min;
-    Real &x3max = size.h_view(m).x3max;
+    Real &x1min = size.view_host()(m).x1min;
+    Real &x1max = size.view_host()(m).x1max;
+    Real &x2min = size.view_host()(m).x2min;
+    Real &x2max = size.view_host()(m).x2max;
+    Real &x3min = size.view_host()(m).x3min;
+    Real &x3max = size.view_host()(m).x3max;
 
     // extract MeshBlock grid cell spacings
-    Real &dx1 = size.h_view(m).dx1;
-    Real &dx2 = size.h_view(m).dx2;
-    Real &dx3 = size.h_view(m).dx3;
+    Real &dx1 = size.view_host()(m).dx1;
+    Real &dx2 = size.view_host()(m).dx2;
+    Real &dx3 = size.view_host()(m).dx3;
 
     // save MeshBlock and zone indicies for nearest position to spherical patch
     // center if this angle position resides in this MeshBlock
@@ -157,12 +157,12 @@ void LagrangeInterpolator::CalculateWeight() {
     Real &z0 = rcoord(2);
 
     // extract MeshBlock bounds
-    Real &x1min = size.h_view(ii0).x1min;
-    Real &x1max = size.h_view(ii0).x1max;
-    Real &x2min = size.h_view(ii0).x2min;
-    Real &x2max = size.h_view(ii0).x2max;
-    Real &x3min = size.h_view(ii0).x3min;
-    Real &x3max = size.h_view(ii0).x3max;
+    Real &x1min = size.view_host()(ii0).x1min;
+    Real &x1max = size.view_host()(ii0).x1max;
+    Real &x2min = size.view_host()(ii0).x2min;
+    Real &x2max = size.view_host()(ii0).x2max;
+    Real &x3min = size.view_host()(ii0).x3min;
+    Real &x3max = size.view_host()(ii0).x3max;
     // set interpolation weights
     for (int i = 0; i < 2 * ng; ++i) {
       interp_wghts(i, 0) = 1.;

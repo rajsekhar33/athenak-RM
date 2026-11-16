@@ -45,22 +45,22 @@ void Radiation::SetOrthonormalTetrad() {
 
   // define tetrad frame
   for (int n=0; n<=nang1; ++n) {
-    nh_c.h_view(n,0) = 1.0;
-    nh_c.h_view(n,1) = prgeo->cart_pos.h_view(n,0);
-    nh_c.h_view(n,2) = prgeo->cart_pos.h_view(n,1);
-    nh_c.h_view(n,3) = prgeo->cart_pos.h_view(n,2);
+    nh_c.view_host()(n,0) = 1.0;
+    nh_c.view_host()(n,1) = prgeo->cart_pos.view_host()(n,0);
+    nh_c.view_host()(n,2) = prgeo->cart_pos.view_host()(n,1);
+    nh_c.view_host()(n,3) = prgeo->cart_pos.view_host()(n,2);
     if (angular_fluxes) {
-      for (int nb=0; nb<num_neighbors_.h_view(n); ++nb) {
-        nh_f.h_view(n,nb,0) = 1.0;
-        nh_f.h_view(n,nb,1) = prgeo->cart_pos_mid.h_view(n,nb,0);
-        nh_f.h_view(n,nb,2) = prgeo->cart_pos_mid.h_view(n,nb,1);
-        nh_f.h_view(n,nb,3) = prgeo->cart_pos_mid.h_view(n,nb,2);
+      for (int nb=0; nb<num_neighbors_.view_host()(n); ++nb) {
+        nh_f.view_host()(n,nb,0) = 1.0;
+        nh_f.view_host()(n,nb,1) = prgeo->cart_pos_mid.view_host()(n,nb,0);
+        nh_f.view_host()(n,nb,2) = prgeo->cart_pos_mid.view_host()(n,nb,1);
+        nh_f.view_host()(n,nb,3) = prgeo->cart_pos_mid.view_host()(n,nb,2);
       }
-      if (num_neighbors_.h_view(n)==5) {
-        nh_f.h_view(n,5,0) = (FLT_MAX);
-        nh_f.h_view(n,5,1) = (FLT_MAX);
-        nh_f.h_view(n,5,2) = (FLT_MAX);
-        nh_f.h_view(n,5,3) = (FLT_MAX);
+      if (num_neighbors_.view_host()(n)==5) {
+        nh_f.view_host()(n,5,0) = (FLT_MAX);
+        nh_f.view_host()(n,5,1) = (FLT_MAX);
+        nh_f.view_host()(n,5,2) = (FLT_MAX);
+        nh_f.view_host()(n,5,3) = (FLT_MAX);
       }
     }
   }
@@ -74,16 +74,16 @@ void Radiation::SetOrthonormalTetrad() {
   auto tetcov_c_ = tetcov_c;
   par_for("tet_c/tetcov_c",DevExeSpace(),0,(nmb-1),0,(n3-1),0,(n2-1),0,(n1-1),
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
     Real glower[4][4], gupper[4][4];
@@ -104,16 +104,16 @@ void Radiation::SetOrthonormalTetrad() {
   auto tet_d1_x1f_ = tet_d1_x1f;
   par_for("tet_d1_x1f",DevExeSpace(),0,(nmb-1),0,(n3-1),0,(n2-1),0,n1,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1f = LeftEdgeX(i-is, indcs.nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
     Real glower[4][4], gupper[4][4];
@@ -129,16 +129,16 @@ void Radiation::SetOrthonormalTetrad() {
   auto tet_d2_x2f_ = tet_d2_x2f;
   par_for("tet_d2_x2f",DevExeSpace(),0,(nmb-1),0,(n3-1),0,n2,0,(n1-1),
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2f = LeftEdgeX(j-js, indcs.nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
     Real glower[4][4], gupper[4][4];
@@ -154,16 +154,16 @@ void Radiation::SetOrthonormalTetrad() {
   auto tet_d3_x3f_ = tet_d3_x3f;
   par_for("tet_d3_x3f",DevExeSpace(),0,(nmb-1),0,n3,0,(n2-1),0,(n1-1),
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3f = LeftEdgeX(k-ks, indcs.nx3, x3min, x3max);
 
     Real glower[4][4], gupper[4][4];
@@ -182,16 +182,16 @@ void Radiation::SetOrthonormalTetrad() {
     auto na_ = na;
     par_for("na",DevExeSpace(),0,(nmb-1),0,(n3-1),0,(n2-1),0,(n1-1),
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
       Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
       Real glower[4][4], gupper[4][4];
@@ -201,19 +201,20 @@ void Radiation::SetOrthonormalTetrad() {
       Real e[4][4], e_cov[4][4], omega[4][4][4];
       ComputeTetrad(x1v,x2v,x3v,flat,spin,glower,gupper,dgx,dgy,dgz,e,e_cov,omega);
       for (int n=0; n<=nang1; ++n) {
-        for (int nb=0; nb<num_neighbors_.d_view(n); ++nb) {
-          Real iszetaf = 1.0/sqrt(1.0 - SQR(nh_f_.d_view(n,nb,3)));
+        for (int nb=0; nb<num_neighbors_.view_device()(n); ++nb) {
+          Real iszetaf = 1.0/sqrt(1.0 - SQR(nh_f_.view_device()(n,nb,3)));
           Real na1 = 0.0; Real na2 = 0.0;
           for (int q=0; q<4; ++q) {
             for (int p=0; p<4; ++p) {
-              Real nhfqp = nh_f_.d_view(n,nb,q)*nh_f_.d_view(n,nb,p);
-              na1 += (nhfqp*(nh_f_.d_view(n,nb,0)*omega[3][q][p] -
-                             nh_f_.d_view(n,nb,3)*omega[0][q][p]));
-              na2 += (nhfqp*(nh_f_.d_view(n,nb,2)*omega[1][q][p] -
-                             nh_f_.d_view(n,nb,1)*omega[2][q][p]));
+              Real nhfqp = nh_f_.view_device()(n,nb,q)*nh_f_.view_device()(n,nb,p);
+              na1 += (nhfqp*(nh_f_.view_device()(n,nb,0)*omega[3][q][p] -
+                             nh_f_.view_device()(n,nb,3)*omega[0][q][p]));
+              na2 += (nhfqp*(nh_f_.view_device()(n,nb,2)*omega[1][q][p] -
+                             nh_f_.view_device()(n,nb,1)*omega[2][q][p]));
             }
           }
-          na_(m,n,k,j,i,nb) = iszetaf*na1*uflux.d_view(n,nb,0)+na2*uflux.d_view(n,nb,1);
+          na_(m,n,k,j,i,nb) = iszetaf*na1*uflux.view_device()(n,nb,0)+na2
+              *uflux.view_device()(n,nb,1);
         }
       }
     });
@@ -224,16 +225,16 @@ void Radiation::SetOrthonormalTetrad() {
     auto norm_to_tet_ = norm_to_tet;
     par_for("norm_to_tet",DevExeSpace(),0,(nmb-1),0,(n3-1),0,(n2-1),0,(n1-1),
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
       Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
       Real glower[4][4], gupper[4][4];

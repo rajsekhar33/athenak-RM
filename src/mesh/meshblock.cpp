@@ -33,88 +33,91 @@ MeshBlock::MeshBlock(MeshBlockPack* ppack, int igids, int nmb) :
 
   for (int m=0; m<nmb; ++m) {
     // initialize host array elements of gids, levels
-    mb_gid.h_view(m) = igids + m;
-    mb_lev.h_view(m) = pm->lloc_eachmb[igids+m].level;
+    mb_gid.view_host()(m) = igids + m;
+    mb_lev.view_host()(m) = pm->lloc_eachmb[igids+m].level;
 
     // calculate physical size and set BCs of each MeshBlock in x1
     std::int32_t &lx1 = pm->lloc_eachmb[igids+m].lx1;
     std::int32_t &lev = pm->lloc_eachmb[igids+m].level;
     std::int32_t nmbx1 = pm->nmb_rootx1 << (lev - pm->root_level);
     if (lx1 == 0) {
-      mb_size.h_view(m).x1min = ms.x1min;
-      mb_bcs.h_view(m,0) = pm->mesh_bcs[BoundaryFace::inner_x1];
+      mb_size.view_host()(m).x1min = ms.x1min;
+      mb_bcs.view_host()(m,0) = pm->mesh_bcs[BoundaryFace::inner_x1];
     } else {
-      mb_size.h_view(m).x1min = LeftEdgeX(lx1, nmbx1, ms.x1min, ms.x1max);
-      mb_bcs.h_view(m,0) = BoundaryFlag::block;
+      mb_size.view_host()(m).x1min = LeftEdgeX(lx1, nmbx1, ms.x1min, ms.x1max);
+      mb_bcs.view_host()(m,0) = BoundaryFlag::block;
     }
 
     if (lx1 == nmbx1 - 1) {
-      mb_size.h_view(m).x1max = ms.x1max;
-      mb_bcs.h_view(m,1) = pm->mesh_bcs[BoundaryFace::outer_x1];
+      mb_size.view_host()(m).x1max = ms.x1max;
+      mb_bcs.view_host()(m,1) = pm->mesh_bcs[BoundaryFace::outer_x1];
     } else {
-      mb_size.h_view(m).x1max = LeftEdgeX(lx1+1, nmbx1, ms.x1min, ms.x1max);
-      mb_bcs.h_view(m,1) = BoundaryFlag::block;
+      mb_size.view_host()(m).x1max = LeftEdgeX(lx1+1, nmbx1, ms.x1min, ms.x1max);
+      mb_bcs.view_host()(m,1) = BoundaryFlag::block;
     }
 
     // calculate physical size and set BCs of each MeshBlock in x2, depending on whether
     // there are none (1D), one, or more MeshBlocks in this direction
     if (!(pm->multi_d)) {
-      mb_size.h_view(m).x2min = ms.x2min;
-      mb_size.h_view(m).x2max = ms.x2max;
-      mb_bcs.h_view(m,2) = pm->mesh_bcs[BoundaryFace::inner_x2];
-      mb_bcs.h_view(m,3) = pm->mesh_bcs[BoundaryFace::outer_x2];
+      mb_size.view_host()(m).x2min = ms.x2min;
+      mb_size.view_host()(m).x2max = ms.x2max;
+      mb_bcs.view_host()(m,2) = pm->mesh_bcs[BoundaryFace::inner_x2];
+      mb_bcs.view_host()(m,3) = pm->mesh_bcs[BoundaryFace::outer_x2];
     } else {
       std::int32_t &lx2 = pm->lloc_eachmb[igids+m].lx2;
       std::int32_t nmbx2 = pm->nmb_rootx2 << (lev - pm->root_level);
       if (lx2 == 0) {
-        mb_size.h_view(m).x2min = ms.x2min;
-        mb_bcs.h_view(m,2) = pm->mesh_bcs[BoundaryFace::inner_x2];
+        mb_size.view_host()(m).x2min = ms.x2min;
+        mb_bcs.view_host()(m,2) = pm->mesh_bcs[BoundaryFace::inner_x2];
       } else {
-        mb_size.h_view(m).x2min = LeftEdgeX(lx2, nmbx2, ms.x2min, ms.x2max);
-        mb_bcs.h_view(m,2) = BoundaryFlag::block;
+        mb_size.view_host()(m).x2min = LeftEdgeX(lx2, nmbx2, ms.x2min, ms.x2max);
+        mb_bcs.view_host()(m,2) = BoundaryFlag::block;
       }
 
       if (lx2 == (nmbx2) - 1) {
-        mb_size.h_view(m).x2max = ms.x2max;
-        mb_bcs.h_view(m,3) = pm->mesh_bcs[BoundaryFace::outer_x2];
+        mb_size.view_host()(m).x2max = ms.x2max;
+        mb_bcs.view_host()(m,3) = pm->mesh_bcs[BoundaryFace::outer_x2];
       } else {
-        mb_size.h_view(m).x2max = LeftEdgeX(lx2+1, nmbx2, ms.x2min, ms.x2max);
-        mb_bcs.h_view(m,3) = BoundaryFlag::block;
+        mb_size.view_host()(m).x2max = LeftEdgeX(lx2+1, nmbx2, ms.x2min, ms.x2max);
+        mb_bcs.view_host()(m,3) = BoundaryFlag::block;
       }
     }
 
     // calculate physical size and set BCs of each MeshBlock in x1, depending on whether
     // there are none (1D/2D), one, or more MeshBlocks in this direction
     if (!(pm->three_d)) {
-      mb_size.h_view(m).x3min = ms.x3min;
-      mb_size.h_view(m).x3max = ms.x3max;
-      mb_bcs.h_view(m,4) = pm->mesh_bcs[BoundaryFace::inner_x3];
-      mb_bcs.h_view(m,5) = pm->mesh_bcs[BoundaryFace::outer_x3];
+      mb_size.view_host()(m).x3min = ms.x3min;
+      mb_size.view_host()(m).x3max = ms.x3max;
+      mb_bcs.view_host()(m,4) = pm->mesh_bcs[BoundaryFace::inner_x3];
+      mb_bcs.view_host()(m,5) = pm->mesh_bcs[BoundaryFace::outer_x3];
     } else {
       std::int32_t &lx3 = pm->lloc_eachmb[igids+m].lx3;
       std::int32_t nmbx3 = pm->nmb_rootx3 << (lev - pm->root_level);
       if (lx3 == 0) {
-        mb_size.h_view(m).x3min = ms.x3min;
-        mb_bcs.h_view(m,4) = pm->mesh_bcs[BoundaryFace::inner_x3];
+        mb_size.view_host()(m).x3min = ms.x3min;
+        mb_bcs.view_host()(m,4) = pm->mesh_bcs[BoundaryFace::inner_x3];
       } else {
-        mb_size.h_view(m).x3min = LeftEdgeX(lx3, nmbx3, ms.x3min, ms.x3max);
-        mb_bcs.h_view(m,4) = BoundaryFlag::block;
+        mb_size.view_host()(m).x3min = LeftEdgeX(lx3, nmbx3, ms.x3min, ms.x3max);
+        mb_bcs.view_host()(m,4) = BoundaryFlag::block;
       }
       if (lx3 == (nmbx3) - 1) {
-        mb_size.h_view(m).x3max = ms.x3max;
-        mb_bcs.h_view(m,5) = pm->mesh_bcs[BoundaryFace::outer_x3];
+        mb_size.view_host()(m).x3max = ms.x3max;
+        mb_bcs.view_host()(m,5) = pm->mesh_bcs[BoundaryFace::outer_x3];
       } else {
-        mb_size.h_view(m).x3max = LeftEdgeX(lx3+1, nmbx3, ms.x3min, ms.x3max);
-        mb_bcs.h_view(m,5) = BoundaryFlag::block;
+        mb_size.view_host()(m).x3max = LeftEdgeX(lx3+1, nmbx3, ms.x3min, ms.x3max);
+        mb_bcs.view_host()(m,5) = BoundaryFlag::block;
       }
     }
 
     // grid spacing at this level.
-    mb_size.h_view(m).dx1 = (mb_size.h_view(m).x1max - mb_size.h_view(m).x1min)/
+    mb_size.view_host()(m).dx1
+        = (mb_size.view_host()(m).x1max - mb_size.view_host()(m).x1min)/
                             static_cast<Real>(pm->mb_indcs.nx1);
-    mb_size.h_view(m).dx2 = (mb_size.h_view(m).x2max - mb_size.h_view(m).x2min)/
+    mb_size.view_host()(m).dx2
+        = (mb_size.view_host()(m).x2max - mb_size.view_host()(m).x2min)/
                             static_cast<Real>(pm->mb_indcs.nx2);
-    mb_size.h_view(m).dx3 = (mb_size.h_view(m).x3max - mb_size.h_view(m).x3min)/
+    mb_size.view_host()(m).dx3
+        = (mb_size.view_host()(m).x3max - mb_size.view_host()(m).x3min)/
                             static_cast<Real>(pm->mb_indcs.nx3);
   }
 
@@ -153,10 +156,10 @@ void MeshBlock::SetNeighbors(std::unique_ptr<MeshBlockTree> &ptree, int *ranklis
   // Initialize host view elements of DualViews
   for (int n=0; n<nnghbr; ++n) {
     for (int m=0; m<nmb; ++m) {
-      nghbr.h_view(m,n).gid   = -1;
-      nghbr.h_view(m,n).lev   = -1;
-      nghbr.h_view(m,n).rank  = -1;
-      nghbr.h_view(m,n).dest  = -1;
+      nghbr.view_host()(m,n).gid   = -1;
+      nghbr.view_host()(m,n).lev   = -1;
+      nghbr.view_host()(m,n).rank  = -1;
+      nghbr.view_host()(m,n).dest  = -1;
     }
   }
 
@@ -170,7 +173,7 @@ void MeshBlock::SetNeighbors(std::unique_ptr<MeshBlockTree> &ptree, int *ranklis
 
   // Search MeshBlock tree and find neighbors
   for (int b=0; b<nmb; ++b) {
-    LogicalLocation lloc = pmy_pack->pmesh->lloc_eachmb[mb_gid.h_view(b)];
+    LogicalLocation lloc = pmy_pack->pmesh->lloc_eachmb[mb_gid.view_host()(b)];
 
     // find location of this MeshBlock relative to XXXX
     int myox1, myox2 = 0, myox3 = 0, myfx1, myfx2, myfx3;
@@ -191,10 +194,10 @@ void MeshBlock::SetNeighbors(std::unique_ptr<MeshBlockTree> &ptree, int *ranklis
             for (int fy = 0; fy<nfy; fy++) {
               MeshBlockTree* nf = nt->GetLeaf(ffx, fy, fz);
               int inghbr = NeighborIndex(n,0,0,fy,fz);
-              nghbr.h_view(b,inghbr).gid = nf->gid_;
-              nghbr.h_view(b,inghbr).lev = nf->lloc_.level;
-              nghbr.h_view(b,inghbr).rank = ranklist[nf->gid_];
-              nghbr.h_view(b,inghbr).dest = NeighborIndex(-n,0,0,fy,fz);
+              nghbr.view_host()(b,inghbr).gid = nf->gid_;
+              nghbr.view_host()(b,inghbr).lev = nf->lloc_.level;
+              nghbr.view_host()(b,inghbr).rank = ranklist[nf->gid_];
+              nghbr.view_host()(b,inghbr).dest = NeighborIndex(-n,0,0,fy,fz);
             }
           }
         } else {   // neighbor at same or coarser level
@@ -206,10 +209,10 @@ void MeshBlock::SetNeighbors(std::unique_ptr<MeshBlockTree> &ptree, int *ranklis
             inghbr = NeighborIndex(n,0,0,myfx2,myfx3);
             idest = NeighborIndex(-n,0,0,myfx2,myfx3);
           }
-          nghbr.h_view(b,inghbr).gid = nt->gid_;
-          nghbr.h_view(b,inghbr).lev = nt->lloc_.level;
-          nghbr.h_view(b,inghbr).rank = ranklist[nt->gid_];
-          nghbr.h_view(b,inghbr).dest = idest;
+          nghbr.view_host()(b,inghbr).gid = nt->gid_;
+          nghbr.view_host()(b,inghbr).lev = nt->lloc_.level;
+          nghbr.view_host()(b,inghbr).rank = ranklist[nt->gid_];
+          nghbr.view_host()(b,inghbr).dest = idest;
         }
       }
     }
@@ -225,10 +228,10 @@ void MeshBlock::SetNeighbors(std::unique_ptr<MeshBlockTree> &ptree, int *ranklis
               for (int fx = 0; fx<nfx; fx++) {
                 MeshBlockTree* nf = nt->GetLeaf(fx, ffy, fz);
                 int inghbr = NeighborIndex(0,m,0,fx,fz);
-                nghbr.h_view(b,inghbr).gid = nf->gid_;
-                nghbr.h_view(b,inghbr).lev = nf->lloc_.level;
-                nghbr.h_view(b,inghbr).rank = ranklist[nf->gid_];
-                nghbr.h_view(b,inghbr).dest = NeighborIndex(0,-m,0,fx,fz);
+                nghbr.view_host()(b,inghbr).gid = nf->gid_;
+                nghbr.view_host()(b,inghbr).lev = nf->lloc_.level;
+                nghbr.view_host()(b,inghbr).rank = ranklist[nf->gid_];
+                nghbr.view_host()(b,inghbr).dest = NeighborIndex(0,-m,0,fx,fz);
               }
             }
           } else {   // neighbor at same or coarser level
@@ -240,10 +243,10 @@ void MeshBlock::SetNeighbors(std::unique_ptr<MeshBlockTree> &ptree, int *ranklis
               inghbr = NeighborIndex(0,m,0,myfx1,myfx3);
               idest = NeighborIndex(0,-m,0,myfx1,myfx3);
             }
-            nghbr.h_view(b,inghbr).gid = nt->gid_;
-            nghbr.h_view(b,inghbr).lev = nt->lloc_.level;
-            nghbr.h_view(b,inghbr).rank = ranklist[nt->gid_];
-            nghbr.h_view(b,inghbr).dest = idest;
+            nghbr.view_host()(b,inghbr).gid = nt->gid_;
+            nghbr.view_host()(b,inghbr).lev = nt->lloc_.level;
+            nghbr.view_host()(b,inghbr).rank = ranklist[nt->gid_];
+            nghbr.view_host()(b,inghbr).dest = idest;
           }
         }
       }
@@ -259,10 +262,10 @@ void MeshBlock::SetNeighbors(std::unique_ptr<MeshBlockTree> &ptree, int *ranklis
               for (int fz=0; fz<nfz; fz++) {
                 MeshBlockTree* nf = nt->GetLeaf(ffx, ffy, fz);
                 int inghbr = NeighborIndex(n,m,0,fz,0);
-                nghbr.h_view(b,inghbr).gid = nf->gid_;
-                nghbr.h_view(b,inghbr).lev = nf->lloc_.level;
-                nghbr.h_view(b,inghbr).rank = ranklist[nf->gid_];
-                nghbr.h_view(b,inghbr).dest = NeighborIndex(-n,-m,0,fz,0);
+                nghbr.view_host()(b,inghbr).gid = nf->gid_;
+                nghbr.view_host()(b,inghbr).lev = nf->lloc_.level;
+                nghbr.view_host()(b,inghbr).rank = ranklist[nf->gid_];
+                nghbr.view_host()(b,inghbr).dest = NeighborIndex(-n,-m,0,fz,0);
               }
             } else {   // neighbor at same or coarser level
               int idest,inghbr;
@@ -275,10 +278,10 @@ void MeshBlock::SetNeighbors(std::unique_ptr<MeshBlockTree> &ptree, int *ranklis
               }
               // only set neighbor for exterior edges of coarser face
               if (nt->lloc_.level >= lloc.level || (myox1 == n && myox2 == m)) {
-                nghbr.h_view(b,inghbr).gid = nt->gid_;
-                nghbr.h_view(b,inghbr).lev = nt->lloc_.level;
-                nghbr.h_view(b,inghbr).rank = ranklist[nt->gid_];
-                nghbr.h_view(b,inghbr).dest = idest;
+                nghbr.view_host()(b,inghbr).gid = nt->gid_;
+                nghbr.view_host()(b,inghbr).lev = nt->lloc_.level;
+                nghbr.view_host()(b,inghbr).rank = ranklist[nt->gid_];
+                nghbr.view_host()(b,inghbr).dest = idest;
               }
             }
           }
@@ -297,10 +300,10 @@ void MeshBlock::SetNeighbors(std::unique_ptr<MeshBlockTree> &ptree, int *ranklis
               for (int fx = 0; fx<nfx; fx++) {
                 MeshBlockTree* nf = nt->GetLeaf(fx, fy, ffz);
                 int inghbr = NeighborIndex(0,0,l,fx,fy);
-                nghbr.h_view(b,inghbr).gid = nf->gid_;
-                nghbr.h_view(b,inghbr).lev = nf->lloc_.level;
-                nghbr.h_view(b,inghbr).rank = ranklist[nf->gid_];
-                nghbr.h_view(b,inghbr).dest = NeighborIndex(0,0,-l,fx,fy);
+                nghbr.view_host()(b,inghbr).gid = nf->gid_;
+                nghbr.view_host()(b,inghbr).lev = nf->lloc_.level;
+                nghbr.view_host()(b,inghbr).rank = ranklist[nf->gid_];
+                nghbr.view_host()(b,inghbr).dest = NeighborIndex(0,0,-l,fx,fy);
               }
             }
           } else {   // neighbor at same or coarser level -- no subblocks
@@ -312,10 +315,10 @@ void MeshBlock::SetNeighbors(std::unique_ptr<MeshBlockTree> &ptree, int *ranklis
               inghbr = NeighborIndex(0,0,l,myfx1,myfx2);
               idest = NeighborIndex(0,0,-l,myfx1,myfx2);
             }
-            nghbr.h_view(b,inghbr).gid = nt->gid_;
-            nghbr.h_view(b,inghbr).lev = nt->lloc_.level;
-            nghbr.h_view(b,inghbr).rank = ranklist[nt->gid_];
-            nghbr.h_view(b,inghbr).dest = idest;
+            nghbr.view_host()(b,inghbr).gid = nt->gid_;
+            nghbr.view_host()(b,inghbr).lev = nt->lloc_.level;
+            nghbr.view_host()(b,inghbr).rank = ranklist[nt->gid_];
+            nghbr.view_host()(b,inghbr).dest = idest;
           }
         }
       }
@@ -331,10 +334,10 @@ void MeshBlock::SetNeighbors(std::unique_ptr<MeshBlockTree> &ptree, int *ranklis
               for (int fy=0; fy<nfy; fy++) {
                 MeshBlockTree* nf = nt->GetLeaf(ffx, fy, ffz);
                 int inghbr = NeighborIndex(n,0,l,fy,0);
-                nghbr.h_view(b,inghbr).gid = nf->gid_;
-                nghbr.h_view(b,inghbr).lev = nf->lloc_.level;
-                nghbr.h_view(b,inghbr).rank = ranklist[nf->gid_];
-                nghbr.h_view(b,inghbr).dest = NeighborIndex(-n,0,-l,fy,0);
+                nghbr.view_host()(b,inghbr).gid = nf->gid_;
+                nghbr.view_host()(b,inghbr).lev = nf->lloc_.level;
+                nghbr.view_host()(b,inghbr).rank = ranklist[nf->gid_];
+                nghbr.view_host()(b,inghbr).dest = NeighborIndex(-n,0,-l,fy,0);
               }
             } else {   // neighbor at same or coarser level -- no subblocks
               int idest,inghbr;
@@ -347,10 +350,10 @@ void MeshBlock::SetNeighbors(std::unique_ptr<MeshBlockTree> &ptree, int *ranklis
               }
               // only set neighbor for exterior edges of coarser face
               if (nt->lloc_.level >= lloc.level || (myox1 == n && myox3 == l)) {
-                nghbr.h_view(b,inghbr).gid = nt->gid_;
-                nghbr.h_view(b,inghbr).lev = nt->lloc_.level;
-                nghbr.h_view(b,inghbr).rank = ranklist[nt->gid_];
-                nghbr.h_view(b,inghbr).dest = idest;
+                nghbr.view_host()(b,inghbr).gid = nt->gid_;
+                nghbr.view_host()(b,inghbr).lev = nt->lloc_.level;
+                nghbr.view_host()(b,inghbr).rank = ranklist[nt->gid_];
+                nghbr.view_host()(b,inghbr).dest = idest;
               }
             }
           }
@@ -368,10 +371,10 @@ void MeshBlock::SetNeighbors(std::unique_ptr<MeshBlockTree> &ptree, int *ranklis
               for (int fx=0; fx<nfy; fx++) {
                 MeshBlockTree* nf = nt->GetLeaf(fx, ffy, ffz);
                 int inghbr = NeighborIndex(0,m,l,fx,0);
-                nghbr.h_view(b,inghbr).gid = nf->gid_;
-                nghbr.h_view(b,inghbr).lev = nf->lloc_.level;
-                nghbr.h_view(b,inghbr).rank = ranklist[nf->gid_];
-                nghbr.h_view(b,inghbr).dest = NeighborIndex(0,-m,-l,fx,0);
+                nghbr.view_host()(b,inghbr).gid = nf->gid_;
+                nghbr.view_host()(b,inghbr).lev = nf->lloc_.level;
+                nghbr.view_host()(b,inghbr).rank = ranklist[nf->gid_];
+                nghbr.view_host()(b,inghbr).dest = NeighborIndex(0,-m,-l,fx,0);
               }
             } else {   // neighbor at same or coarser level -- no subblocks
               int idest,inghbr;
@@ -384,10 +387,10 @@ void MeshBlock::SetNeighbors(std::unique_ptr<MeshBlockTree> &ptree, int *ranklis
               }
               // only set neighbor for exterior edges of coarser face
               if (nt->lloc_.level >= lloc.level || (myox2 == m && myox3 == l)) {
-                nghbr.h_view(b,inghbr).gid = nt->gid_;
-                nghbr.h_view(b,inghbr).lev = nt->lloc_.level;
-                nghbr.h_view(b,inghbr).rank = ranklist[nt->gid_];
-                nghbr.h_view(b,inghbr).dest = idest;
+                nghbr.view_host()(b,inghbr).gid = nt->gid_;
+                nghbr.view_host()(b,inghbr).lev = nt->lloc_.level;
+                nghbr.view_host()(b,inghbr).rank = ranklist[nt->gid_];
+                nghbr.view_host()(b,inghbr).dest = idest;
               }
             }
           }
@@ -410,10 +413,10 @@ void MeshBlock::SetNeighbors(std::unique_ptr<MeshBlockTree> &ptree, int *ranklis
               // only set neighbor for exterior corners of coarser face
               if (nlevel >= lloc.level || (myox1 == n && myox2 == m && myox3 == l)) {
                 int inghbr = NeighborIndex(n,m,l,0,0);
-                nghbr.h_view(b,inghbr).gid = nt->gid_;
-                nghbr.h_view(b,inghbr).lev = nt->lloc_.level;
-                nghbr.h_view(b,inghbr).rank = ranklist[nt->gid_];
-                nghbr.h_view(b,inghbr).dest = NeighborIndex(-n,-m,-l,0,0);
+                nghbr.view_host()(b,inghbr).gid = nt->gid_;
+                nghbr.view_host()(b,inghbr).lev = nt->lloc_.level;
+                nghbr.view_host()(b,inghbr).rank = ranklist[nt->gid_];
+                nghbr.view_host()(b,inghbr).dest = NeighborIndex(-n,-m,-l,0,0);
               }
             }
           }

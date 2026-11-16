@@ -154,17 +154,17 @@ void CompactObjectTracker::EvolveTracker(MeshBlockPack *pmbp) {
       int nmb1 = pmbp->nmb_thispack;
       for (int m = 0; m < nmb1; ++m) {
         // extract MeshBlock bounds
-        Real x1min = size.h_view(m).x1min;
-        Real x1max = size.h_view(m).x1max;
-        Real x2min = size.h_view(m).x2min;
-        Real x2max = size.h_view(m).x2max;
-        Real x3min = size.h_view(m).x3min;
-        Real x3max = size.h_view(m).x3max;
+        Real x1min = size.view_host()(m).x1min;
+        Real x1max = size.view_host()(m).x1max;
+        Real x2min = size.view_host()(m).x2min;
+        Real x2max = size.view_host()(m).x2max;
+        Real x3min = size.view_host()(m).x3min;
+        Real x3max = size.view_host()(m).x3max;
 
         // extract MeshBlock grid cell spacings
-        Real dx1 = size.h_view(m).dx1;
-        Real dx2 = size.h_view(m).dx2;
-        Real dx3 = size.h_view(m).dx3;
+        Real dx1 = size.view_host()(m).dx1;
+        Real dx2 = size.view_host()(m).dx2;
+        Real dx3 = size.view_host()(m).dx3;
 
         // check if the compact object is in the current mesh block
         if ((pos[0] >= x1min && pos[0] < x1max) &&
@@ -178,7 +178,7 @@ void CompactObjectTracker::EvolveTracker(MeshBlockPack *pmbp) {
           auto& adm = padm->adm;
           par_for("Copy lapse neighborhood", DevExeSpace(), 0, 2, 0, 2, 0, 2,
           KOKKOS_LAMBDA(const int k, const int j, const int i){
-            alp.d_view(k,j,i) = adm.alpha(m,kc + indcs.ks + k - 1,
+            alp.view_device()(k,j,i) = adm.alpha(m,kc + indcs.ks + k - 1,
                                             jc + indcs.js + j - 1,
                                             ic + indcs.is + i - 1);
           });
@@ -190,8 +190,8 @@ void CompactObjectTracker::EvolveTracker(MeshBlockPack *pmbp) {
           for (int k = 0; k < 3; ++k) {
             for (int j = 0; j < 3; ++j) {
               for (int i = 0; i < 3; ++i) {
-                if (alp.h_view(k, j, i) < alp_min) {
-                  alp_min = alp.h_view(k, j, i);
+                if (alp.view_host()(k, j, i) < alp_min) {
+                  alp_min = alp.view_host()(k, j, i);
                   pos[0] = CellCenterX(ic + (i - 1), indcs.nx1,
                                        x1min, x1max);
                   pos[1] = CellCenterX(jc + (j - 1), indcs.nx2,

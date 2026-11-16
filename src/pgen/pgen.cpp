@@ -829,7 +829,7 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf
     for (int64_t i=0; i<number_particles; i++) {
       int gid = static_cast<int>(gid_data[i]);
       for (int m=0; m<pm->pmb_pack->nmb_thispack; ++m) {
-        if (pm->pmb_pack->pmb->mb_gid.h_view(m) == gid) {
+        if (pm->pmb_pack->pmb->mb_gid.view_host()(m) == gid) {
           nparticles_thispack += 1;
         }
       }
@@ -843,13 +843,14 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf
     for (int64_t i=0; i<number_particles; i++) {
       int gid = static_cast<int>(gid_data[i]);
       for (int m=0; m<pm->pmb_pack->nmb_thispack; ++m) {
-        if (pm->pmb_pack->pmb->mb_gid.h_view(m) == gid) {
-          part_data.h_view(pidx,0) = gid_data[i];
-          part_data.h_view(pidx,1) = tag_data[i];
-          part_data.h_view(pidx,2) = plastmove_data[i];  // preserve frozen/deleted status
-          part_data.h_view(pidx,3) = X_data[i];
-          part_data.h_view(pidx,4) = Y_data[i];
-          part_data.h_view(pidx,5) = Z_data[i];
+        if (pm->pmb_pack->pmb->mb_gid.view_host()(m) == gid) {
+          part_data.view_host()(pidx,0) = gid_data[i];
+          part_data.view_host()(pidx,1) = tag_data[i];
+          part_data.view_host()(pidx,2) = plastmove_data[i];
+          // preserve frozen/deleted status
+          part_data.view_host()(pidx,3) = X_data[i];
+          part_data.view_host()(pidx,4) = Y_data[i];
+          part_data.view_host()(pidx,5) = Z_data[i];
           pidx += 1;
         }
       }
@@ -877,12 +878,12 @@ ProblemGenerator::ProblemGenerator(ParameterInput *pin, Mesh *pm, IOWrapper resf
         snap_to_cell_center,
         pm->pmb_pack->pmesh->multi_d,
         pm->pmb_pack->pmesh->three_d,
-        pm->pmb_pack->pmb->mb_size.d_view,
-        pm->pmb_pack->pmb->mb_lev.d_view,
+        pm->pmb_pack->pmb->mb_size.view_device(),
+        pm->pmb_pack->pmb->mb_lev.view_device(),
         pm->pmb_pack->gids,
         pm->pmb_pack->nmb_thispack,
         pm->pmb_pack->pmesh->mb_indcs,
-        pm->pmb_pack->pmb->mb_bcs.d_view,
+        pm->pmb_pack->pmb->mb_bcs.view_device(),
         pm->pmb_pack->ppart->min_radius
     );
   } // end if restart for particles
@@ -988,7 +989,8 @@ void ProblemGenerator::OutputErrors(ParameterInput *pin, Mesh *pm) {
       k += ks;
       j += js;
 
-      Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+      Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2
+          *size.view_device()(m).dx3;
 
       // conserved variables:
       array_sum::GlobalSum evars;
@@ -1052,7 +1054,8 @@ void ProblemGenerator::OutputErrors(ParameterInput *pin, Mesh *pm) {
       k += ks;
       j += js;
 
-      Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+      Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2
+          *size.view_device()(m).dx3;
 
       // conserved variables:
       array_sum::GlobalSum evars;
@@ -1300,7 +1303,8 @@ void ProblemGenerator::InitializeLagrangianParticles(ParameterInput *pin,
     k += ks;
     j += js;
 
-    Real vol = mbsize.d_view(m).dx1*mbsize.d_view(m).dx2*mbsize.d_view(m).dx3;
+    Real vol = mbsize.view_device()(m).dx1*mbsize.view_device()(m).dx2
+        *mbsize.view_device()(m).dx3;
     Real zone_weight = uniform_by_volume ? vol : u0(m,IDN,k,j,i)*vol;
     weight_sum += zone_weight;
   }, total_weight);
@@ -1330,7 +1334,8 @@ void ProblemGenerator::InitializeLagrangianParticles(ParameterInput *pin,
     k += ks;
     j += js;
 
-    Real vol = mbsize.d_view(m).dx1*mbsize.d_view(m).dx2*mbsize.d_view(m).dx3;
+    Real vol = mbsize.view_device()(m).dx1*mbsize.view_device()(m).dx2
+        *mbsize.view_device()(m).dx3;
     Real zone_weight = uniform_by_volume ? vol : u0(m,IDN,k,j,i)*vol;
     Real nppc = zone_weight / weight_per_particle;
     int nparticles = static_cast<int>(nppc);
@@ -1338,15 +1343,15 @@ void ProblemGenerator::InitializeLagrangianParticles(ParameterInput *pin,
     if (PGenUniform01(pos_init_seed, gids + m, idx, 0, 0) < frac) {
       nparticles += 1;
     }
-    nparticles_per_zone.d_view(idx,0) = nparticles;
+    nparticles_per_zone.view_device()(idx,0) = nparticles;
   });
 
   nparticles_per_zone.template modify<DevExeSpace>();
   nparticles_per_zone.template sync<HostMemSpace>();
   int nparticles_thispack = 0;
   for (int i=0; i<nmkji; ++i) {
-    nparticles_per_zone.h_view(i,1) = nparticles_thispack;
-    nparticles_thispack += nparticles_per_zone.h_view(i,0);
+    nparticles_per_zone.view_host()(i,1) = nparticles_thispack;
+    nparticles_thispack += nparticles_per_zone.view_host()(i,0);
   }
   nparticles_per_zone.template modify<HostMemSpace>();
   nparticles_per_zone.template sync<DevMemSpace>();
@@ -1379,8 +1384,8 @@ void ProblemGenerator::InitializeLagrangianParticles(ParameterInput *pin,
     k += ks;
     j += js;
 
-    int nparticles_in_zone = nparticles_per_zone.d_view(idx,0);
-    int starting_index = nparticles_per_zone.d_view(idx,1);
+    int nparticles_in_zone = nparticles_per_zone.view_device()(idx,0);
+    int starting_index = nparticles_per_zone.view_device()(idx,1);
 
     for (int p=0; p<nparticles_in_zone; ++p) {
       int pidx = p + starting_index;
@@ -1394,13 +1399,16 @@ void ProblemGenerator::InitializeLagrangianParticles(ParameterInput *pin,
 
       pi(PGID,pidx) = gids + m;
       pi(PLASTMOVE,pidx) = 0;
-      pi(PLASTLEVEL,pidx) = mblev.d_view(m);
-      pr(IPX,pidx) = CellCenterX(i-is, nx1, mbsize.d_view(m).x1min,
-                                 mbsize.d_view(m).x1max) + rx*mbsize.d_view(m).dx1;
-      pr(IPY,pidx) = CellCenterX(j-js, nx2, mbsize.d_view(m).x2min,
-                                 mbsize.d_view(m).x2max) + ry*mbsize.d_view(m).dx2;
-      pr(IPZ,pidx) = CellCenterX(k-ks, nx3, mbsize.d_view(m).x3min,
-                                 mbsize.d_view(m).x3max) + rz*mbsize.d_view(m).dx3;
+      pi(PLASTLEVEL,pidx) = mblev.view_device()(m);
+      pr(IPX,pidx) = CellCenterX(i-is, nx1, mbsize.view_device()(m).x1min,
+                                 mbsize.view_device()(m).x1max) + rx
+                                     *mbsize.view_device()(m).dx1;
+      pr(IPY,pidx) = CellCenterX(j-js, nx2, mbsize.view_device()(m).x2min,
+                                 mbsize.view_device()(m).x2max) + ry
+                                     *mbsize.view_device()(m).dx2;
+      pr(IPZ,pidx) = CellCenterX(k-ks, nx3, mbsize.view_device()(m).x3min,
+                                 mbsize.view_device()(m).x3max) + rz
+                                     *mbsize.view_device()(m).dx3;
     }
   });
 }
@@ -1439,12 +1447,12 @@ void ProblemGenerator::InitializeParticlesFromRestart(
   par_for("part_init", DevExeSpace(), 0, nparticles_thispack-1,
   KOKKOS_LAMBDA(int idx) {
     // part_data order: gid(0), tag(1), plastmove(2), x(3), y(4), z(5)
-    int pgid = static_cast<int>(part_data.d_view(idx,0));
+    int pgid = static_cast<int>(part_data.view_device()(idx,0));
     int m = pgid - gids;
 
     pi(PGID,idx) = pgid;
-    pi(PTAG,idx) = static_cast<int>(part_data.d_view(idx,1));
-    pi(PLASTMOVE,idx) = static_cast<int>(part_data.d_view(idx,2));  // frozen/deleted status
+    pi(PTAG,idx) = static_cast<int>(part_data.view_device()(idx,1));
+    pi(PLASTMOVE,idx) = static_cast<int>(part_data.view_device()(idx,2));  // frozen/deleted status
 
     // particle's PGID doesn't belong to this rank -- shouldn't happen (the caller only
     // includes particles matched to a local MeshBlock), but guard against it anyway
@@ -1455,9 +1463,9 @@ void ProblemGenerator::InitializeParticlesFromRestart(
 
     pi(PLASTLEVEL,idx) = mblev(m);
 
-    Real x = part_data.d_view(idx,3);
-    Real y = part_data.d_view(idx,4);
-    Real z = part_data.d_view(idx,5);
+    Real x = part_data.view_device()(idx,3);
+    Real y = part_data.view_device()(idx,4);
+    Real z = part_data.view_device()(idx,5);
 
     // length of MeshBlock in each direction
     Real lx = (mbsize(m).x1max - mbsize(m).x1min);

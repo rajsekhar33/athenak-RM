@@ -61,16 +61,16 @@ void ComputeDerivedVariable(std::string name, int index, MeshBlockPack* pmbp,
 
     par_for("moments",DevExeSpace(),0,(nmb-1),ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
       Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
       // Extract components of metric
@@ -85,11 +85,12 @@ void ComputeDerivedVariable(std::string name, int index, MeshBlockPack* pmbp,
       for (int n=0; n<=nang1; ++n) {
         Real nmun1 = 0.0; Real nmun2 = 0.0; Real n_0 = 0.0;
         for (int d=0; d<4; ++d) {
-          nmun1 += tet_c_   (m,d,0,k,j,i)*nh_c_.d_view(n,d);
-          nmun2 += tet_c_   (m,d,0,k,j,i)*nh_c_.d_view(n,d);
-          n_0   += tetcov_c_(m,d,0,k,j,i)*nh_c_.d_view(n,d);
+          nmun1 += tet_c_   (m,d,0,k,j,i)*nh_c_.view_device()(n,d);
+          nmun2 += tet_c_   (m,d,0,k,j,i)*nh_c_.view_device()(n,d);
+          n_0   += tetcov_c_(m,d,0,k,j,i)*nh_c_.view_device()(n,d);
         }
-        dvars(m,index,k,j,i) += (nmun1*nmun2*(i0_(m,n,k,j,i)/(n0*n_0))*domega.d_view(n));
+        dvars(m,index,k,j,i)
+            += (nmun1*nmun2*(i0_(m,n,k,j,i)/(n0*n_0))*domega.view_device()(n));
       }
     });
   }

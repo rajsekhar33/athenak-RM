@@ -184,7 +184,8 @@ void Z4cStabilityErrors(HistoryData *pdata, Mesh *pm) {
       k += ks;
       j += js;
 
-      Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+      Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2
+          *size.view_device()(m).dx3;
 
       // g_ij's:
       array_sum::GlobalSum evars;

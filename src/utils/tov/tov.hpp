@@ -66,8 +66,8 @@ class TOVStar {
     }
 
     int idx = FindIsotropicIndex(r_iso);
-    const auto &R_iso_l = R_iso.d_view;
-    const auto &R_l = R.d_view;
+    const auto &R_iso_l = R_iso.view_device();
+    const auto &R_l = R.view_device();
 
     return Interpolate(r_iso, R_iso_l(idx), R_iso_l(idx+1), R_l(idx), R_l(idx+1));
   }
@@ -76,7 +76,7 @@ class TOVStar {
   int FindIsotropicIndex(Real r_iso) const {
     // Perform a bisection search to find the closest index to the requested isotropic
     // point.
-    const auto &R_iso_l = R_iso.d_view;
+    const auto &R_iso_l = R_iso.view_device();
     int lb = 0;
     int ub = n_r;
     int idx = lb;
@@ -100,9 +100,9 @@ class TOVStar {
     }
 
     int idx = static_cast<int>(r/dr);
-    const auto &R_l = R.d_view;
-    const auto &alps_l = alpha.d_view;
-    const auto &Ms_l = M.d_view;
+    const auto &R_l = R.view_device();
+    const auto &alps_l = alpha.view_device();
+    const auto &Ms_l = M.view_device();
     m = Interpolate(r, R_l(idx), R_l(idx+1), Ms_l(idx), Ms_l(idx+1));
     alp = Interpolate(r, R_l(idx), R_l(idx+1), alps_l(idx), alps_l(idx+1));
 
@@ -118,10 +118,10 @@ class TOVStar {
     }
     // Because isotropic coordinates are not evenly spaced, we need to search for the
     // right index.
-    const auto &R_iso_l = R_iso.d_view;
+    const auto &R_iso_l = R_iso.view_device();
     int idx = FindIsotropicIndex(r_iso);
-    const auto &alps_l = alpha.d_view;
-    const auto &Ms_l = M.d_view;
+    const auto &alps_l = alpha.view_device();
+    const auto &Ms_l = M.view_device();
     if (idx >= npoints || idx < 0) {
       Kokkos::printf("There's a problem with the index!\n" // NOLINT
                      " idx = %d\n"
@@ -184,11 +184,11 @@ TOVStar TOVStar::ConstructTOV(ParameterInput *pin, TOVEOS& eos, bool verbose) {
   Kokkos::realloc(tov.alpha, tov.npoints);
 
   // Set aliases
-  auto &R = tov.R.h_view;
-  auto &R_iso = tov.R_iso.h_view;
-  auto &M = tov.M.h_view;
-  auto &P = tov.P.h_view;
-  auto &alp = tov.alpha.h_view;
+  auto &R = tov.R.view_host();
+  auto &R_iso = tov.R_iso.view_host();
+  auto &M = tov.M.view_host();
+  auto &P = tov.P.view_host();
+  auto &alp = tov.alpha.view_host();
   int npoints = tov.npoints;
   Real dr = tov.dr;
 
@@ -334,10 +334,10 @@ void TOVStar::GetPrimitivesAtPoint(const TOVEOS& eos, Real r,
   }
   // Get the lower index for where our point must be located.
   int idx = static_cast<int>(r/dr);
-  const auto &R_l = R.d_view;
-  const auto &Ps_l = P.d_view;
-  const auto &alps_l = alpha.d_view;
-  const auto &Ms_l = M.d_view;
+  const auto &R_l = R.view_device();
+  const auto &Ps_l = P.view_device();
+  const auto &alps_l = alpha.view_device();
+  const auto &Ms_l = M.view_device();
   // Interpolate to get the primitive.
   p = Interpolate(r, R_l(idx), R_l(idx+1), Ps_l(idx), Ps_l(idx+1));
   m = Interpolate(r, R_l(idx), R_l(idx+1), Ms_l(idx), Ms_l(idx+1));
@@ -361,11 +361,11 @@ void TOVStar::GetPrimitivesAtIsoPoint(const TOVEOS& eos, Real r_iso,
   // Because the isotropic coordinates are not evenly spaced, we need to search to find
   // the right index. We can set a lower bound because r_iso <= r, and then we choose the
   // edge of the star as an upper bound.
-  const auto &R_iso_l = R_iso.d_view;
+  const auto &R_iso_l = R_iso.view_device();
   int idx = FindIsotropicIndex(r_iso);
-  const auto &Ps_l = P.d_view;
-  const auto &alps_l = alpha.d_view;
-  const auto &Ms_l = M.d_view;
+  const auto &Ps_l = P.view_device();
+  const auto &alps_l = alpha.view_device();
+  const auto &Ms_l = M.view_device();
   if (idx >= npoints || idx < 0) {
     printf("There's a problem with the index!\n" // NOLINT
            " idx = %d\n"
@@ -392,8 +392,8 @@ void TOVStar::GetPandRho(const TOVEOS& eos, Real r, Real &rho, Real &p) const {
   }
   // Get the lower index for where our point must be located.
   int idx = static_cast<int>(r/dr);
-  const auto &R_l = R.d_view;
-  const auto &Ps_l = P.d_view;
+  const auto &R_l = R.view_device();
+  const auto &Ps_l = P.view_device();
   // Interpolate to get the pressure
   p = Interpolate(r, R_l(idx), R_l(idx+1), Ps_l(idx), Ps_l(idx+1));
   rho = eos.template GetRhoFromP<LocationTag::Device>(p);
@@ -410,8 +410,8 @@ void TOVStar::GetPandRhoIso(const TOVEOS& eos, Real r, Real &rho, Real &p) const
   // We need to search to find the right index because isotropic coordinates aren't
   // evenly spaced.
   int idx = FindIsotropicIndex(r);
-  const auto R_iso_l = R_iso.d_view;
-  const auto &Ps_l = P.d_view;
+  const auto R_iso_l = R_iso.view_device();
+  const auto &Ps_l = P.view_device();
   p = Interpolate(r, R_iso_l(idx), R_iso_l(idx+1), Ps_l(idx), Ps_l(idx+1));
   rho = eos.template GetRhoFromP<LocationTag::Device>(p);
 }

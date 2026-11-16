@@ -85,9 +85,9 @@ void UpdateGID(int &newgid, NeighborBlock nghbr, int myrank, int *pcounter,
 #if MPI_PARALLEL_ENABLED
   if (nghbr.rank != myrank) {
     int index = Kokkos::atomic_fetch_add(pcounter,1);
-    slist.d_view(index).prtcl_indx = p;
-    slist.d_view(index).dest_gid   = nghbr.gid;
-    slist.d_view(index).dest_rank  = nghbr.rank;
+    slist.view_device()(index).prtcl_indx = p;
+    slist.view_device()(index).dest_gid   = nghbr.gid;
+    slist.view_device()(index).dest_rank  = nghbr.rank;
   }
 #endif
   return;
@@ -104,10 +104,10 @@ void UpdateGID(int &newgid, NeighborBlock nghbr, int myrank, int *pcounter,
 KOKKOS_INLINE_FUNCTION
 void MarkForDestruction(int *pcounter, DualArray1D<ParticleLocationData> dlist, int p) {
     int index = Kokkos::atomic_fetch_add(pcounter,1);
-    dlist.d_view(index).prtcl_indx = p;
+    dlist.view_device()(index).prtcl_indx = p;
     // These particles don't actually get sent, thus following information is not needed
-    dlist.d_view(index).dest_gid   = 0;
-    dlist.d_view(index).dest_rank  = 0;
+    dlist.view_device()(index).dest_gid   = 0;
+    dlist.view_device()(index).dest_rank  = 0;
   return;
 }
 
@@ -156,7 +156,7 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {
         return;
       }
 
-      int mylevel = mblev.d_view(m);
+      int mylevel = mblev.view_device()(m);
       Real x1 = pr(IPX,p);
       Real x2 = pr(IPY,p);
       Real x3 = pr(IPZ,p);
@@ -165,17 +165,17 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {
       // implements a no-through-wall boundary for continuous/stochastic tracers;
       // MC wall transfers should already be suppressed by the saved mass flux.
       bool escaped = ParticlePhysicalBoundary(x1, meshsize.x1min, meshsize.x1max,
-          mb_bcs.d_view(m,BoundaryFace::inner_x1),
-          mb_bcs.d_view(m,BoundaryFace::outer_x1));
+          mb_bcs.view_device()(m,BoundaryFace::inner_x1),
+          mb_bcs.view_device()(m,BoundaryFace::outer_x1));
       if (multi_d) {
         escaped |= ParticlePhysicalBoundary(x2, meshsize.x2min, meshsize.x2max,
-            mb_bcs.d_view(m,BoundaryFace::inner_x2),
-            mb_bcs.d_view(m,BoundaryFace::outer_x2));
+            mb_bcs.view_device()(m,BoundaryFace::inner_x2),
+            mb_bcs.view_device()(m,BoundaryFace::outer_x2));
       }
       if (three_d) {
         escaped |= ParticlePhysicalBoundary(x3, meshsize.x3min, meshsize.x3max,
-            mb_bcs.d_view(m,BoundaryFace::inner_x3),
-            mb_bcs.d_view(m,BoundaryFace::outer_x3));
+            mb_bcs.view_device()(m,BoundaryFace::inner_x3),
+            mb_bcs.view_device()(m,BoundaryFace::outer_x3));
       }
       // Drift particles carry independent velocities; tracers re-sample the
       // fluid and have no velocity components to reflect here.
@@ -194,29 +194,37 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {
 
       // Half-open ownership requires direct comparisons. Adding a block width
       // before truncation can round nextafter(xmax,xmin) across the upper face.
-      int ix = x1 < mbsize.d_view(m).x1min ? -1 :
-               (x1 >= mbsize.d_view(m).x1max ? 1 : 0);
-      int iy = multi_d ? (x2 < mbsize.d_view(m).x2min ? -1 :
-                         (x2 >= mbsize.d_view(m).x2max ? 1 : 0)) : 0;
-      int iz = three_d ? (x3 < mbsize.d_view(m).x3min ? -1 :
-                         (x3 >= mbsize.d_view(m).x3max ? 1 : 0)) : 0;
+      int ix = x1 < mbsize.view_device()(m).x1min ? -1 :
+               (x1 >= mbsize.view_device()(m).x1max ? 1 : 0);
+      int iy = multi_d ? (x2 < mbsize.view_device()(m).x2min ? -1 :
+                         (x2 >= mbsize.view_device()(m).x2max ? 1 : 0)) : 0;
+      int iz = three_d ? (x3 < mbsize.view_device()(m).x3min ? -1 :
+                         (x3 >= mbsize.view_device()(m).x3max ? 1 : 0)) : 0;
 
       // sublock indices for faces and edges with S/AMR
-      int fx = (x1 < 0.5*(mbsize.d_view(m).x1min + mbsize.d_view(m).x1max))? 0 : 1;
-      int fy = (x2 < 0.5*(mbsize.d_view(m).x2min + mbsize.d_view(m).x2max))? 0 : 1;
-      int fz = (x3 < 0.5*(mbsize.d_view(m).x3min + mbsize.d_view(m).x3max))? 0 : 1;
+      int fx = (x1 < 0.5
+          *(mbsize.view_device()(m).x1min + mbsize.view_device()(m).x1max))? 0 : 1;
+      int fy = (x2 < 0.5
+          *(mbsize.view_device()(m).x2min + mbsize.view_device()(m).x2max))? 0 : 1;
+      int fz = (x3 < 0.5
+          *(mbsize.view_device()(m).x3min + mbsize.view_device()(m).x3max))? 0 : 1;
       fy = multi_d ? fy : 0;
       fz = three_d ? fz : 0;
 
       // if the particle is outside of the "user-defined" boundaries,
       // mark it for no more updates
       bool check_boundary = (
-          mb_bcs.d_view(m, BoundaryFace::inner_x3) == BoundaryFlag::user && iz < 0)
-      || ( mb_bcs.d_view(m, BoundaryFace::outer_x3) == BoundaryFlag::user && iz > 0)
-      || ( mb_bcs.d_view(m, BoundaryFace::inner_x2) == BoundaryFlag::user && iy < 0)
-      || ( mb_bcs.d_view(m, BoundaryFace::outer_x2) == BoundaryFlag::user && iy > 0)
-      || ( mb_bcs.d_view(m, BoundaryFace::inner_x1) == BoundaryFlag::user && ix < 0)
-      || ( mb_bcs.d_view(m, BoundaryFace::outer_x1) == BoundaryFlag::user && ix > 0)
+          mb_bcs.view_device()(m, BoundaryFace::inner_x3) == BoundaryFlag::user && iz < 0)
+      || ( mb_bcs.view_device()(m, BoundaryFace::outer_x3) == BoundaryFlag::user
+          && iz > 0)
+      || ( mb_bcs.view_device()(m, BoundaryFace::inner_x2) == BoundaryFlag::user
+          && iy < 0)
+      || ( mb_bcs.view_device()(m, BoundaryFace::outer_x2) == BoundaryFlag::user
+          && iy > 0)
+      || ( mb_bcs.view_device()(m, BoundaryFace::inner_x1) == BoundaryFlag::user
+          && ix < 0)
+      || ( mb_bcs.view_device()(m, BoundaryFace::outer_x1) == BoundaryFlag::user
+          && ix > 0)
       // check min radius, set to -1 by default
       || ( sqrt(SQR(x1) + SQR(x2) + SQR(x3)) < min_rad );
 
@@ -233,142 +241,149 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {
           if (iy == 0) {
             // x1 face
             indx = NeighborIndex(ix,0,0,0,0);           // neighbor at same level
-            if (nghbr.d_view(m,indx).lev > mylevel) {   // neighbor at finer level
+            if (nghbr.view_device()(m,indx).lev > mylevel) {   // neighbor at finer level
               indx = NeighborIndex(ix,0,0,fy,fz);
             }
-            indx = ParticleNeighbor(nghbr.d_view, m, indx);  // neighbor at coarser level
-            if (indx < 0 || nghbr.d_view(m,indx).gid < 0) {
+            indx = ParticleNeighbor(nghbr.view_device(), m, indx);
+            // neighbor at coarser level
+            if (indx < 0 || nghbr.view_device()(m,indx).gid < 0) {
               Kokkos::abort("Particle migration has no valid neighbor on crossed interface");
               return;
             }
-            UpdateGID(pi(PGID,p), nghbr.d_view(m,indx), myrank, &atom_count(), psendl, p);
+            UpdateGID(pi(PGID,p), nghbr.view_device()(m,indx), myrank, &atom_count(),
+                psendl, p);
           } else if (ix == 0) {
             // x2 face
             indx = NeighborIndex(0,iy,0,0,0);
-            if (nghbr.d_view(m,indx).lev > mylevel) {
+            if (nghbr.view_device()(m,indx).lev > mylevel) {
               indx = NeighborIndex(0,iy,0,fx,fz);
             }
-            indx = ParticleNeighbor(nghbr.d_view, m, indx);
-            if (indx < 0 || nghbr.d_view(m,indx).gid < 0) {
+            indx = ParticleNeighbor(nghbr.view_device(), m, indx);
+            if (indx < 0 || nghbr.view_device()(m,indx).gid < 0) {
               Kokkos::abort("Particle migration has no valid neighbor on crossed interface");
               return;
             }
-            UpdateGID(pi(PGID,p), nghbr.d_view(m,indx), myrank, &atom_count(), psendl, p);
+            UpdateGID(pi(PGID,p), nghbr.view_device()(m,indx), myrank, &atom_count(),
+                psendl, p);
           } else {
             // x1x2 edge
             indx = NeighborIndex(ix,iy,0,0,0);
-            if (nghbr.d_view(m,indx).lev > mylevel) {
+            if (nghbr.view_device()(m,indx).lev > mylevel) {
               indx = NeighborIndex(ix,iy,0,fz,0);
             }
-            indx = ParticleNeighbor(nghbr.d_view, m, indx);
+            indx = ParticleNeighbor(nghbr.view_device(), m, indx);
             // Interior edges of a coarse face have no separate edge entry.
             // Use the coarse face only when the geometric edge entry is absent.
             if (indx < 0) {
               bool found_coarser = false;
               // First try through x face
               indx = NeighborIndex(ix,0,0,0,0);
-              indx = ParticleNeighbor(nghbr.d_view, m, indx);
-              if (indx >= 0 && nghbr.d_view(m,indx).lev < mylevel
-                  && nghbr.d_view(m,indx).lev > 0) {
+              indx = ParticleNeighbor(nghbr.view_device(), m, indx);
+              if (indx >= 0 && nghbr.view_device()(m,indx).lev < mylevel
+                  && nghbr.view_device()(m,indx).lev > 0) {
                 found_coarser = true;
               }
               // If all faces in the x direction are on a finer level this should
               // have already been covered by previous logic, thus check y
               if (!found_coarser) {
                 indx = NeighborIndex(0,iy,0,0,0);
-                indx = ParticleNeighbor(nghbr.d_view, m, indx);
-                if (indx >= 0 && nghbr.d_view(m,indx).lev < mylevel
-                  && nghbr.d_view(m,indx).lev > 0) {
+                indx = ParticleNeighbor(nghbr.view_device(), m, indx);
+                if (indx >= 0 && nghbr.view_device()(m,indx).lev < mylevel
+                  && nghbr.view_device()(m,indx).lev > 0) {
                   found_coarser = true;
                 }
               }
               if (!found_coarser) indx = -1;
             }
-            if (indx < 0 || nghbr.d_view(m,indx).gid < 0) {
+            if (indx < 0 || nghbr.view_device()(m,indx).gid < 0) {
               Kokkos::abort("Particle migration has no valid neighbor on crossed interface");
               return;
             }
-            UpdateGID(pi(PGID,p), nghbr.d_view(m,indx), myrank, &atom_count(), psendl, p);
+            UpdateGID(pi(PGID,p), nghbr.view_device()(m,indx), myrank, &atom_count(),
+                psendl, p);
           }
         } else if (iy == 0) {
           if (ix == 0) {
             // x3 face
             indx = NeighborIndex(0,0,iz,0,0);
-            if (nghbr.d_view(m,indx).lev > mylevel) {
+            if (nghbr.view_device()(m,indx).lev > mylevel) {
               indx = NeighborIndex(0,0,iz,fx,fy);
             }
-            indx = ParticleNeighbor(nghbr.d_view, m, indx);
-            if (indx < 0 || nghbr.d_view(m,indx).gid < 0) {
+            indx = ParticleNeighbor(nghbr.view_device(), m, indx);
+            if (indx < 0 || nghbr.view_device()(m,indx).gid < 0) {
               Kokkos::abort("Particle migration has no valid neighbor on crossed interface");
               return;
             }
-            UpdateGID(pi(PGID,p), nghbr.d_view(m,indx), myrank, &atom_count(), psendl, p);
+            UpdateGID(pi(PGID,p), nghbr.view_device()(m,indx), myrank, &atom_count(),
+                psendl, p);
           } else {
             // x3x1 edge
             indx = NeighborIndex(ix,0,iz,0,0);
-            if (nghbr.d_view(m,indx).lev > mylevel) {
+            if (nghbr.view_device()(m,indx).lev > mylevel) {
               indx = NeighborIndex(ix,0,iz,fy,0);
             }
-            indx = ParticleNeighbor(nghbr.d_view, m, indx);
+            indx = ParticleNeighbor(nghbr.view_device(), m, indx);
             if (indx < 0) {
               bool found_coarser = false;
               indx = NeighborIndex(ix,0,0,0,0);
-              indx = ParticleNeighbor(nghbr.d_view, m, indx);
-              if (indx >= 0 && nghbr.d_view(m,indx).lev < mylevel
-                  && nghbr.d_view(m,indx).lev > 0) {
+              indx = ParticleNeighbor(nghbr.view_device(), m, indx);
+              if (indx >= 0 && nghbr.view_device()(m,indx).lev < mylevel
+                  && nghbr.view_device()(m,indx).lev > 0) {
                 found_coarser = true;
               }
               if (!found_coarser) {
                 indx = NeighborIndex(0,0,iz,0,0);
-                indx = ParticleNeighbor(nghbr.d_view, m, indx);
-                if (indx >= 0 && nghbr.d_view(m,indx).lev < mylevel
-                  && nghbr.d_view(m,indx).lev > 0) {
+                indx = ParticleNeighbor(nghbr.view_device(), m, indx);
+                if (indx >= 0 && nghbr.view_device()(m,indx).lev < mylevel
+                  && nghbr.view_device()(m,indx).lev > 0) {
                   found_coarser = true;
                 }
               }
               if (!found_coarser) indx = -1;
             }
-            if (indx < 0 || nghbr.d_view(m,indx).gid < 0) {
+            if (indx < 0 || nghbr.view_device()(m,indx).gid < 0) {
               Kokkos::abort("Particle migration has no valid neighbor on crossed interface");
               return;
             }
-            UpdateGID(pi(PGID,p), nghbr.d_view(m,indx), myrank, &atom_count(), psendl, p);
+            UpdateGID(pi(PGID,p), nghbr.view_device()(m,indx), myrank, &atom_count(),
+                psendl, p);
           }
         } else {
           if (ix == 0) {
             // x2x3 edge
             indx = NeighborIndex(0,iy,iz,0,0);
-            if (nghbr.d_view(m,indx).lev > mylevel) {
+            if (nghbr.view_device()(m,indx).lev > mylevel) {
               indx = NeighborIndex(0,iy,iz,fx,0);
             }
-            indx = ParticleNeighbor(nghbr.d_view, m, indx);
+            indx = ParticleNeighbor(nghbr.view_device(), m, indx);
             if (indx < 0) {
               bool found_coarser = false;
               indx = NeighborIndex(0,iy,0,0,0);
-              indx = ParticleNeighbor(nghbr.d_view, m, indx);
-              if (indx >= 0 && nghbr.d_view(m,indx).lev < mylevel
-                  && nghbr.d_view(m,indx).lev > 0) {
+              indx = ParticleNeighbor(nghbr.view_device(), m, indx);
+              if (indx >= 0 && nghbr.view_device()(m,indx).lev < mylevel
+                  && nghbr.view_device()(m,indx).lev > 0) {
                 found_coarser = true;
               }
               if (!found_coarser) {
                 indx = NeighborIndex(0,0,iz,0,0);
-                indx = ParticleNeighbor(nghbr.d_view, m, indx);
-                if (indx >= 0 && nghbr.d_view(m,indx).lev < mylevel
-                  && nghbr.d_view(m,indx).lev > 0) {
+                indx = ParticleNeighbor(nghbr.view_device(), m, indx);
+                if (indx >= 0 && nghbr.view_device()(m,indx).lev < mylevel
+                  && nghbr.view_device()(m,indx).lev > 0) {
                   found_coarser = true;
                 }
               }
               if (!found_coarser) indx = -1;
             }
-            if (indx < 0 || nghbr.d_view(m,indx).gid < 0) {
+            if (indx < 0 || nghbr.view_device()(m,indx).gid < 0) {
               Kokkos::abort("Particle migration has no valid neighbor on crossed interface");
               return;
             }
-            UpdateGID(pi(PGID,p), nghbr.d_view(m,indx), myrank, &atom_count(), psendl, p);
+            UpdateGID(pi(PGID,p), nghbr.view_device()(m,indx), myrank, &atom_count(),
+                psendl, p);
           } else {
             // corners
             indx = NeighborIndex(ix,iy,iz,0,0);
-            if (nghbr.d_view(m,indx).gid < 0) {
+            if (nghbr.view_device()(m,indx).gid < 0) {
               // A fine corner can lie inside a coarse edge, not just a face.
               // Prefer the highest-dimensional populated coarse interface.
               const int candidates[6] = {
@@ -377,47 +392,52 @@ TaskStatus ParticlesBoundaryValues::SetNewPrtclGID() {
                 NeighborIndex(0,iy,0,0,0), NeighborIndex(0,0,iz,0,0)};
               indx = -1;
               for (int n = 0; n < 6; ++n) {
-                const int candidate = ParticleNeighbor(nghbr.d_view, m, candidates[n]);
-                if (candidate >= 0 && nghbr.d_view(m,candidate).lev < mylevel
-                    && nghbr.d_view(m,candidate).lev > 0) {
+                const int candidate
+                    = ParticleNeighbor(nghbr.view_device(), m, candidates[n]);
+                if (candidate >= 0 && nghbr.view_device()(m,candidate).lev < mylevel
+                    && nghbr.view_device()(m,candidate).lev > 0) {
                   indx = candidate;
                   break;
                 }
               }
             }
-            if (indx < 0 || nghbr.d_view(m,indx).gid < 0) {
+            if (indx < 0 || nghbr.view_device()(m,indx).gid < 0) {
               Kokkos::abort("Particle migration has no valid neighbor on crossed interface");
               return;
             }
-            UpdateGID(pi(PGID,p), nghbr.d_view(m,indx), myrank, &atom_count(), psendl, p);
+            UpdateGID(pi(PGID,p), nghbr.view_device()(m,indx), myrank, &atom_count(),
+                psendl, p);
           }
         }
 
         // Preserve the existing shear-periodic x1 wrap as well. This does not
         // add a shearing displacement/remap for particles.
         if (x1 < meshsize.x1min
-            && (mb_bcs.d_view(m,BoundaryFace::inner_x1) == BoundaryFlag::periodic
-                || mb_bcs.d_view(m,BoundaryFace::inner_x1) == BoundaryFlag::shear_periodic)) {
+            && (mb_bcs.view_device()(m,BoundaryFace::inner_x1) == BoundaryFlag::periodic
+                || mb_bcs.view_device()(m,BoundaryFace::inner_x1) == BoundaryFlag::shear_periodic)) {
           pr(IPX,p) = ParticlePeriodicCoordinate(x1, meshsize.x1min, meshsize.x1max);
         } else if (x1 >= meshsize.x1max
-                   && (mb_bcs.d_view(m,BoundaryFace::outer_x1) == BoundaryFlag::periodic
-                       || mb_bcs.d_view(m,BoundaryFace::outer_x1) == BoundaryFlag::shear_periodic)) {
+                   && (mb_bcs.view_device()(m,
+                       BoundaryFace::outer_x1) == BoundaryFlag::periodic
+                       || mb_bcs.view_device()(m,BoundaryFace::outer_x1) == BoundaryFlag::shear_periodic)) {
           pr(IPX,p) = ParticlePeriodicCoordinate(x1, meshsize.x1min, meshsize.x1max);
         }
 
         if (x2 < meshsize.x2min
-            && mb_bcs.d_view(m,BoundaryFace::inner_x2) == BoundaryFlag::periodic) {
+            && mb_bcs.view_device()(m,BoundaryFace::inner_x2) == BoundaryFlag::periodic) {
           pr(IPY,p) = ParticlePeriodicCoordinate(x2, meshsize.x2min, meshsize.x2max);
         } else if (x2 >= meshsize.x2max
-                   && mb_bcs.d_view(m,BoundaryFace::outer_x2) == BoundaryFlag::periodic) {
+                   && mb_bcs.view_device()(m,
+                       BoundaryFace::outer_x2) == BoundaryFlag::periodic) {
           pr(IPY,p) = ParticlePeriodicCoordinate(x2, meshsize.x2min, meshsize.x2max);
         }
 
         if (x3 < meshsize.x3min
-            && mb_bcs.d_view(m,BoundaryFace::inner_x3) == BoundaryFlag::periodic) {
+            && mb_bcs.view_device()(m,BoundaryFace::inner_x3) == BoundaryFlag::periodic) {
           pr(IPZ,p) = ParticlePeriodicCoordinate(x3, meshsize.x3min, meshsize.x3max);
         } else if (x3 >= meshsize.x3max
-                   && mb_bcs.d_view(m,BoundaryFace::outer_x3) == BoundaryFlag::periodic) {
+                   && mb_bcs.view_device()(m,
+                       BoundaryFace::outer_x3) == BoundaryFlag::periodic) {
           pr(IPZ,p) = ParticlePeriodicCoordinate(x3, meshsize.x3min, meshsize.x3max);
         }
       }
@@ -442,7 +462,7 @@ TaskStatus ParticlesBoundaryValues::CountSendsAndRecvs() {
 #if MPI_PARALLEL_ENABLED
   // Sort sendlist on host by destrank.
   namespace KE = Kokkos::Experimental;
-  std::sort(KE::begin(sendlist.h_view), KE::end(sendlist.h_view), SortByRank);
+  std::sort(KE::begin(sendlist.view_host()), KE::end(sendlist.view_host()), SortByRank);
   // sync sendlist host array with device.  This results in sorted array on device
   sendlist.template modify<HostMemSpace>();
   sendlist.template sync<DevExeSpace>();
@@ -452,15 +472,15 @@ TaskStatus ParticlesBoundaryValues::CountSendsAndRecvs() {
   sends_thisrank.clear();
   if (nprtcl_send > 0) {
     int &myrank = global_variable::my_rank;
-    int rank = sendlist.h_view(0).dest_rank;
+    int rank = sendlist.view_host()(0).dest_rank;
     int nprtcl = 1;
 
     for (int n=1; n<nprtcl_send; ++n) {
-      if (sendlist.h_view(n).dest_rank == rank) {
+      if (sendlist.view_host()(n).dest_rank == rank) {
         ++nprtcl;
       } else {
         sends_thisrank.emplace_back(ParticleMessageData(myrank,rank,nprtcl));
-        rank = sendlist.h_view(n).dest_rank;
+        rank = sendlist.view_host()(n).dest_rank;
         nprtcl = 1;
       }
     }
@@ -614,7 +634,7 @@ TaskStatus ParticlesBoundaryValues::PackAndSendPrtcls() {
     auto &isendbuf = prtcl_isendbuf;
     auto &slist = sendlist;
     par_for("ppack",DevExeSpace(),0,(nprtcl_send-1), KOKKOS_LAMBDA(const int n) {
-      int p = slist.d_view(n).prtcl_indx;
+      int p = slist.view_device()(n).prtcl_indx;
       for (int i=0; i<nidata; ++i) {
         isendbuf(nidata*n + i) = pi(i,p);
       }
@@ -727,7 +747,8 @@ TaskStatus ParticlesBoundaryValues::RecvAndUnpackPrtcls() {
 #if MPI_PARALLEL_ENABLED
   if (nprtcl_send > 0) {
     // Sort sendlist on host by index in particle array
-    std::sort(KE::begin(sendlist.h_view), KE::end(sendlist.h_view), SortByIndex);
+    std::sort(KE::begin(sendlist.view_host()), KE::end(sendlist.view_host()),
+        SortByIndex);
     // sync sendlist host array with device.  This results in sorted array on device
     sendlist.template modify<HostMemSpace>();
     sendlist.template sync<DevExeSpace>();
@@ -747,7 +768,8 @@ TaskStatus ParticlesBoundaryValues::RecvAndUnpackPrtcls() {
     par_for("punpack",DevExeSpace(),0,(nprtcl_recv-1), KOKKOS_LAMBDA(const int n) {
       int p;
       if (n < nps) {
-        p = slist.d_view(n).prtcl_indx;  // place particles in holes created by sends
+        p = slist.view_device()(n).prtcl_indx;
+        // place particles in holes created by sends
       } else {
         p = npa + (n - nps);             // place particle at end of arrays
       }
@@ -769,9 +791,9 @@ TaskStatus ParticlesBoundaryValues::RecvAndUnpackPrtcls() {
     int i_next_hole = nprtcl_recv;
     for (int n=1; n<=nremain; ++n) {
       int nend = npart-n;
-      if (nend > sendlist.h_view(i_last_hole).prtcl_indx) {
+      if (nend > sendlist.view_host()(i_last_hole).prtcl_indx) {
         // copy particle from end into hole
-        int next_hole = sendlist.h_view(i_next_hole).prtcl_indx;
+        int next_hole = sendlist.view_host()(i_next_hole).prtcl_indx;
         auto rdest = Kokkos::subview(pmy_part->prtcl_rdata, Kokkos::ALL, next_hole);
         auto rsrc  = Kokkos::subview(pmy_part->prtcl_rdata, Kokkos::ALL, nend);
         Kokkos::deep_copy(rdest, rsrc);

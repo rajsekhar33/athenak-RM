@@ -37,11 +37,12 @@ TaskStatus ShearingBox::InitRecv(Real time) {
   const int &nx2 = indcs.nx2;
   for (int n=0; n<2; ++n) {
     for (int m=0; m<nmb_x1bndry(n); ++m) {
-      int gid = x1bndry_mbgid.h_view(n,m);
+      int gid = x1bndry_mbgid.view_host()(n,m);
       int mm = gid - pmy_pack->gids;
       // Find integer and fractional number of grids over which offset extends.
       // This assumes every grid has same number of cells in x2-direction!
-      int joffset  = static_cast<int>(yshear/(pmy_pack->pmb->mb_size.h_view(mm).dx2));
+      int joffset
+          = static_cast<int>(yshear/(pmy_pack->pmb->mb_size.view_host()(mm).dx2));
       int ji = joffset/nx2;
       int jr = joffset - ji*nx2;
 
@@ -168,11 +169,12 @@ TaskStatus ShearingBox::ClearRecv() {
   // wait for all non-blocking receives for vars to finish before continuing
   for (int n=0; n<2; ++n) {
     for (int m=0; m<nmb_x1bndry(n); ++m) {
-      int gid = x1bndry_mbgid.h_view(n,m);
+      int gid = x1bndry_mbgid.view_host()(n,m);
       int mm = gid - pmy_pack->gids;
       // Find integer and fractional number of grids over which offset extends.
       // This assumes every grid has same number of cells in x2-direction!
-      int joffset  = static_cast<int>(yshear/(pmy_pack->pmb->mb_size.h_view(mm).dx2));
+      int joffset
+          = static_cast<int>(yshear/(pmy_pack->pmb->mb_size.view_host()(mm).dx2));
       int ji = joffset/nx2;
       int jr = joffset - ji*nx2;
 
@@ -241,11 +243,12 @@ TaskStatus ShearingBox::ClearSend() {
   // wait for all non-blocking sends for vars to finish before continuing
   for (int n=0; n<2; ++n) {
     for (int m=0; m<nmb_x1bndry(n); ++m) {
-      int gid = x1bndry_mbgid.h_view(n,m);
+      int gid = x1bndry_mbgid.view_host()(n,m);
       int mm = gid - pmy_pack->gids;
       // Find integer and fractional number of grids over which offset extends.
       // This assumes every grid has same number of cells in x2-direction!
-      int joffset  = static_cast<int>(yshear/(pmy_pack->pmb->mb_size.h_view(mm).dx2));
+      int joffset
+          = static_cast<int>(yshear/(pmy_pack->pmb->mb_size.view_host()(mm).dx2));
       int ji = joffset/nx2;
       int jr = joffset - ji*nx2;
 

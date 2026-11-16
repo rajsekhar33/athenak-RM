@@ -282,9 +282,9 @@ void SetupBNS(ParameterInput *pin, Mesh* pmy_mesh_) {
   auto &w0    = pmbp->pmhd->w0;
   auto &u_z4c = pmbp->pz4c->u0;
 
-  HostArray5D<Real>::HostMirror host_u_adm = create_mirror_view(u_adm);
-  HostArray5D<Real>::HostMirror host_w0    = create_mirror_view(w0);
-  HostArray5D<Real>::HostMirror host_u_z4c = create_mirror_view(u_z4c);
+  HostArray5D<Real>::host_mirror_type host_u_adm = create_mirror_view(u_adm);
+  HostArray5D<Real>::host_mirror_type host_w0    = create_mirror_view(w0);
+  HostArray5D<Real>::host_mirror_type host_u_z4c = create_mirror_view(u_z4c);
 
   adm::ADM::ADMhost_vars host_adm;
   host_adm.alpha.InitWithShallowSlice(host_u_z4c, z4c::Z4c::I_Z4C_ALPHA);
@@ -317,11 +317,11 @@ void SetupBNS(ParameterInput *pin, Mesh* pmy_mesh_) {
 
     // Cell-centre coordinates.
     Real x = CellCenterX(i - is, indcs.nx1,
-                          size.h_view(m).x1min, size.h_view(m).x1max);
+                          size.view_host()(m).x1min, size.view_host()(m).x1max);
     Real y = CellCenterX(j - js, indcs.nx2,
-                          size.h_view(m).x2min, size.h_view(m).x2max);
+                          size.view_host()(m).x2min, size.view_host()(m).x2max);
     Real z = CellCenterX(k - ks, indcs.nx3,
-                          size.h_view(m).x3min, size.h_view(m).x3max);
+                          size.view_host()(m).x3min, size.view_host()(m).x3max);
 
     // Kadath point shifted to the centre-of-mass frame.
     Point pt(3);

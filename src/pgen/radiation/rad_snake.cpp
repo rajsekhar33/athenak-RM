@@ -67,16 +67,16 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   auto &na_ = pmbp->prad->na;
   par_for("tet_c",DevExeSpace(),0,(nmb-1),0,(n3-1),0,(n2-1),0,(n1-1),
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
     // calculate snake metric and tetrad
@@ -95,21 +95,22 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
     // set n^a coordinate components
     for (int n=0; n<=nang1; ++n) {
-      for (int nb=0; nb<num_neighbors_.d_view(n); ++nb) {
-        Real zetaf = acos(nh_f_.d_view(n,nb,3));
+      for (int nb=0; nb<num_neighbors_.view_device()(n); ++nb) {
+        Real zetaf = acos(nh_f_.view_device()(n,nb,3));
         Real na1 = 0.0; Real na2 = 0.0;
         for (int q=0; q<4; ++q) {
           for (int p=0; p<4; ++p) {
-            na1 += (1.0/sin(zetaf)*nh_f_.d_view(n,nb,q)*nh_f_.d_view(n,nb,p)
-                    * (nh_f_.d_view(n,nb,0)*omega[3][q][p]
-                    -  nh_f_.d_view(n,nb,3)*omega[0][q][p]));
-            na2 += (1.0/SQR(sin(zetaf))*nh_f_.d_view(n,nb,q)*nh_f_.d_view(n,nb,p)
-                    * (nh_f_.d_view(n,nb,2)*omega[1][q][p]
-                    -  nh_f_.d_view(n,nb,1)*omega[2][q][p]));
+            na1 += (1.0/sin(zetaf)*nh_f_.view_device()(n,nb,q)*nh_f_.view_device()(n,nb,p)
+                    * (nh_f_.view_device()(n,nb,0)*omega[3][q][p]
+                    -  nh_f_.view_device()(n,nb,3)*omega[0][q][p]));
+            na2 += (1.0/SQR(sin(zetaf))*nh_f_.view_device()(n,nb,q)
+                *nh_f_.view_device()(n,nb,p)
+                    * (nh_f_.view_device()(n,nb,2)*omega[1][q][p]
+                    -  nh_f_.view_device()(n,nb,1)*omega[2][q][p]));
           }
         }
-        na_(m,n,k,j,i,nb) = na1*unit_flux_.d_view(n,nb,0)
-                          + SQR(sin(zetaf))*na2*unit_flux_.d_view(n,nb,1);
+        na_(m,n,k,j,i,nb) = na1*unit_flux_.view_device()(n,nb,0)
+                          + SQR(sin(zetaf))*na2*unit_flux_.view_device()(n,nb,1);
       }
     }
   });
@@ -118,16 +119,16 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   auto tet_d1_x1f_ = pmbp->prad->tet_d1_x1f;
   par_for("tet_x1f",DevExeSpace(),0,(nmb-1),0,(n3-1),0,(n2-1),0,n1,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1f = LeftEdgeX(i-is, indcs.nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
     // calculate snake metric and tetrad
@@ -142,16 +143,16 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   auto tet_d2_x2f_ = pmbp->prad->tet_d2_x2f;
   par_for("tet_x2f",DevExeSpace(),0,(nmb-1),0,(n3-1),0,n2,0,(n1-1),
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2f = LeftEdgeX(j-js, indcs.nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
     // calculate snake metric and tetrad
@@ -166,16 +167,16 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   auto tet_d3_x3f_ = pmbp->prad->tet_d3_x3f;
   par_for("tet_x3f",DevExeSpace(),0,(nmb-1),0,n3,0,(n2-1),0,(n1-1),
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3f = LeftEdgeX(k-ks, indcs.nx3, x3min, x3max);
 
     // calculate snake metric and tetrad
@@ -195,16 +196,16 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   auto &beam_mask = pmbp->prad->beam_mask;
   par_for("rad_beam",DevExeSpace(),0,nmb1,ks,ke,js,je,is,ie,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
     // calculate snake metric and tetrad
@@ -252,9 +253,9 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
 
     // Go through angles
     for (int n=0; n<=nang1; ++n) {
-      Real mu = (nh_c_.d_view(n,1) * dtc1
-               + nh_c_.d_view(n,2) * dtc2
-               + nh_c_.d_view(n,3) * dtc3);
+      Real mu = (nh_c_.view_device()(n,1) * dtc1
+               + nh_c_.view_device()(n,2) * dtc2
+               + nh_c_.view_device()(n,3) * dtc3);
       if ((dx_sq < SQR(width_/2.0)) && (mu > mu_min)) {
         beam_mask(m,n,k,j,i) = true;
       } else {

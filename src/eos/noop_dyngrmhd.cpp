@@ -9,6 +9,8 @@
 //----------------------------------------------------------------------------------------
 // ctor: also calls EOS base class constructor
 
+#include <cfloat>
+
 #include "athena.hpp"
 #include "mhd/mhd.hpp"
 #include "eos.hpp"

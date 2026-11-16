@@ -127,18 +127,18 @@ void ProblemGenerator::ShockTube(ParameterInput *pin, const bool restart) {
     KOKKOS_LAMBDA(int m,int k, int j, int i) {
       Real x;
       if (shk_dir_ == 1) {
-        Real &x1min = size.d_view(m).x1min;
-        Real &x1max = size.d_view(m).x1max;
+        Real &x1min = size.view_device()(m).x1min;
+        Real &x1max = size.view_device()(m).x1max;
         int nx1 = indcs.nx1;
         x = CellCenterX(i-is, nx1, x1min, x1max);
       } else if (shk_dir_ == 2) {
-        Real &x2min = size.d_view(m).x2min;
-        Real &x2max = size.d_view(m).x2max;
+        Real &x2min = size.view_device()(m).x2min;
+        Real &x2max = size.view_device()(m).x2max;
         int nx2 = indcs.nx2;
         x = CellCenterX(j-js, nx2, x2min, x2max);
       } else {
-        Real &x3min = size.d_view(m).x3min;
-        Real &x3max = size.d_view(m).x3max;
+        Real &x3min = size.view_device()(m).x3min;
+        Real &x3max = size.view_device()(m).x3max;
         int nx3 = indcs.nx3;
         x = CellCenterX(k-ks, nx3, x3min, x3max);
       }
@@ -225,22 +225,22 @@ void ProblemGenerator::ShockTube(ParameterInput *pin, const bool restart) {
     KOKKOS_LAMBDA(int m,int k, int j, int i) {
       Real x,bxl,byl,bzl,bxr,byr,bzr;
       if (shk_dir_ == 1) {
-        Real &x1min = size.d_view(m).x1min;
-        Real &x1max = size.d_view(m).x1max;
+        Real &x1min = size.view_device()(m).x1min;
+        Real &x1max = size.view_device()(m).x1max;
         int nx1 = indcs.nx1;
         x = CellCenterX(i-is, nx1, x1min, x1max);
         bxl = wl.bx; byl = wl.by; bzl = wl.bz;
         bxr = wr.bx; byr = wr.by; bzr = wr.bz;
       } else if (shk_dir_ == 2) {
-        Real &x2min = size.d_view(m).x2min;
-        Real &x2max = size.d_view(m).x2max;
+        Real &x2min = size.view_device()(m).x2min;
+        Real &x2max = size.view_device()(m).x2max;
         int nx2 = indcs.nx2;
         x = CellCenterX(j-js, nx2, x2min, x2max);
         bxl = wl.bz; byl = wl.bx; bzl = wl.by;
         bxr = wr.bz; byr = wr.bx; bzr = wr.by;
       } else {
-        Real &x3min = size.d_view(m).x3min;
-        Real &x3max = size.d_view(m).x3max;
+        Real &x3min = size.view_device()(m).x3min;
+        Real &x3max = size.view_device()(m).x3max;
         int nx3 = indcs.nx3;
         x = CellCenterX(k-ks, nx3, x3min, x3max);
         bxl = wl.by; byl = wl.bz; bzl = wl.bx;
@@ -330,16 +330,16 @@ void SetADMVariablesToSchwarzschild(MeshBlockPack *pmbp) {
   auto shk_dir_ = shk_dir;
   par_for("pgen_adm_vars", DevExeSpace(), 0,nmb1,0,(n3-1),0,(n2-1),0,(n1-1),
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
     // Set ADM to Schwarzschild coordinates

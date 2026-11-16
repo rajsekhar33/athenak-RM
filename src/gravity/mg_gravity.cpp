@@ -251,12 +251,12 @@ void MGGravity::SmoothPack(int color) {
   int ks = ngh_, ke = ks+(indcs_.nx3>>ll)-1;
   GravityStencil stencil{static_cast<MGGravityDriver*>(pmy_driver_)->omega_/6.0};
   if (on_host_) {
-    Smooth(u_[current_level_].h_view, src_[current_level_].h_view,
-           coeff_[current_level_].h_view, matrix_[current_level_].h_view,
+    Smooth(u_[current_level_].view_host(), src_[current_level_].view_host(),
+           coeff_[current_level_].view_host(), matrix_[current_level_].view_host(),
            stencil, -ll, is, ie, js, je, ks, ke, color, false);
   } else {
-    Smooth(u_[current_level_].d_view, src_[current_level_].d_view,
-           coeff_[current_level_].d_view, matrix_[current_level_].d_view,
+    Smooth(u_[current_level_].view_device(), src_[current_level_].view_device(),
+           coeff_[current_level_].view_device(), matrix_[current_level_].view_device(),
            stencil, -ll, is, ie, js, je, ks, ke, color, false);
   }
 }
@@ -268,14 +268,15 @@ void MGGravity::CalculateDefectPack() {
   int ks = ngh_, ke = ks+(indcs_.nx3>>ll)-1;
   GravityStencil stencil{0.0};
   if (on_host_) {
-    CalculateDefect(def_[current_level_].h_view, u_[current_level_].h_view,
-                    src_[current_level_].h_view, coeff_[current_level_].h_view,
-                    matrix_[current_level_].h_view,
+    CalculateDefect(def_[current_level_].view_host(), u_[current_level_].view_host(),
+                    src_[current_level_].view_host(), coeff_[current_level_].view_host(),
+                    matrix_[current_level_].view_host(),
                     stencil, -ll, is, ie, js, je, ks, ke, false);
   } else {
-    CalculateDefect(def_[current_level_].d_view, u_[current_level_].d_view,
-                    src_[current_level_].d_view, coeff_[current_level_].d_view,
-                    matrix_[current_level_].d_view,
+    CalculateDefect(def_[current_level_].view_device(), u_[current_level_].view_device(),
+                    src_[current_level_].view_device(),
+                        coeff_[current_level_].view_device(),
+                    matrix_[current_level_].view_device(),
                     stencil, -ll, is, ie, js, je, ks, ke, false);
   }
 }
@@ -287,12 +288,14 @@ void MGGravity::CalculateFASRHSPack() {
   int ks = ngh_, ke = ks+(indcs_.nx3>>ll)-1;
   GravityStencil stencil{0.0};
   if (on_host_) {
-    CalculateFASRHS(src_[current_level_].h_view, u_[current_level_].h_view,
-                    coeff_[current_level_].h_view, matrix_[current_level_].h_view,
+    CalculateFASRHS(src_[current_level_].view_host(), u_[current_level_].view_host(),
+                    coeff_[current_level_].view_host(),
+                        matrix_[current_level_].view_host(),
                     stencil, -ll, is, ie, js, je, ks, ke, false);
   } else {
-    CalculateFASRHS(src_[current_level_].d_view, u_[current_level_].d_view,
-                    coeff_[current_level_].d_view, matrix_[current_level_].d_view,
+    CalculateFASRHS(src_[current_level_].view_device(), u_[current_level_].view_device(),
+                    coeff_[current_level_].view_device(),
+                        matrix_[current_level_].view_device(),
                     stencil, -ll, is, ie, js, je, ks, ke, false);
   }
 }

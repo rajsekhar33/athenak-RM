@@ -192,16 +192,16 @@ void ProblemGenerator::SelfGravity(ParameterInput *pin, const bool restart) {
 
     par_for("jeans_wave_hydro_init", DevExeSpace(), 0, (nmb-1), ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
       Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
       Real x = cos_a2*(x1v*cos_a3 + x2v*sin_a3) + x3v*sin_a2;
@@ -229,16 +229,16 @@ void ProblemGenerator::SelfGravity(ParameterInput *pin, const bool restart) {
 
     par_for("jeans_wave_mhd_init", DevExeSpace(), 0, (nmb-1), ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real &x1min = size.d_view(m).x1min;
-      Real &x1max = size.d_view(m).x1max;
+      Real &x1min = size.view_device()(m).x1min;
+      Real &x1max = size.view_device()(m).x1max;
       Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-      Real &x2min = size.d_view(m).x2min;
-      Real &x2max = size.d_view(m).x2max;
+      Real &x2min = size.view_device()(m).x2min;
+      Real &x2max = size.view_device()(m).x2max;
       Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-      Real &x3min = size.d_view(m).x3min;
-      Real &x3max = size.d_view(m).x3max;
+      Real &x3min = size.view_device()(m).x3min;
+      Real &x3max = size.view_device()(m).x3max;
       Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
       Real x = cos_a2*(x1v*cos_a3 + x2v*sin_a3) + x3v*sin_a2;
@@ -325,15 +325,15 @@ void JeansWaveRefinement(MeshBlockPack *pmbp) {
       },
       Kokkos::Max<Real>(team_rhomax));
 
-    Real dx = size.d_view(m).dx1;
+    Real dx = size.view_device()(m).dx1;
     Real nj_min = 2.0 * M_PI * cs / (dx * Kokkos::sqrt(fpG * team_rhomax));
 
     if (nj_min < njeans) {
-      refine_flag.d_view(m + mbs) = 1;
+      refine_flag.view_device()(m + mbs) = 1;
     } else if (nj_min > njeans * derefine) {
-      refine_flag.d_view(m + mbs) = -1;
+      refine_flag.view_device()(m + mbs) = -1;
     } else {
-      refine_flag.d_view(m + mbs) = 0;
+      refine_flag.view_device()(m + mbs) = 0;
     }
   });
 
@@ -399,10 +399,11 @@ void JeansWaveErrors(ParameterInput *pin, Mesh *pm) {
         int mm = idx / (ni * nj * nk);
         int i = is + ii, j = js + jj, k = ks + kk;
 
-        Real x1min = size.d_view(mm).x1min, x1max = size.d_view(mm).x1max;
-        Real x2min = size.d_view(mm).x2min, x2max = size.d_view(mm).x2max;
-        Real x3min = size.d_view(mm).x3min, x3max = size.d_view(mm).x3max;
-        Real vol = size.d_view(mm).dx1 * size.d_view(mm).dx2 * size.d_view(mm).dx3;
+        Real x1min = size.view_device()(mm).x1min, x1max = size.view_device()(mm).x1max;
+        Real x2min = size.view_device()(mm).x2min, x2max = size.view_device()(mm).x2max;
+        Real x3min = size.view_device()(mm).x3min, x3max = size.view_device()(mm).x3max;
+        Real vol = size.view_device()(mm).dx1 * size.view_device()(mm).dx2
+            * size.view_device()(mm).dx3;
 
         Real x1v = CellCenterX(i - is, indcs.nx1, x1min, x1max);
         Real x2v = CellCenterX(j - js, indcs.nx2, x2min, x2max);

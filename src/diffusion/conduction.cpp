@@ -947,7 +947,9 @@ Real Conduction::SpitzerTimeStep(const DvceArray5D<Real> &w0,
       ++bad;
       return;
     }
-    const Real dx[3] = {size.d_view(m).dx1, size.d_view(m).dx2, size.d_view(m).dx3};
+    const Real dx[3]
+        = {size.view_device()(m).dx1, size.view_device()(m).dx2,
+        size.view_device()(m).dx3};
     Real inverse_square = 0.0, row_sum = 0.0;
     for (int d=0; d<ndim; ++d) {
       if (!conduction::IsFinitePositive(dx[d])) { ++bad; return; }
@@ -991,6 +993,8 @@ Real Conduction::SpitzerTimeStep(const DvceArray5D<Real> &w0,
         (active_diffusion && rate < conduction::kMinNormal)) { ++bad; return; }
     if (rate > 0.0) minimum = fmin(minimum, 1.0/rate);
   }, Kokkos::Min<Real>(bound), Kokkos::Sum<int>(invalid));
+  // Zero conductivity leaves the reduction unconstrained; retain a finite sentinel.
+  bound = std::min(bound, std::numeric_limits<Real>::max());
   if (reject(invalid || !std::isfinite(bound) || bound <= 0.0,
              "invalid explicit conduction timestep")) return 0.0;
   if (saturated && include_saturation) {
@@ -1066,7 +1070,7 @@ void Conduction::AddHeatFluxIso(const DvceArray5D<Real> &w0, const EOS_Data &eos
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
     Real tempr = w0(m,IEN,k,j,i  )/w0(m,IDN,k,j,i  );
     Real templ = w0(m,IEN,k,j,i-1)/w0(m,IDN,k,j,i-1);
-    Real dtempdx = (tempr - templ) * gm1 / size.d_view(m).dx1;
+    Real dtempdx = (tempr - templ) * gm1 / size.view_device()(m).dx1;
     Real densf = 0.5*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j,i-1));
     flx1(m,IEN,k,j,i) -= alpha_ * densf * dtempdx;
   });
@@ -1080,7 +1084,7 @@ void Conduction::AddHeatFluxIso(const DvceArray5D<Real> &w0, const EOS_Data &eos
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
     Real tempr = w0(m,IEN,k,j  ,i)/w0(m,IDN,k,j  ,i);
     Real templ = w0(m,IEN,k,j-1,i)/w0(m,IDN,k,j-1,i);
-    Real dtempdx = (tempr - templ) * gm1 / size.d_view(m).dx2;
+    Real dtempdx = (tempr - templ) * gm1 / size.view_device()(m).dx2;
     Real densf = 0.5*(w0(m,IDN,k,j,i) + w0(m,IDN,k,j-1,i));
     flx2(m,IEN,k,j,i) -= alpha_ * densf * dtempdx;
   });
@@ -1094,7 +1098,7 @@ void Conduction::AddHeatFluxIso(const DvceArray5D<Real> &w0, const EOS_Data &eos
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
     Real tempr = w0(m,IEN,k  ,j,i)/w0(m,IDN,k  ,j,i);
     Real templ = w0(m,IEN,k-1,j,i)/w0(m,IDN,k-1,j,i);
-    Real dtempdx = (tempr - templ) * gm1 / size.d_view(m).dx3;
+    Real dtempdx = (tempr - templ) * gm1 / size.view_device()(m).dx3;
     Real densf = 0.5*(w0(m,IDN,k,j,i) + w0(m,IDN,k-1,j,i));
     flx3(m,IEN,k,j,i) -= alpha_ * densf * dtempdx;
   });
@@ -1139,7 +1143,8 @@ void Conduction::AddHeatFluxAniso(const DvceArray5D<Real> &w0, const EOS_Data &e
       for (int d=0; d<3; ++d) b[d] /= scale;
       Real norm = sqrt(SQR(b[0])+SQR(b[1])+SQR(b[2]));
       for (int d=0; d<3; ++d) b[d] /= norm;
-      Real dx[3] = {size.d_view(m).dx1,size.d_view(m).dx2,size.d_view(m).dx3};
+      Real dx[3] = {size.view_device()(m).dx1,size.view_device()(m).dx2,
+          size.view_device()(m).dx3};
       Real tr = gm1*w(m,IEN,k,j,i)/w(m,IDN,k,j,i);
       Real tl = gm1*w(m,IEN,kl,jl,il)/w(m,IDN,kl,jl,il);
       Real grad = b[dir]*(tr-tl)/dx[dir];
@@ -1221,14 +1226,14 @@ void Conduction::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_da
     j += js;
 
     Real row_sum = 0.5*(w0_(m,IDN,k,j,i-1) + 2.0*w0_(m,IDN,k,j,i) +
-                        w0_(m,IDN,k,j,i+1))/SQR(size.d_view(m).dx1);
+                        w0_(m,IDN,k,j,i+1))/SQR(size.view_device()(m).dx1);
     if (multi_d) {
       row_sum += 0.5*(w0_(m,IDN,k,j-1,i) + 2.0*w0_(m,IDN,k,j,i) +
-                     w0_(m,IDN,k,j+1,i))/SQR(size.d_view(m).dx2);
+                     w0_(m,IDN,k,j+1,i))/SQR(size.view_device()(m).dx2);
     }
     if (three_d) {
       row_sum += 0.5*(w0_(m,IDN,k-1,j,i) + 2.0*w0_(m,IDN,k,j,i) +
-                     w0_(m,IDN,k+1,j,i))/SQR(size.d_view(m).dx3);
+                     w0_(m,IDN,k+1,j,i))/SQR(size.view_device()(m).dx3);
     }
 
     Real rate = alpha0*gm1*row_sum/w0_(m,IDN,k,j,i);
@@ -1236,6 +1241,8 @@ void Conduction::NewTimeStep(const DvceArray5D<Real> &w0, const EOS_Data &eos_da
       min_dt = fmin(min_dt, 1.0/rate);
     }
   }, Kokkos::Min<Real>(dtnew));
+  // An inactive operator imposes no constraint and retains a finite sentinel.
+  dtnew = std::min(dtnew, std::numeric_limits<Real>::max());
 
   return;
 }
@@ -1285,7 +1292,9 @@ void Conduction::AddHeatFluxSpitzer(const DvceArray5D<Real> &w0, const EOS_Data 
       const int kk = cell/nji, jj = (cell-kk*nji)/ni, ii = cell-kk*nji-jj*ni;
       const int k = ks+kk, j = js+jj, i = is+ii;
       const int il = i-di, jl = j-dj, kl = k-dk;
-      const Real dx[3] = {size.d_view(m).dx1,size.d_view(m).dx2,size.d_view(m).dx3};
+      const Real dx[3]
+          = {size.view_device()(m).dx1,size.view_device()(m).dx2,
+          size.view_device()(m).dx3};
       Real b[3] = {0.0,0.0,0.0};
       if (aligned) {
         for (int d=0; d<3; ++d) {
@@ -1405,7 +1414,9 @@ void Conduction::AddHeatFluxSaturated(const DvceArray5D<Real> &w0,
     KOKKOS_LAMBDA(const int idx, int &invalid) {
       const int m = idx/nface, cell = idx-m*nface;
       const int k = ks+cell/nji, j = js+(cell%nji)/ni, i = is+cell%ni;
-      const Real dx[3] = {size.d_view(m).dx1,size.d_view(m).dx2,size.d_view(m).dx3};
+      const Real dx[3]
+          = {size.view_device()(m).dx1,size.view_device()(m).dx2,
+          size.view_device()(m).dx3};
       const auto face = conduction::SaturatedFace(w,bcc,bf,p,dx,dir,m,k,j,i);
       if (!face.valid) { ++invalid; return; }
       const Real updated = f(m,IEN,k,j,i)+face.normal_flux;
@@ -1454,7 +1465,8 @@ Real Conduction::SaturationTimeStep(const DvceArray5D<Real> &w0,
   KOKKOS_LAMBDA(const int idx, Real &max_rate, int &invalid) {
     const int m = idx/ncell, cell = idx-m*ncell;
     const int k = ks+cell/nji, j = js+(cell%nji)/ni, i = is+cell%ni;
-    const Real dx[3] = {size.d_view(m).dx1,size.d_view(m).dx2,size.d_view(m).dx3};
+    const Real dx[3]
+        = {size.view_device()(m).dx1,size.view_device()(m).dx2,size.view_device()(m).dx3};
     const Real eint = w(m,IEN,k,j,i);
     if (!conduction::IsFiniteNonNegative(eint)) { ++invalid; return; }
     Real advective = 0.0, drain = 0.0;

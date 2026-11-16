@@ -59,7 +59,7 @@ Multigrid::Multigrid(MultigridDriver *pmd, MeshBlockPack *pmbp, int nghost,
      // initialize loc/size from the first meshblock
      // in the pack (needs to be adapted for AMR)
     loc_ = pmy_pack_->pmesh->lloc_eachmb[0];
-    size_ = pmy_pack_->pmb->mb_size.h_view(0);
+    size_ = pmy_pack_->pmb->mb_size.view_host()(0);
   } else {
     //Root levels
     indcs_.nx1 = pmy_mesh_->nmb_rootx1;
@@ -83,17 +83,17 @@ Multigrid::Multigrid(MultigridDriver *pmd, MeshBlockPack *pmbp, int nghost,
   Kokkos::realloc(fc_childy_, nmmb_);
   Kokkos::realloc(fc_childz_, nmmb_);
   {
-    auto brdx_h = block_rdx_.h_view;
+    auto brdx_h = block_rdx_.view_host();
     if (pmy_pack_ != nullptr) {
       auto &mb_size = pmy_pack_->pmb->mb_size;
       Real rnx1 = static_cast<Real>(indcs_.nx1);
       for (int m = 0; m < nmmb_; ++m) {
-        brdx_h(m) = (mb_size.h_view(m).x1max - mb_size.h_view(m).x1min) / rnx1;
+        brdx_h(m) = (mb_size.view_host()(m).x1max - mb_size.view_host()(m).x1min) / rnx1;
       }
     } else {
       brdx_h(0) = rdx_;
     }
-    Kokkos::deep_copy(block_rdx_.d_view, brdx_h);
+    Kokkos::deep_copy(block_rdx_.view_device(), brdx_h);
   }
 
   nlevel_ = 0;
@@ -199,16 +199,16 @@ void Multigrid::UpdateBlockDx() {
   Real rnx1 = static_cast<Real>(indcs_.nx1);
 
   // Refresh reference block size and cell widths from the first MeshBlock
-  size_ = mb_size.h_view(0);
+  size_ = mb_size.view_host()(0);
   rdx_ = (size_.x1max - size_.x1min) / static_cast<Real>(indcs_.nx1);
   rdy_ = (size_.x2max - size_.x2min) / static_cast<Real>(indcs_.nx2);
   rdz_ = (size_.x3max - size_.x3min) / static_cast<Real>(indcs_.nx3);
 
-  auto brdx_h = block_rdx_.h_view;
+  auto brdx_h = block_rdx_.view_host();
   for (int m = 0; m < nmmb_; ++m) {
-    brdx_h(m) = (mb_size.h_view(m).x1max - mb_size.h_view(m).x1min) / rnx1;
+    brdx_h(m) = (mb_size.view_host()(m).x1max - mb_size.view_host()(m).x1min) / rnx1;
   }
-  Kokkos::deep_copy(block_rdx_.d_view, brdx_h);
+  Kokkos::deep_copy(block_rdx_.view_device(), brdx_h);
 
   // Compute per-block child octant positions for FC ghost fills
   auto &mbgid = pmy_pack_->pmb->mb_gid;
@@ -218,7 +218,7 @@ void Multigrid::UpdateBlockDx() {
   auto cy_h = Kokkos::create_mirror_view(fc_childy_);
   auto cz_h = Kokkos::create_mirror_view(fc_childz_);
   for (int m = 0; m < nmmb_; ++m) {
-    int gid = mbgid.h_view(m);
+    int gid = mbgid.view_host()(m);
     LogicalLocation &loc = lloc[gid];
     cx_h(m) = (loc.level > root_level) ? static_cast<int>(loc.lx1 & 1) : 0;
     cy_h(m) = (loc.level > root_level) ? static_cast<int>(loc.lx2 & 1) : 0;
@@ -259,7 +259,7 @@ void Multigrid::ReallocateForAMR() {
 //! \brief Fill the inital guess in the active zone of the finest level
 
 void Multigrid::LoadFinestData(const DvceArray5D<Real> &src, int ns, int ngh) {
-  auto &dst = u_[nlevel_-1].d_view;
+  auto &dst = u_[nlevel_-1].view_device();
   int is, ie, js, je, ks, ke;
   is = js = ks = ngh_;
   ie = is + indcs_.nx1 - 1; je = js + indcs_.nx2 - 1; ke = ks + indcs_.nx3 - 1;
@@ -287,7 +287,7 @@ void Multigrid::LoadFinestData(const DvceArray5D<Real> &src, int ns, int ngh) {
 //! \brief Fill the source in the active zone of the finest level
 
 void Multigrid::LoadSource(const DvceArray5D<Real> &src, int ns, int ngh, Real fac) {
-  auto &dst = src_[nlevel_-1].d_view;
+  auto &dst = src_[nlevel_-1].view_device();
   int sngh = std::min(ngh_, ngh);
   int is, ie, js, je, ks, ke;
   is = js = ks = ngh_ - sngh;
@@ -325,7 +325,7 @@ void Multigrid::LoadSource(const DvceArray5D<Real> &src, int ns, int ngh, Real f
 //! \brief Load coefficients of the diffusion and source terms
 
 void Multigrid::LoadCoefficients(const DvceArray5D<Real> &coeff, int ngh) {
-  auto &cm = coeff_[nlevel_-1].d_view;
+  auto &cm = coeff_[nlevel_-1].view_device();
   int is, ie, js, je, ks, ke;
   is = js = ks = 0;
   ie = indcs_.nx1 + 2*ngh_ - 1;
@@ -369,7 +369,7 @@ void Multigrid::ApplyMask() {
   Real oy = pmy_driver_->mask_origin_[1];
   Real oz = pmy_driver_->mask_origin_[2];
 
-  auto src = src_[nlevel_-1].d_view;
+  auto src = src_[nlevel_-1].view_device();
   auto &mb_size = pmy_pack_->pmb->mb_size;
   auto &indcs = pmy_pack_->pmesh->mb_indcs;
   int is = indcs.is, js = indcs.js, ks = indcs.ks;
@@ -377,9 +377,12 @@ void Multigrid::ApplyMask() {
   par_for("Multigrid::ApplyMask", DevExeSpace(), 0, nmb-1,
           ngh, ngh+nx3-1, ngh, ngh+nx2-1, ngh, ngh+nx1-1,
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
-    Real x = CellCenterX(i - ngh, nx1, mb_size.d_view(m).x1min, mb_size.d_view(m).x1max);
-    Real y = CellCenterX(j - ngh, nx2, mb_size.d_view(m).x2min, mb_size.d_view(m).x2max);
-    Real z = CellCenterX(k - ngh, nx3, mb_size.d_view(m).x3min, mb_size.d_view(m).x3max);
+    Real x = CellCenterX(i - ngh, nx1, mb_size.view_device()(m).x1min,
+        mb_size.view_device()(m).x1max);
+    Real y = CellCenterX(j - ngh, nx2, mb_size.view_device()(m).x2min,
+        mb_size.view_device()(m).x2max);
+    Real z = CellCenterX(k - ngh, nx3, mb_size.view_device()(m).x3min,
+        mb_size.view_device()(m).x3max);
     Real r2 = (x-ox)*(x-ox) + (y-oy)*(y-oy) + (z-oz)*(z-oz);
     if (r2 > mask_r2) {
       src(m, 0, k, j, i) = 0.0;
@@ -399,14 +402,14 @@ void Multigrid::RestrictCoefficients() {
     for (int lev = nlevel_ - 1; lev > 0; lev--) {
       int ll = nlevel_ - lev;
       ie=is+(indcs_.nx1>>ll)-1, je=js+(indcs_.nx2>>ll)-1, ke=ks+(indcs_.nx3>>ll)-1;
-      Restrict(coeff_[lev-1].h_view, coeff_[lev].h_view, ncoeff_,
+      Restrict(coeff_[lev-1].view_host(), coeff_[lev].view_host(), ncoeff_,
                is, ie, js, je, ks, ke, false);
     }
   } else {
     for (int lev = nlevel_ - 1; lev > 0; lev--) {
       int ll = nlevel_ - lev;
       ie=is+(indcs_.nx1>>ll)-1, je=js+(indcs_.nx2>>ll)-1, ke=ks+(indcs_.nx3>>ll)-1;
-      Restrict(coeff_[lev-1].d_view, coeff_[lev].d_view, ncoeff_,
+      Restrict(coeff_[lev-1].view_device(), coeff_[lev].view_device(), ncoeff_,
                is, ie, js, je, ks, ke, false);
     }
   }
@@ -418,7 +421,7 @@ void Multigrid::RestrictCoefficients() {
 //! \brief Set the result, including the ghost zone
 
 void Multigrid::RetrieveResult(DvceArray5D<Real> &dst, int ns, int ngh) {
-  const auto &src = u_[nlevel_-1].d_view;
+  const auto &src = u_[nlevel_-1].view_device();
   int sngh = std::min(ngh_,ngh);
 
   if (ns == 0 && ngh_ == ngh && nvar_ == 1
@@ -456,7 +459,7 @@ void Multigrid::RetrieveResult(DvceArray5D<Real> &dst, int ns, int ngh) {
 //! \brief Set the defect, including the ghost zone
 
 void Multigrid::RetrieveDefect(DvceArray5D<Real> &dst, int ns, int ngh) {
-  const auto &src = def_[nlevel_-1].d_view;
+  const auto &src = def_[nlevel_-1].view_device();
   int sngh = std::min(ngh_,ngh);
   int ie = indcs_.nx1 + ngh_ + sngh - 1;
   int je = indcs_.nx2 + ngh_ + sngh - 1;
@@ -494,17 +497,17 @@ void Multigrid::RetrieveDefect(DvceArray5D<Real> &dst, int ns, int ngh) {
 
 void Multigrid::ZeroClearData() {
   if (on_host_) {
-    Kokkos::deep_copy(u_[current_level_].h_view, 0.0);
+    Kokkos::deep_copy(u_[current_level_].view_host(), 0.0);
   } else {
-    Kokkos::deep_copy(u_[current_level_].d_view, 0.0);
+    Kokkos::deep_copy(u_[current_level_].view_device(), 0.0);
   }
 }
 
 void Multigrid::CopySourceToData() {
   if (on_host_) {
-    Kokkos::deep_copy(u_[nlevel_-1].h_view, src_[nlevel_-1].h_view);
+    Kokkos::deep_copy(u_[nlevel_-1].view_host(), src_[nlevel_-1].view_host());
   } else {
-    Kokkos::deep_copy(u_[nlevel_-1].d_view, src_[nlevel_-1].d_view);
+    Kokkos::deep_copy(u_[nlevel_-1].view_device(), src_[nlevel_-1].view_device());
   }
 }
 
@@ -521,14 +524,14 @@ void Multigrid::RestrictPack() {
   je = js + (indcs_.nx2>>ll) - 1;
   ke = ks + (indcs_.nx3>>ll) - 1;
   if (on_host_) {
-    Restrict(src_[current_level_-1].h_view, def_[current_level_].h_view,
+    Restrict(src_[current_level_-1].view_host(), def_[current_level_].view_host(),
              nvar_, is, ie, js, je, ks, ke, false);
-    Restrict(u_[current_level_-1].h_view, u_[current_level_].h_view,
+    Restrict(u_[current_level_-1].view_host(), u_[current_level_].view_host(),
              nvar_, is, ie, js, je, ks, ke, false);
   } else {
-    Restrict(src_[current_level_-1].d_view, def_[current_level_].d_view,
+    Restrict(src_[current_level_-1].view_device(), def_[current_level_].view_device(),
              nvar_, is, ie, js, je, ks, ke, false);
-    Restrict(u_[current_level_-1].d_view, u_[current_level_].d_view,
+    Restrict(u_[current_level_-1].view_device(), u_[current_level_].view_device(),
              nvar_, is, ie, js, je, ks, ke, false);
   }
   current_level_--;
@@ -546,10 +549,10 @@ void Multigrid::RestrictSourcePack() {
   je = js+(indcs_.nx2>>ll) - 1;
   ke = ks+(indcs_.nx3>>ll) - 1;
   if (on_host_) {
-    Restrict(src_[current_level_-1].h_view, src_[current_level_].h_view,
+    Restrict(src_[current_level_-1].view_host(), src_[current_level_].view_host(),
              nvar_, is, ie, js, je, ks, ke, false);
   } else {
-    Restrict(src_[current_level_-1].d_view, src_[current_level_].d_view,
+    Restrict(src_[current_level_-1].view_device(), src_[current_level_].view_device(),
              nvar_, is, ie, js, je, ks, ke, false);
   }
   current_level_--;
@@ -571,10 +574,11 @@ void Multigrid::ProlongateAndCorrectPack() {
   ComputeCorrection();
 
   if (on_host_) {
-    ProlongateAndCorrect(u_[current_level_+1].h_view, u_[current_level_].h_view,
+    ProlongateAndCorrect(u_[current_level_+1].view_host(), u_[current_level_].view_host(),
                          is, ie, js, je, ks, ke, ngh_, ngh_, ngh_, false);
   } else {
-    ProlongateAndCorrect(u_[current_level_+1].d_view, u_[current_level_].d_view,
+    ProlongateAndCorrect(u_[current_level_+1].view_device(),
+        u_[current_level_].view_device(),
                          is, ie, js, je, ks, ke, ngh_, ngh_, ngh_, false);
   }
 
@@ -594,10 +598,10 @@ void Multigrid::FMGProlongatePack() {
   ke=ks+(indcs_.nx3>>ll)-1;
 
   if (on_host_) {
-    FMGProlongate(u_[current_level_+1].h_view, u_[current_level_].h_view,
+    FMGProlongate(u_[current_level_+1].view_host(), u_[current_level_].view_host(),
                   is, ie, js, je, ks, ke, ngh_, ngh_, ngh_);
   } else {
-    FMGProlongate(u_[current_level_+1].d_view, u_[current_level_].d_view,
+    FMGProlongate(u_[current_level_+1].view_device(), u_[current_level_].view_device(),
                   is, ie, js, je, ks, ke, ngh_, ngh_, ngh_);
   }
 
@@ -616,8 +620,8 @@ void Multigrid::FMGProlongatePack() {
 
 void Multigrid::SetFromRootGrid(bool folddata) {
   current_level_ = 0;
-  auto dst_h = u_[current_level_].h_view;
-  auto odst_h = uold_[current_level_].h_view;
+  auto dst_h = u_[current_level_].view_host();
+  auto odst_h = uold_[current_level_].view_host();
 
   auto src_h = pmy_driver_->GetRootData_h();
   auto osrc_h = pmy_driver_->GetRootOldData_h();
@@ -694,7 +698,7 @@ Real Multigrid::CalculateDefectNorm(MGNormType nrm, int n) {
   Real norm = 0.0;
 
   if (on_host_) {
-    auto &def = def_[current_level_].h_view;
+    auto &def = def_[current_level_].view_host();
     if (nrm == MGNormType::max) {
       Kokkos::parallel_reduce("MG::DefectNorm_Linf",
         Kokkos::MDRangePolicy<HostExeSpace, Kokkos::Rank<5>>(
@@ -723,7 +727,7 @@ Real Multigrid::CalculateDefectNorm(MGNormType nrm, int n) {
         }, Kokkos::Sum<Real>(norm));
     }
   } else {
-    auto &def = def_[current_level_].d_view;
+    auto &def = def_[current_level_].view_device();
     if (nrm == MGNormType::max) {
       Kokkos::parallel_reduce("MG::DefectNorm_Linf",
         Kokkos::MDRangePolicy<DevExeSpace, Kokkos::Rank<5>>(
@@ -771,9 +775,9 @@ Real Multigrid::CalculateAverage(MGVariable type) {
 
   Real sum = 0.0;
   if (on_host_) {
-    auto data = (type == MGVariable::src) ? src_[current_level_].h_view
-                                          : u_[current_level_].h_view;
-    auto brdx = block_rdx_.h_view;
+    auto data = (type == MGVariable::src) ? src_[current_level_].view_host()
+                                          : u_[current_level_].view_host();
+    auto brdx = block_rdx_.view_host();
     Kokkos::parallel_reduce("MG::Average",
       Kokkos::MDRangePolicy<HostExeSpace, Kokkos::Rank<4>>({0, ks, js, is},
                                                             {nmmb_, ke+1, je+1, ie+1}),
@@ -783,9 +787,9 @@ Real Multigrid::CalculateAverage(MGVariable type) {
         local_sum += data(m, 0, k, j, i) * dV_m;
       }, Kokkos::Sum<Real>(sum));
   } else {
-    auto data = (type == MGVariable::src) ? src_[current_level_].d_view
-                                          : u_[current_level_].d_view;
-    auto brdx = block_rdx_.d_view;
+    auto data = (type == MGVariable::src) ? src_[current_level_].view_device()
+                                          : u_[current_level_].view_device();
+    auto brdx = block_rdx_.view_device();
     Kokkos::parallel_reduce("MG::Average",
       Kokkos::MDRangePolicy<DevExeSpace, Kokkos::Rank<4>>({0, ks, js, is},
                                                            {nmmb_, ke+1, je+1, ie+1}),
@@ -800,7 +804,7 @@ Real Multigrid::CalculateAverage(MGVariable type) {
   {
     Real nx = static_cast<Real>(indcs_.nx1);
     for (int m = 0; m < nmmb_; ++m) {
-      Real len = block_rdx_.h_view(m) * nx;
+      Real len = block_rdx_.view_host()(m) * nx;
       volume += len * len * len;
     }
   }
@@ -833,16 +837,16 @@ void Multigrid::SubtractAverage(MGVariable type, int n, Real ave) {
   const Real lave = ave;
 
   if (on_host_) {
-    auto dst = (type == MGVariable::src) ? src_[nlevel_-1].h_view
-                                         : u_[nlevel_-1].h_view;
+    auto dst = (type == MGVariable::src) ? src_[nlevel_-1].view_host()
+                                         : u_[nlevel_-1].view_host();
     par_for("Multigrid::SubtractAverage", HostExeSpace(),
             m0, m1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int m, const int mk, const int mj, const int mi) {
       dst(m, vn, mk, mj, mi) -= lave;
     });
   } else {
-    auto dst = (type == MGVariable::src) ? src_[nlevel_-1].d_view
-                                         : u_[nlevel_-1].d_view;
+    auto dst = (type == MGVariable::src) ? src_[nlevel_-1].view_device()
+                                         : u_[nlevel_-1].view_device();
     par_for("Multigrid::SubtractAverage", DevExeSpace(),
             m0, m1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int m, const int mk, const int mj, const int mi) {
@@ -858,11 +862,11 @@ void Multigrid::SubtractAverage(MGVariable type, int n, Real ave) {
 
 void Multigrid::StoreOldData() {
   if (on_host_) {
-    Kokkos::deep_copy(HostExeSpace(), uold_[current_level_].h_view,
-                      u_[current_level_].h_view);
+    Kokkos::deep_copy(HostExeSpace(), uold_[current_level_].view_host(),
+                      u_[current_level_].view_host());
   } else {
-    Kokkos::deep_copy(DevExeSpace(), uold_[current_level_].d_view,
-                      u_[current_level_].d_view);
+    Kokkos::deep_copy(DevExeSpace(), uold_[current_level_].view_device(),
+                      u_[current_level_].view_device());
   }
 }
 
@@ -871,7 +875,7 @@ void Multigrid::StoreOldData() {
 //  \brief Actual implementation of restriction (templated on view type)
 
 template <typename ViewType>
-void Multigrid::Restrict(ViewType &dst, const ViewType &src,
+void Multigrid::Restrict(const ViewType &dst, const ViewType &src,
                 int nvar, int i0, int i1, int j0, int j1, int k0, int k1, bool th) {
   using ExeSpace = typename ViewType::execution_space;
   const int m0 = 0, m1 = nmmb_ - 1;
@@ -906,16 +910,16 @@ void Multigrid::ComputeCorrection() {
   int ks = 0, ke = ks + (indcs_.nx3 >> ll) + 2*ngh_ - 1;
 
   if (on_host_) {
-    auto u = u_[current_level_].h_view;
-    auto uold = uold_[current_level_].h_view;
+    auto u = u_[current_level_].view_host();
+    auto uold = uold_[current_level_].view_host();
     par_for("Multigrid::ComputeCorrection", HostExeSpace(),
             m0, m1, v0, v1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int m, const int v, const int k, const int j, const int i) {
       u(m, v, k, j, i) -= uold(m, v, k, j, i);
     });
   } else {
-    auto u = u_[current_level_].d_view;
-    auto uold = uold_[current_level_].d_view;
+    auto u = u_[current_level_].view_device();
+    auto uold = uold_[current_level_].view_device();
     par_for("Multigrid::ComputeCorrection", DevExeSpace(),
             m0, m1, v0, v1, ks, ke, js, je, is, ie,
     KOKKOS_LAMBDA(const int m, const int v, const int k, const int j, const int i) {
@@ -929,7 +933,7 @@ void Multigrid::ComputeCorrection() {
 //! \brief Actual implementation of prolongation and correction (templated on view type)
 
 template <typename ViewType>
-void Multigrid::ProlongateAndCorrect(ViewType &dst, const ViewType &src,
+void Multigrid::ProlongateAndCorrect(const ViewType &dst, const ViewType &src,
      int il, int iu, int jl, int ju, int kl, int ku, int fil, int fjl, int fkl, bool th) {
   using ExeSpace = typename ViewType::execution_space;
   const int m0 = 0, m1 = nmmb_ - 1;
@@ -1101,7 +1105,7 @@ void Multigrid::ProlongateAndCorrect(ViewType &dst, const ViewType &src,
 //! Unlike ProlongateAndCorrect (+=), this overwrites the destination array.
 
 template <typename ViewType>
-void Multigrid::FMGProlongate(ViewType &dst, const ViewType &src,
+void Multigrid::FMGProlongate(const ViewType &dst, const ViewType &src,
      int il, int iu, int jl, int ju, int kl, int ku, int fil, int fjl, int fkl) {
   using ExeSpace = typename ViewType::execution_space;
   const int m0 = 0, m1 = nmmb_ - 1;

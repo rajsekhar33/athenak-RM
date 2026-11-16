@@ -201,19 +201,19 @@ TaskStatus MHD::STSUpdateU(Driver *pdrive, int stage) {
 
     ScrArray1D<Real> divf(member.team_scratch(scr_level), ncells1);
     par_for_inner(member, is, ie, [&](const int i) {
-      divf(i) = (flx1(m,n,k,j,i+1) - flx1(m,n,k,j,i))/mbsize.d_view(m).dx1;
+      divf(i) = (flx1(m,n,k,j,i+1) - flx1(m,n,k,j,i))/mbsize.view_device()(m).dx1;
     });
     member.team_barrier();
 
     if (multi_d) {
       par_for_inner(member, is, ie, [&](const int i) {
-        divf(i) += (flx2(m,n,k,j+1,i) - flx2(m,n,k,j,i))/mbsize.d_view(m).dx2;
+        divf(i) += (flx2(m,n,k,j+1,i) - flx2(m,n,k,j,i))/mbsize.view_device()(m).dx2;
       });
       member.team_barrier();
     }
     if (three_d) {
       par_for_inner(member, is, ie, [&](const int i) {
-        divf(i) += (flx3(m,n,k+1,j,i) - flx3(m,n,k,j,i))/mbsize.d_view(m).dx3;
+        divf(i) += (flx3(m,n,k+1,j,i) - flx3(m,n,k,j,i))/mbsize.view_device()(m).dx3;
       });
       member.team_barrier();
     }
@@ -301,9 +301,9 @@ TaskStatus MHD::STSUpdateB(Driver *pdrive, int stage) {
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
     Real delta_b = 0.0;
     if (multi_d) {
-      delta_b -= dt_sweep*(e3(m,k,j+1,i) - e3(m,k,j,i))/mbsize.d_view(m).dx2;
+      delta_b -= dt_sweep*(e3(m,k,j+1,i) - e3(m,k,j,i))/mbsize.view_device()(m).dx2;
       if (three_d) {
-        delta_b += dt_sweep*(e2(m,k+1,j,i) - e2(m,k,j,i))/mbsize.d_view(m).dx3;
+        delta_b += dt_sweep*(e2(m,k+1,j,i) - e2(m,k,j,i))/mbsize.view_device()(m).dx3;
       }
     }
     bx1f(m,k,j,i) = coeffs.muj*bx1f_sts1(m,k,j,i)
@@ -316,9 +316,9 @@ TaskStatus MHD::STSUpdateB(Driver *pdrive, int stage) {
 
   par_for("mhd_sts_update_b2", DevExeSpace(), 0, nmb1, ks, ke, js, je+1, is, ie,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real delta_b = dt_sweep*(e3(m,k,j,i+1) - e3(m,k,j,i))/mbsize.d_view(m).dx1;
+    Real delta_b = dt_sweep*(e3(m,k,j,i+1) - e3(m,k,j,i))/mbsize.view_device()(m).dx1;
     if (three_d) {
-      delta_b -= dt_sweep*(e1(m,k+1,j,i) - e1(m,k,j,i))/mbsize.d_view(m).dx3;
+      delta_b -= dt_sweep*(e1(m,k+1,j,i) - e1(m,k,j,i))/mbsize.view_device()(m).dx3;
     }
     bx2f(m,k,j,i) = coeffs.muj*bx2f_sts1(m,k,j,i)
                   + coeffs.nuj*bx2f_sts2(m,k,j,i)
@@ -330,9 +330,9 @@ TaskStatus MHD::STSUpdateB(Driver *pdrive, int stage) {
 
   par_for("mhd_sts_update_b3", DevExeSpace(), 0, nmb1, ks, ke+1, js, je, is, ie,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real delta_b = -dt_sweep*(e2(m,k,j,i+1) - e2(m,k,j,i))/mbsize.d_view(m).dx1;
+    Real delta_b = -dt_sweep*(e2(m,k,j,i+1) - e2(m,k,j,i))/mbsize.view_device()(m).dx1;
     if (multi_d) {
-      delta_b += dt_sweep*(e1(m,k,j+1,i) - e1(m,k,j,i))/mbsize.d_view(m).dx2;
+      delta_b += dt_sweep*(e1(m,k,j+1,i) - e1(m,k,j,i))/mbsize.view_device()(m).dx2;
     }
     bx3f(m,k,j,i) = coeffs.muj*bx3f_sts1(m,k,j,i)
                   + coeffs.nuj*bx3f_sts2(m,k,j,i)

@@ -42,7 +42,7 @@ IndAndWghts<NGHOST> IndicesAndWeights(
 
   for (int m = 0; m < nmb; ++m) {
     // extract MeshBlock bounds
-    auto mb = size.d_view(m);
+    auto mb = size.view_device()(m);
 
     // save MeshBlock and zone indicies for nearest position to spherical patch
     // center if this angle position resides in this MeshBlock
@@ -72,7 +72,7 @@ IndAndWghts<NGHOST> IndicesAndWeights(
     }
   } else {
     // extract MeshBlock bounds
-    auto mb0 = size.d_view(result.ii0);
+    auto mb0 = size.view_device()(result.ii0);
 
     // set interpolation weights
     for (int i = 0; i < 2 * NGHOST; ++i) {

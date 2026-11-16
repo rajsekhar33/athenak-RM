@@ -71,7 +71,7 @@ TaskStatus ShearingBoxCC::PackAndSendCC(DvceArray5D<Real> &a, ReconstructionMeth
     KOKKOS_LAMBDA(TeamMember_t member,const int m,const int v,const int k,const int i) {
       ScrArray1D<Real> a_(member.team_scratch(scr_lvl), nj); // 1D slice of data
       ScrArray1D<Real> flx(member.team_scratch(scr_lvl), nj); // "flux" at faces
-      int mm = x1bndry_mbgid_.d_view(n,m) - gids_;
+      int mm = x1bndry_mbgid_.view_device()(n,m) - gids_;
 
       // Load scratch array
       if (n==0) {
@@ -86,7 +86,8 @@ TaskStatus ShearingBoxCC::PackAndSendCC(DvceArray5D<Real> &a, ReconstructionMeth
       member.team_barrier();
 
       // compute fractional offset
-      Real eps = fmod(yshear_,(mbsize.d_view(mm).dx2))/(mbsize.d_view(mm).dx2);
+      Real eps = fmod(yshear_,(mbsize.view_device()(mm).dx2))
+          /(mbsize.view_device()(mm).dx2);
       if (n == 1) {eps *= -1.0;}
 
       // Compute "fluxes" at shifted cell faces
@@ -128,11 +129,11 @@ TaskStatus ShearingBoxCC::PackAndSendCC(DvceArray5D<Real> &a, ReconstructionMeth
   bool no_errors=true;
   for (int n=0; n<2; ++n) {
     for (int m=0; m<nmb_x1bndry(n); ++m) {
-      int gid = x1bndry_mbgid.h_view(n,m);
+      int gid = x1bndry_mbgid.view_host()(n,m);
       int mm = gid - pmy_pack->gids;
       // Find integer and fractional number of grids over which offset extends.
       // This assumes every grid has same number of cells in x2-direction!
-      int joffset  = static_cast<int>(yshear/(mbsize.h_view(mm).dx2));
+      int joffset  = static_cast<int>(yshear/(mbsize.view_host()(mm).dx2));
       int ji = joffset/nx2;
       int jr = joffset - ji*nx2;
 
@@ -289,11 +290,12 @@ TaskStatus ShearingBoxCC::RecvAndUnpackCC(DvceArray5D<Real> &a) {
   bool no_errors=true;
   for (int n=0; n<2; ++n) {
     for (int m=0; m<nmb_x1bndry(n); ++m) {
-      int gid = x1bndry_mbgid.h_view(n,m);
+      int gid = x1bndry_mbgid.view_host()(n,m);
       int mm = gid - pmy_pack->gids;
       // Find integer and fractional number of grids over which offset extends.
       // This assumes every grid has same number of cells in x2-direction!
-      int joffset  = static_cast<int>(yshear/(pmy_pack->pmb->mb_size.h_view(mm).dx2));
+      int joffset
+          = static_cast<int>(yshear/(pmy_pack->pmb->mb_size.view_host()(mm).dx2));
       int ji = joffset/nx2;
       int jr = joffset - ji*nx2;
 
@@ -372,7 +374,7 @@ TaskStatus ShearingBoxCC::RecvAndUnpackCC(DvceArray5D<Real> &a) {
     int nmb1 = nmb_x1bndry(n) - 1;
     par_for_outer("shrcc",DevExeSpace(),scr_size,scr_lvl,0,nmb1,0,(nvar-1),kl,ku,0,(ng-1),
     KOKKOS_LAMBDA(TeamMember_t member,const int m,const int v,const int k,const int i) {
-      int mm = x1bndry_mbgid_.d_view(n,m) - gids_;
+      int mm = x1bndry_mbgid_.view_device()(n,m) - gids_;
       if (n==0) {
         par_for_inner(member, 0, nj-1, [&](const int j) {
           a(mm,v,k,j,i) = rbuf[n].vars(m,j,v,k,i);

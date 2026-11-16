@@ -72,7 +72,7 @@ void CartesianGridOutput::LoadOutputData(Mesh *pm) {
     pcart->InterpolateToGrid(outvars[n].data_index, *(outvars[n].data_ptr));
     auto v_slice =
         Kokkos::subview(outarray, n, 0, Kokkos::ALL, Kokkos::ALL, Kokkos::ALL);
-    Kokkos::deep_copy(v_slice, pcart->interp_vals.h_view);
+    Kokkos::deep_copy(v_slice, pcart->interp_vals.view_host());
   }
 #if MPI_PARALLEL_ENABLED
   // Note that InterpolateToGrid will set zero values for points not owned by

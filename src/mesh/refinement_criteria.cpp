@@ -6,6 +6,7 @@
 //! \file refinement_criteria.cpp
 //! \brief Implements constructor and functions in RefinementCriteria class.
 
+#include <cfloat>
 #include <iostream>
 #include <algorithm> // max
 #include <string>
@@ -211,7 +212,7 @@ void RefinementCriteria::CheckMinMax(MeshBlockPack* pmbp, RefCritData crit) {
         qmax = fmax(q0(m,k,j,i), qmax);
       },Kokkos::Max<Real>(team_qmax));
       // only derefine when flag has not been set by other criteria
-      int &flag = refine_flag.d_view(m+mbs);
+      int &flag = refine_flag.view_device()(m+mbs);
       if  (team_qmax > valmax)                 {flag = 1;}
       if ((team_qmax < valmax) && (flag == 0)) {flag = -1;}
     });
@@ -232,7 +233,7 @@ void RefinementCriteria::CheckMinMax(MeshBlockPack* pmbp, RefCritData crit) {
         qmin = fmin(q0(m,k,j,i), qmin);
       },Kokkos::Min<Real>(team_qmin));
       // only derefine when flag has not been set by other criteria
-      int &flag = refine_flag.d_view(m+mbs);
+      int &flag = refine_flag.view_device()(m+mbs);
       if  (team_qmin < valmin)                 {flag = 1;}
       if ((team_qmin > valmin) && (flag == 0)) {flag = -1;}
     });
@@ -283,7 +284,7 @@ void RefinementCriteria::CheckSlope(MeshBlockPack* pmbp, RefCritData crit) {
         dqmax = fmax((0.5*sqrt(d2)/q0(m,k,j,i)), dqmax);
       },Kokkos::Max<Real>(team_dqmax));
       // only derefine when flag has not been set by other criteria
-      int &flag = refine_flag.d_view(m+mbs);
+      int &flag = refine_flag.view_device()(m+mbs);
       if  (team_dqmax > valmax)                 {flag = 1;}
       if ((team_dqmax < valmax) && (flag == 0)) {flag = -1;}
     });
@@ -334,7 +335,7 @@ void RefinementCriteria::CheckSecondDeriv(MeshBlockPack* pmbp, RefCritData crit)
         d2qmax = fmax((fabs(d2q)/q0(m,k,j,i)), d2qmax);
       },Kokkos::Max<Real>(team_d2qmax));
       // only derefine when flag has not been set by other criteria
-      int &flag = refine_flag.d_view(m+mbs);
+      int &flag = refine_flag.view_device()(m+mbs);
       if  (team_d2qmax > valmax)                 {flag = 1;}
       if ((team_d2qmax < valmax) && (flag == 0)) {flag = -1;}
     });
@@ -364,12 +365,12 @@ void RefinementCriteria::CheckLocation(MeshBlockPack* pmbp, RefCritData crit) {
   Real &rad = crit.rloc_rad;
   for (int m = 0; m < nmb; ++m) {
     // extract MeshBlock bounds
-    Real &x1min = size.h_view(m).x1min;
-    Real &x1max = size.h_view(m).x1max;
-    Real &x2min = size.h_view(m).x2min;
-    Real &x2max = size.h_view(m).x2max;
-    Real &x3min = size.h_view(m).x3min;
-    Real &x3max = size.h_view(m).x3max;
+    Real &x1min = size.view_host()(m).x1min;
+    Real &x1max = size.view_host()(m).x1max;
+    Real &x2min = size.view_host()(m).x2min;
+    Real &x2max = size.view_host()(m).x2max;
+    Real &x3min = size.view_host()(m).x3min;
+    Real &x3max = size.view_host()(m).x3max;
 
     if (((x1min < (x1+rad)) && (x1min > (x1-rad))) ||
         ((x1max < (x1+rad)) && (x1max > (x1-rad))) ||
@@ -382,7 +383,7 @@ void RefinementCriteria::CheckLocation(MeshBlockPack* pmbp, RefCritData crit) {
             (((x3min < (x3+rad)) && (x3min > (x3-rad))) ||
              ((x3max < (x3+rad)) && (x3max > (x3-rad))) ||
              ((x3max > (x3+rad)) && (x3min < (x3-rad)))) ) {
-          refine_flag.h_view(m + mbs) = 1;
+          refine_flag.view_host()(m + mbs) = 1;
         }
       }
     }

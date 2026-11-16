@@ -46,18 +46,18 @@ void Z4c::Z4cWeyl(MeshBlockPack *pmbp) {
   KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
     // Simplify constants (2 & sqrt 2 factors) featured in re/im[psi4]
     const Real FR4 = 0.25;
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     int nx1 = indcs.nx1;
     Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     int nx2 = indcs.nx2;
     Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     int nx3 = indcs.nx3;
     Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
 
@@ -134,7 +134,8 @@ void Z4c::Z4cWeyl(MeshBlockPack *pmbp) {
       }
     }
 
-    Real idx[] = {1/size.d_view(m).dx1, 1/size.d_view(m).dx2, 1/size.d_view(m).dx3};
+    Real idx[] = {1/size.view_device()(m).dx1, 1/size.view_device()(m).dx2, 1
+        /size.view_device()(m).dx3};
     // -----------------------------------------------------------------------------------
     // derivatives
     //

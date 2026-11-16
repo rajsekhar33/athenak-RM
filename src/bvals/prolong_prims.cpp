@@ -60,7 +60,8 @@ void MeshBoundaryValuesCC::ConsToPrimCoarseBndry(const DvceArray5D<Real> &cons,
     const int n = tmember.league_rank() - m*nnghbr;
 
     // only convert coarse vars when neighbor exists and is at coarser level
-    if ((nghbr.d_view(m,n).gid >= 0) && (nghbr.d_view(m,n).lev < mblev.d_view(m))) {
+    if ((nghbr.view_device()(m,n).gid >= 0)
+        && (nghbr.view_device()(m,n).lev < mblev.view_device()(m))) {
       // use indices for prolongation on this buffer as loop limits.
       // Note that one extra cell is added to match stencil of 2nd-order prolongation
       int il = rbuf[n].iprol[0].bis - 1;
@@ -102,17 +103,17 @@ void MeshBoundaryValuesCC::ConsToPrimCoarseBndry(const DvceArray5D<Real> &cons,
 
         bool dfloor_used=false, efloor_used=false, tfloor_used=false;
         if (is_gr) {
-          Real &x1min = size.d_view(m).x1min;
-          Real &x1max = size.d_view(m).x1max;
+          Real &x1min = size.view_device()(m).x1min;
+          Real &x1max = size.view_device()(m).x1max;
           // Note indices refer to coarse arrays, so use cis, cnx1
           Real x1v = CellCenterX(i-indcs.cis, indcs.cnx1, x1min, x1max);
 
-          Real &x2min = size.d_view(m).x2min;
-          Real &x2max = size.d_view(m).x2max;
+          Real &x2min = size.view_device()(m).x2min;
+          Real &x2max = size.view_device()(m).x2max;
           Real x2v = CellCenterX(j-indcs.cjs, indcs.cnx2, x2min, x2max);
 
-          Real &x3min = size.d_view(m).x3min;
-          Real &x3max = size.d_view(m).x3max;
+          Real &x3min = size.view_device()(m).x3min;
+          Real &x3max = size.view_device()(m).x3max;
           Real x3v = CellCenterX(k-indcs.cks, indcs.cnx3, x3min, x3max);
 
           Real glower[4][4], gupper[4][4];
@@ -215,7 +216,8 @@ void MeshBoundaryValuesCC::PrimToConsFineBndry(const DvceArray5D<Real> &prim,
     const int n = tmember.league_rank() - m*nnghbr;
 
     // only prolongate when neighbor exists and is at coarser level
-    if ((nghbr.d_view(m,n).gid >= 0) && (nghbr.d_view(m,n).lev < mblev.d_view(m))) {
+    if ((nghbr.view_device()(m,n).gid >= 0)
+        && (nghbr.view_device()(m,n).lev < mblev.view_device()(m))) {
       // loop over indices for prolongation on this buffer
       // Convert indices from coarse to fine arrays
       int il = (rbuf[n].iprol[0].bis - indcs.cis)*2 + indcs.is;
@@ -254,16 +256,16 @@ void MeshBoundaryValuesCC::PrimToConsFineBndry(const DvceArray5D<Real> &prim,
         HydCons1D u;
 
         if (is_gr) {
-          Real &x1min = size.d_view(m).x1min;
-          Real &x1max = size.d_view(m).x1max;
+          Real &x1min = size.view_device()(m).x1min;
+          Real &x1max = size.view_device()(m).x1max;
           Real x1v = CellCenterX(i-indcs.is, indcs.nx1, x1min, x1max);
 
-          Real &x2min = size.d_view(m).x2min;
-          Real &x2max = size.d_view(m).x2max;
+          Real &x2min = size.view_device()(m).x2min;
+          Real &x2max = size.view_device()(m).x2max;
           Real x2v = CellCenterX(j-indcs.js, indcs.nx2, x2min, x2max);
 
-          Real &x3min = size.d_view(m).x3min;
-          Real &x3max = size.d_view(m).x3max;
+          Real &x3min = size.view_device()(m).x3min;
+          Real &x3max = size.view_device()(m).x3max;
           Real x3v = CellCenterX(k-indcs.ks, indcs.nx3, x3min, x3max);
 
           Real glower[4][4], gupper[4][4];
@@ -328,7 +330,8 @@ void MeshBoundaryValuesCC::ConsToPrimCoarseBndry(const DvceArray5D<Real> &cons,
     const int n = tmember.league_rank() - m*nnghbr;
 
     // only convert coarse vars when neighbor exists and is at coarser level
-    if ((nghbr.d_view(m,n).gid >= 0) && (nghbr.d_view(m,n).lev < mblev.d_view(m))) {
+    if ((nghbr.view_device()(m,n).gid >= 0)
+        && (nghbr.view_device()(m,n).lev < mblev.view_device()(m))) {
       // use indices for prolongation on this buffer as loop limits
       // Note that one extra cell is added to match stencil of 2nd-order prolongation
       int il = rbuf[n].iprol[0].bis - 1;
@@ -374,17 +377,17 @@ void MeshBoundaryValuesCC::ConsToPrimCoarseBndry(const DvceArray5D<Real> &cons,
 
         bool dfloor_used=false, efloor_used=false, tfloor_used=false;
         if (is_gr) {
-          Real &x1min = size.d_view(m).x1min;
-          Real &x1max = size.d_view(m).x1max;
+          Real &x1min = size.view_device()(m).x1min;
+          Real &x1max = size.view_device()(m).x1max;
           // Note indices refer to coarse arrays, so use cis, cnx1
           Real x1v = CellCenterX(i-indcs.cis, indcs.cnx1, x1min, x1max);
 
-          Real &x2min = size.d_view(m).x2min;
-          Real &x2max = size.d_view(m).x2max;
+          Real &x2min = size.view_device()(m).x2min;
+          Real &x2max = size.view_device()(m).x2max;
           Real x2v = CellCenterX(j-indcs.cjs, indcs.cnx2, x2min, x2max);
 
-          Real &x3min = size.d_view(m).x3min;
-          Real &x3max = size.d_view(m).x3max;
+          Real &x3min = size.view_device()(m).x3min;
+          Real &x3max = size.view_device()(m).x3max;
           Real x3v = CellCenterX(k-indcs.cks, indcs.cnx3, x3min, x3max);
 
           Real glower[4][4], gupper[4][4];
@@ -490,7 +493,8 @@ void MeshBoundaryValuesCC::PrimToConsFineBndry(const DvceArray5D<Real> &prim,
     const int n = tmember.league_rank() - m*nnghbr;
 
     // only prolongate when neighbor exists and is at coarser level
-    if ((nghbr.d_view(m,n).gid >= 0) && (nghbr.d_view(m,n).lev < mblev.d_view(m))) {
+    if ((nghbr.view_device()(m,n).gid >= 0)
+        && (nghbr.view_device()(m,n).lev < mblev.view_device()(m))) {
       // loop over indices for prolongation on this buffer
       // Convert indices from coarse to fine arrays
       int il = (rbuf[n].iprol[0].bis - indcs.cis)*2 + indcs.is;
@@ -533,16 +537,16 @@ void MeshBoundaryValuesCC::PrimToConsFineBndry(const DvceArray5D<Real> &prim,
         HydCons1D u;
 
         if (is_gr) {
-          Real &x1min = size.d_view(m).x1min;
-          Real &x1max = size.d_view(m).x1max;
+          Real &x1min = size.view_device()(m).x1min;
+          Real &x1max = size.view_device()(m).x1max;
           Real x1v = CellCenterX(i-indcs.is, indcs.nx1, x1min, x1max);
 
-          Real &x2min = size.d_view(m).x2min;
-          Real &x2max = size.d_view(m).x2max;
+          Real &x2min = size.view_device()(m).x2min;
+          Real &x2max = size.view_device()(m).x2max;
           Real x2v = CellCenterX(j-indcs.js, indcs.nx2, x2min, x2max);
 
-          Real &x3min = size.d_view(m).x3min;
-          Real &x3max = size.d_view(m).x3max;
+          Real &x3min = size.view_device()(m).x3min;
+          Real &x3max = size.view_device()(m).x3max;
           Real x3v = CellCenterX(k-indcs.ks, indcs.nx3, x3min, x3max);
 
           Real glower[4][4], gupper[4][4];

@@ -201,9 +201,9 @@ void MagInit::Initialize() {
     kx = dkx*trip[0];
     ky = dky*trip[1];
     kz = dkz*trip[2];
-    kx_mode_.h_view(nmode) = kx;
-    ky_mode_.h_view(nmode) = ky;
-    kz_mode_.h_view(nmode) = kz;
+    kx_mode_.view_host()(nmode) = kx;
+    ky_mode_.view_host()(nmode) = ky;
+    kz_mode_.view_host()(nmode) = kz;
   }
 
   kx_mode_.template modify<HostMemSpace>();
@@ -217,20 +217,20 @@ void MagInit::Initialize() {
 
   par_for("xsin/xcos", DevExeSpace(),0,nmb-1,0,mode_count-1, 0, ncells1-1,
   KOKKOS_LAMBDA(int m, int n, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
-    Real k1v = kx_mode_.d_view(n);
+    Real k1v = kx_mode_.view_device()(n);
     xsin_(m,n,i) = sin(k1v*x1v);
     xcos_(m,n,i) = cos(k1v*x1v);
   });
 
   par_for("ysin/ycos", DevExeSpace(),0,nmb-1,0,mode_count-1, 0, ncells2-1,
   KOKKOS_LAMBDA(int m, int n, int j) {
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
-    Real k2v = ky_mode_.d_view(n);
+    Real k2v = ky_mode_.view_device()(n);
     ysin_(m,n,j) = sin(k2v*x2v);
     ycos_(m,n,j) = cos(k2v*x2v);
     if (ncells2-1 == 0) {
@@ -241,10 +241,10 @@ void MagInit::Initialize() {
 
   par_for("zsin/zcos", DevExeSpace(),0,nmb-1,0,mode_count-1, 0, ncells3-1,
   KOKKOS_LAMBDA(int m, int n, int k) {
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
-    Real k3v = kz_mode_.d_view(n);
+    Real k3v = kz_mode_.view_device()(n);
     zsin_(m,n,k) = sin(k3v*x3v);
     zcos_(m,n,k) = cos(k3v*x3v);
     if (ncells3-1 == 0) {
@@ -308,8 +308,8 @@ TaskStatus MagInit::InitializeAVecModes(int) {
     Real rmin = amin_*r_in;
     par_for("a_toro", DevExeSpace(),0,nmb-1,0,ncells3-1,0,ncells2-1,0,ncells1-1,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real x1v = CellCenterX(i-is, nx1, size.d_view(m).x1min, size.d_view(m).x1max);
-      Real x2v = CellCenterX(j-js, nx2, size.d_view(m).x2min, size.d_view(m).x2max);
+      Real x1v = CellCenterX(i-is, nx1, size.view_device()(m).x1min, size.view_device()(m).x1max);
+      Real x2v = CellCenterX(j-js, nx2, size.view_device()(m).x2min, size.view_device()(m).x2max);
       Real r_cyl = sqrt(SQR(x1v)+SQR(x2v));
       a_vecp_(m,0,k,j,i) = 0.0;
       a_vecp_(m,1,k,j,i) = 0.0;
@@ -320,9 +320,9 @@ TaskStatus MagInit::InitializeAVecModes(int) {
     Real rmin = amin_*r_in;
     par_for("a_polo_rad", DevExeSpace(),0,nmb-1,0,ncells3-1,0,ncells2-1,0,ncells1-1,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real x1v = CellCenterX(i-is, nx1, size.d_view(m).x1min, size.d_view(m).x1max);
-      Real x2v = CellCenterX(j-js, nx2, size.d_view(m).x2min, size.d_view(m).x2max);
-      Real x3v = CellCenterX(k-ks, nx3, size.d_view(m).x3min, size.d_view(m).x3max);
+      Real x1v = CellCenterX(i-is, nx1, size.view_device()(m).x1min, size.view_device()(m).x1max);
+      Real x2v = CellCenterX(j-js, nx2, size.view_device()(m).x2min, size.view_device()(m).x2max);
+      Real x3v = CellCenterX(k-ks, nx3, size.view_device()(m).x3min, size.view_device()(m).x3max);
       Real rad = sqrt(SQR(x1v)+SQR(x2v)+SQR(x3v));
       Real r_cyl = sqrt(SQR(x1v)+SQR(x2v));
       Real a_phi = (rad+rmin)*(r_cyl/rad);
@@ -365,13 +365,13 @@ TaskStatus MagInit::InitializeAVecModes(int) {
       Real kb = 0.0;
 
       for (int dir = 0; dir < no_dir; dir ++) {
-        aka_.h_view(dir,nmode) = norm*RanGaussianSt(&(rstate));
-        akb_.h_view(dir,nmode) = norm*RanGaussianSt(&(rstate));
+        aka_.view_host()(dir,nmode) = norm*RanGaussianSt(&(rstate));
+        akb_.view_host()(dir,nmode) = norm*RanGaussianSt(&(rstate));
 
-        // ka = ka + k[dir]*aka_.h_view(dir,nmode);
-        // kb = kb + k[dir]*akb_.h_view(dir,nmode);
-        ka = ka + k[dir]*akb_.h_view(dir,nmode);
-        kb = kb + k[dir]*aka_.h_view(dir,nmode);
+        // ka = ka + k[dir]*aka_.view_host()(dir,nmode);
+        // kb = kb + k[dir]*akb_.view_host()(dir,nmode);
+        ka = ka + k[dir]*akb_.view_host()(dir,nmode);
+        kb = kb + k[dir]*aka_.view_host()(dir,nmode);
       }
 
       // Now decompose into solenoidal/compressive modes
@@ -380,10 +380,10 @@ TaskStatus MagInit::InitializeAVecModes(int) {
           Real diva = k[dir]*ka/SQR(kiso);
           Real divb = k[dir]*kb/SQR(kiso);
 
-          Real curla = aka_.h_view(dir,nmode) - divb;
-          Real curlb = akb_.h_view(dir,nmode) - diva;
-          aka_.h_view(dir,nmode) = curla;
-          akb_.h_view(dir,nmode) = curlb;
+          Real curla = aka_.view_host()(dir,nmode) - divb;
+          Real curlb = akb_.view_host()(dir,nmode) - diva;
+          aka_.view_host()(dir,nmode) = curla;
+          akb_.view_host()(dir,nmode) = curlb;
         }
       }
     }
@@ -414,8 +414,8 @@ TaskStatus MagInit::InitializeAVecModes(int) {
             ( ycos_(m,n,j)*zsin_(m,n,k) + ysin_(m,n,j)*zcos_(m,n,k) ) * xcos_(m,n,i) +
             ( ycos_(m,n,j)*zcos_(m,n,k) - ysin_(m,n,j)*zsin_(m,n,k) ) * xsin_(m,n,i);
         for (int dir = 0; dir < no_dir; dir ++){
-          a_vecp_(m,dir,k,j,i) += aka_.d_view(dir,n)*forc_real -
-                                   akb_.d_view(dir,n)*forc_imag;
+          a_vecp_(m,dir,k,j,i) += aka_.view_device()(dir,n)*forc_real -
+                                   akb_.view_device()(dir,n)*forc_imag;
         }
       });
     }
@@ -427,9 +427,9 @@ TaskStatus MagInit::InitializeAVecModes(int) {
   if(r_in > 0.0) {
     par_for("a_vecp_amp",DevExeSpace(),0,nmb-1,0,ncells3-1,0,ncells2-1,0,ncells1-1,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real x1v = CellCenterX(i-is, nx1, size.d_view(m).x1min, size.d_view(m).x1max);
-      Real x2v = CellCenterX(j-js, nx2, size.d_view(m).x2min, size.d_view(m).x2max);
-      Real x3v = CellCenterX(k-ks, nx3, size.d_view(m).x3min, size.d_view(m).x3max);
+      Real x1v = CellCenterX(i-is, nx1, size.view_device()(m).x1min, size.view_device()(m).x1max);
+      Real x2v = CellCenterX(j-js, nx2, size.view_device()(m).x2min, size.view_device()(m).x2max);
+      Real x3v = CellCenterX(k-ks, nx3, size.view_device()(m).x3min, size.view_device()(m).x3max);
       Real rad = sqrt(SQR(x1v)+SQR(x2v)+SQR(x3v));
       for (int dir = 0; dir < no_dir; dir ++){
         if (rad < r_in_) {
@@ -480,9 +480,9 @@ TaskStatus MagInit::InitMagField(int) {
     auto &size = pmy_pack->pmb->mb_size;
     par_for("turb-b", DevExeSpace(), 0,(pmy_pack->nmb_thispack-1),ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      Real dx1 = size.d_view(m).dx1;
-      Real dx2 = size.d_view(m).dx2;
-      Real dx3 = size.d_view(m).dx3;
+      Real dx1 = size.view_device()(m).dx1;
+      Real dx2 = size.view_device()(m).dx2;
+      Real dx3 = size.view_device()(m).dx3;
       b0_.x1f(m,k,j,i)      = ((a_vecp_(m,2,k,j+1,i-1)-a_vecp_(m,2,k,j-1,i-1))
                               +(a_vecp_(m,2,k,j+1,i  )-a_vecp_(m,2,k,j-1,i  )))/dx2
                              -((a_vecp_(m,1,k+1,j,i-1)-a_vecp_(m,1,k-1,j,i-1))
@@ -527,9 +527,9 @@ TaskStatus MagInit::InitMagField(int) {
       int i = (idx - m*nkji - k*nji - j*nx1) + is;
       k += ks;
       j += js;
-      Real dx1 = size.d_view(m).dx1;
-      Real dx2 = size.d_view(m).dx2;
-      Real dx3 = size.d_view(m).dx3;
+      Real dx1 = size.view_device()(m).dx1;
+      Real dx2 = size.view_device()(m).dx2;
+      Real dx3 = size.view_device()(m).dx3;
       Real dvol = dx1*dx2*dx3;
       Real eint = w(m,IEN,k,j,i);
       sum_m0 += dvol*gm1*eint;

@@ -36,6 +36,7 @@
 //!    source-term functions can be adapted for other physics processes requiring
 //!    explicit time-step constraints and subcycling. 
 // ----------------------------------------------------------------------------------------
+#include <cfloat>
 #include <algorithm>
 #include <cmath>
 #include <sstream>
@@ -271,7 +272,7 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       } 
       Real lambda_cooling = SQR(x_h*mu)*ISMCoolFn(temp_cgs, T_floor_cool_cgs, T_ceiling_cool_cgs, metallicity)/cooling_unit;
       Real gamma_heating = heating_rate/heating_unit;
-      Real dvol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+      Real dvol = size.view_device()(m).dx1*size.view_device()(m).dx2*size.view_device()(m).dx3;
       totvol_ += dvol;
       totmass_ += rho*dvol;
       totcoolrate_ += dvol * rho * (rho * lambda_cooling - gamma_heating);
@@ -426,9 +427,9 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
         int i = (idx - m*nkji - k*nji - j*nx1) + is;
         k += ks;
         j += js;
-        Real dx1 = size.d_view(m).dx1;
-        Real dx2 = size.d_view(m).dx2;
-        Real dx3 = size.d_view(m).dx3;
+        Real dx1 = size.view_device()(m).dx1;
+        Real dx2 = size.view_device()(m).dx2;
+        Real dx3 = size.view_device()(m).dx3;
         Real dvol = dx1*dx2*dx3;
         Real logdens_fluc = log(u0(m,IDN,k,j,i)/rho_0);
         sum_vol += dvol;
@@ -610,7 +611,7 @@ void AddISMCooling(Mesh *pm, const Real bdt, DvceArray5D<Real> &u0,
     Real temp = w0(m,IEN,k,j,i)/dens*gm1;
     Real eint = w0(m,IEN,k,j,i);
 
-    Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+    Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2*size.view_device()(m).dx3;
 
     Real gamma_heating = heating_rate/heating_unit;
     bool sub_cycling = true;
@@ -799,7 +800,7 @@ void AddEquHeating(Mesh *pm, const Real bdt, DvceArray5D<Real> &u0,
     k += ks;
     j += js;
 
-    Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+    Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2*size.view_device()(m).dx3;
 
     // temperature in cgs unit
     Real dens = w0(m,IDN,k,j,i);
@@ -856,7 +857,7 @@ void AddEquHeating(Mesh *pm, const Real bdt, DvceArray5D<Real> &u0,
     k += ks;
     j += js;
 
-    Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+    Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2*size.view_device()(m).dx3;
     Real q_comp_per_wt = q_compensate_per_wt;
     Real dens = w0(m,IDN,k,j,i);
     Real q_heating = q_comp_per_wt * pow_dev(dens, weight);
@@ -973,8 +974,8 @@ void Diagnostic(Mesh *pm) {
     k += ks;
     j += js;
 
-    Real dx = fmin(fmin(size.d_view(m).dx1,size.d_view(m).dx2),size.d_view(m).dx3);
-    Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+    Real dx = fmin(fmin(size.view_device()(m).dx1,size.view_device()(m).dx2),size.view_device()(m).dx3);
+    Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2*size.view_device()(m).dx3;
 
     // temperature in cgs unit
     Real dens = w0(m,IDN,k,j,i);
@@ -1255,7 +1256,7 @@ void UserHistOutput(HistoryData *pdata, Mesh *pm) {
       hvars1.the_array[index] = 0.0;
     }
 
-    Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+    Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2*size.view_device()(m).dx3;
     // volume
     hvars0.the_array[0] += vol;
     // mass

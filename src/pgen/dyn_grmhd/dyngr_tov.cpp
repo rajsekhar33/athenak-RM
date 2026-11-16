@@ -137,16 +137,16 @@ void SetupTOV(ParameterInput *pin, Mesh* pmy_mesh_) {
   Kokkos::Random_XorShift64_Pool<> rand_pool64(pmbp->gids);
   par_for("pgen_tov1", DevExeSpace(), 0, nmb1, 0, (n3-1), 0, (n2-1), 0, (n1-1),
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1v = CellCenterX(i-is, indcs.nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2v = CellCenterX(j-js, indcs.nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3v = CellCenterX(k-ks, indcs.nx3, x3min, x3max);
 
     // Calculate the rest-mass density, pressure, and mass for a specific isotropic
@@ -304,20 +304,20 @@ void SetupTOV(ParameterInput *pin, Mesh* pmy_mesh_) {
 
   par_for("pgen_potential", DevExeSpace(), 0,nmb-1,ks,ke+1,js,je+1,is,ie+1,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     int nx1 = indcs.nx1;
     Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
     Real x1f = LeftEdgeX(i-is,nx1,x1min,x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     int nx2 = indcs.nx2;
     Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
     Real x2f = LeftEdgeX(j-js,nx2,x2min,x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     int nx3 = indcs.nx3;
     Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
     Real x3f = LeftEdgeX(k-ks,nx3,x3min,x3max);
@@ -325,9 +325,9 @@ void SetupTOV(ParameterInput *pin, Mesh* pmy_mesh_) {
     Real x1fp1 = LeftEdgeX(i+1-is, nx1, x1min, x1max);
     Real x2fp1 = LeftEdgeX(j+1-js, nx2, x2min, x2max);
     Real x3fp1 = LeftEdgeX(k+1-ks, nx3, x3min, x3max);
-    Real dx1 = size.d_view(m).dx1;
-    Real dx2 = size.d_view(m).dx2;
-    Real dx3 = size.d_view(m).dx3;
+    Real dx1 = size.view_device()(m).dx1;
+    Real dx2 = size.view_device()(m).dx2;
+    Real dx3 = size.view_device()(m).dx3;
 
     a1(m,k,j,i) = A1(tov_, eos_, isotropic, bfield, x1v, x2f, x3f);
     a2(m,k,j,i) = A2(tov_, eos_, isotropic, bfield, x1f, x2v, x3f);
@@ -339,31 +339,32 @@ void SetupTOV(ParameterInput *pin, Mesh* pmy_mesh_) {
 
     // Correct A1 at x2-faces, x3-faces, and x2x3-edges
     if ((indcs.nx2 > 1 &&
-        ((nghbr.d_view(m,8 ).lev > mblev.d_view(m) && j==js) ||
-        (nghbr.d_view(m,9 ).lev > mblev.d_view(m) && j==js) ||
-        (nghbr.d_view(m,10).lev > mblev.d_view(m) && j==js) ||
-        (nghbr.d_view(m,11).lev > mblev.d_view(m) && j==js) ||
-        (nghbr.d_view(m,12).lev > mblev.d_view(m) && j==je+1) ||
-        (nghbr.d_view(m,13).lev > mblev.d_view(m) && j==je+1) ||
-        (nghbr.d_view(m,14).lev > mblev.d_view(m) && j==je+1) ||
-        (nghbr.d_view(m,15).lev > mblev.d_view(m) && j==je+1))) ||
+        ((nghbr.view_device()(m,8 ).lev > mblev.view_device()(m) && j==js) ||
+        (nghbr.view_device()(m,9 ).lev > mblev.view_device()(m) && j==js) ||
+        (nghbr.view_device()(m,10).lev > mblev.view_device()(m) && j==js) ||
+        (nghbr.view_device()(m,11).lev > mblev.view_device()(m) && j==js) ||
+        (nghbr.view_device()(m,12).lev > mblev.view_device()(m) && j==je+1) ||
+        (nghbr.view_device()(m,13).lev > mblev.view_device()(m) && j==je+1) ||
+        (nghbr.view_device()(m,14).lev > mblev.view_device()(m) && j==je+1) ||
+        (nghbr.view_device()(m,15).lev > mblev.view_device()(m) && j==je+1))) ||
         (indcs.nx3 > 1 &&
-        ((nghbr.d_view(m,24).lev > mblev.d_view(m) && k==ks) ||
-        (nghbr.d_view(m,25).lev > mblev.d_view(m) && k==ks) ||
-        (nghbr.d_view(m,26).lev > mblev.d_view(m) && k==ks) ||
-        (nghbr.d_view(m,27).lev > mblev.d_view(m) && k==ks) ||
-        (nghbr.d_view(m,28).lev > mblev.d_view(m) && k==ke+1) ||
-        (nghbr.d_view(m,29).lev > mblev.d_view(m) && k==ke+1) ||
-        (nghbr.d_view(m,30).lev > mblev.d_view(m) && k==ke+1) ||
-        (nghbr.d_view(m,31).lev > mblev.d_view(m) && k==ke+1) ||
-        (nghbr.d_view(m,40).lev > mblev.d_view(m) && j==js && k==ks) ||
-        (nghbr.d_view(m,41).lev > mblev.d_view(m) && j==js && k==ks) ||
-        (nghbr.d_view(m,42).lev > mblev.d_view(m) && j==je+1 && k==ks) ||
-        (nghbr.d_view(m,43).lev > mblev.d_view(m) && j==je+1 && k==ks) ||
-        (nghbr.d_view(m,44).lev > mblev.d_view(m) && j==js && k==ke+1) ||
-        (nghbr.d_view(m,45).lev > mblev.d_view(m) && j==js && k==ke+1) ||
-        (nghbr.d_view(m,46).lev > mblev.d_view(m) && j==je+1 && k==ke+1) ||
-        (nghbr.d_view(m,47).lev > mblev.d_view(m) && j==je+1 && k==ke+1)))) {
+        ((nghbr.view_device()(m,24).lev > mblev.view_device()(m) && k==ks) ||
+        (nghbr.view_device()(m,25).lev > mblev.view_device()(m) && k==ks) ||
+        (nghbr.view_device()(m,26).lev > mblev.view_device()(m) && k==ks) ||
+        (nghbr.view_device()(m,27).lev > mblev.view_device()(m) && k==ks) ||
+        (nghbr.view_device()(m,28).lev > mblev.view_device()(m) && k==ke+1) ||
+        (nghbr.view_device()(m,29).lev > mblev.view_device()(m) && k==ke+1) ||
+        (nghbr.view_device()(m,30).lev > mblev.view_device()(m) && k==ke+1) ||
+        (nghbr.view_device()(m,31).lev > mblev.view_device()(m) && k==ke+1) ||
+        (nghbr.view_device()(m,40).lev > mblev.view_device()(m) && j==js && k==ks) ||
+        (nghbr.view_device()(m,41).lev > mblev.view_device()(m) && j==js && k==ks) ||
+        (nghbr.view_device()(m,42).lev > mblev.view_device()(m) && j==je+1 && k==ks) ||
+        (nghbr.view_device()(m,43).lev > mblev.view_device()(m) && j==je+1 && k==ks) ||
+        (nghbr.view_device()(m,44).lev > mblev.view_device()(m) && j==js && k==ke+1) ||
+        (nghbr.view_device()(m,45).lev > mblev.view_device()(m) && j==js && k==ke+1) ||
+        (nghbr.view_device()(m,46).lev > mblev.view_device()(m) && j==je+1 && k==ke+1) ||
+        (nghbr.view_device()(m,47).lev > mblev.view_device()(m) && j==je+1 && k==ke
+            +1)))) {
       Real xl = x1v + 0.25*dx1;
       Real xr = x1v - 0.25*dx1;
       a1(m,k,j,i) = 0.5*(A1(tov_, eos_, isotropic, bfield, xl,x2f,x3f) +
@@ -371,31 +372,32 @@ void SetupTOV(ParameterInput *pin, Mesh* pmy_mesh_) {
     }
 
     // Correct A2 at x1-faces, x3-faces, and x1x3-edges
-    if ((nghbr.d_view(m,0 ).lev > mblev.d_view(m) && i==is) ||
-        (nghbr.d_view(m,1 ).lev > mblev.d_view(m) && i==is) ||
-        (nghbr.d_view(m,2 ).lev > mblev.d_view(m) && i==is) ||
-        (nghbr.d_view(m,3 ).lev > mblev.d_view(m) && i==is) ||
-        (nghbr.d_view(m,4 ).lev > mblev.d_view(m) && i==ie+1) ||
-        (nghbr.d_view(m,5 ).lev > mblev.d_view(m) && i==ie+1) ||
-        (nghbr.d_view(m,6 ).lev > mblev.d_view(m) && i==ie+1) ||
-        (nghbr.d_view(m,7 ).lev > mblev.d_view(m) && i==ie+1) ||
+    if ((nghbr.view_device()(m,0 ).lev > mblev.view_device()(m) && i==is) ||
+        (nghbr.view_device()(m,1 ).lev > mblev.view_device()(m) && i==is) ||
+        (nghbr.view_device()(m,2 ).lev > mblev.view_device()(m) && i==is) ||
+        (nghbr.view_device()(m,3 ).lev > mblev.view_device()(m) && i==is) ||
+        (nghbr.view_device()(m,4 ).lev > mblev.view_device()(m) && i==ie+1) ||
+        (nghbr.view_device()(m,5 ).lev > mblev.view_device()(m) && i==ie+1) ||
+        (nghbr.view_device()(m,6 ).lev > mblev.view_device()(m) && i==ie+1) ||
+        (nghbr.view_device()(m,7 ).lev > mblev.view_device()(m) && i==ie+1) ||
         (indcs.nx3 > 1 &&
-        ((nghbr.d_view(m,24).lev > mblev.d_view(m) && k==ks) ||
-        (nghbr.d_view(m,25).lev > mblev.d_view(m) && k==ks) ||
-        (nghbr.d_view(m,26).lev > mblev.d_view(m) && k==ks) ||
-        (nghbr.d_view(m,27).lev > mblev.d_view(m) && k==ks) ||
-        (nghbr.d_view(m,28).lev > mblev.d_view(m) && k==ke+1) ||
-        (nghbr.d_view(m,29).lev > mblev.d_view(m) && k==ke+1) ||
-        (nghbr.d_view(m,30).lev > mblev.d_view(m) && k==ke+1) ||
-        (nghbr.d_view(m,31).lev > mblev.d_view(m) && k==ke+1) ||
-        (nghbr.d_view(m,32).lev > mblev.d_view(m) && i==is && k==ks) ||
-        (nghbr.d_view(m,33).lev > mblev.d_view(m) && i==is && k==ks) ||
-        (nghbr.d_view(m,34).lev > mblev.d_view(m) && i==ie+1 && k==ks) ||
-        (nghbr.d_view(m,35).lev > mblev.d_view(m) && i==ie+1 && k==ks) ||
-        (nghbr.d_view(m,36).lev > mblev.d_view(m) && i==is && k==ke+1) ||
-        (nghbr.d_view(m,37).lev > mblev.d_view(m) && i==is && k==ke+1) ||
-        (nghbr.d_view(m,38).lev > mblev.d_view(m) && i==ie+1 && k==ke+1) ||
-        (nghbr.d_view(m,39).lev > mblev.d_view(m) && i==ie+1 && k==ke+1)))) {
+        ((nghbr.view_device()(m,24).lev > mblev.view_device()(m) && k==ks) ||
+        (nghbr.view_device()(m,25).lev > mblev.view_device()(m) && k==ks) ||
+        (nghbr.view_device()(m,26).lev > mblev.view_device()(m) && k==ks) ||
+        (nghbr.view_device()(m,27).lev > mblev.view_device()(m) && k==ks) ||
+        (nghbr.view_device()(m,28).lev > mblev.view_device()(m) && k==ke+1) ||
+        (nghbr.view_device()(m,29).lev > mblev.view_device()(m) && k==ke+1) ||
+        (nghbr.view_device()(m,30).lev > mblev.view_device()(m) && k==ke+1) ||
+        (nghbr.view_device()(m,31).lev > mblev.view_device()(m) && k==ke+1) ||
+        (nghbr.view_device()(m,32).lev > mblev.view_device()(m) && i==is && k==ks) ||
+        (nghbr.view_device()(m,33).lev > mblev.view_device()(m) && i==is && k==ks) ||
+        (nghbr.view_device()(m,34).lev > mblev.view_device()(m) && i==ie+1 && k==ks) ||
+        (nghbr.view_device()(m,35).lev > mblev.view_device()(m) && i==ie+1 && k==ks) ||
+        (nghbr.view_device()(m,36).lev > mblev.view_device()(m) && i==is && k==ke+1) ||
+        (nghbr.view_device()(m,37).lev > mblev.view_device()(m) && i==is && k==ke+1) ||
+        (nghbr.view_device()(m,38).lev > mblev.view_device()(m) && i==ie+1 && k==ke+1) ||
+        (nghbr.view_device()(m,39).lev > mblev.view_device()(m) && i==ie+1 && k==ke
+            +1)))) {
       Real xl = x2v + 0.25*dx2;
       Real xr = x2v - 0.25*dx2;
       a2(m,k,j,i) = 0.5*(A2(tov_, eos_, isotropic, bfield, x1f,xl,x3f) +
@@ -407,9 +409,9 @@ void SetupTOV(ParameterInput *pin, Mesh* pmy_mesh_) {
   par_for("pgen_Bfc", DevExeSpace(), 0,nmb-1,ks,ke,js,je,is,ie,
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
     // Compute face-centered fields from curl(A).
-    Real dx1 = size.d_view(m).dx1;
-    Real dx2 = size.d_view(m).dx2;
-    Real dx3 = size.d_view(m).dx3;
+    Real dx1 = size.view_device()(m).dx1;
+    Real dx2 = size.view_device()(m).dx2;
+    Real dx3 = size.view_device()(m).dx3;
 
     b0.x1f(m,k,j,i) = b_scale*((a3(m,k,j+1,i) - a3(m,k,j,i))/dx2 -
                        (a2(m,k+1,j,i) - a2(m,k,j,i))/dx3);
@@ -589,18 +591,18 @@ void SetADMVariablesToTOV(MeshBlockPack *pmbp) {
   bool minkowski = ptov_params->minkowski;
   par_for("update_adm_vars", DevExeSpace(), 0,nmb-1,0,(n3-1),0,(n2-1),0,(n1-1),
   KOKKOS_LAMBDA(int m, int k, int j, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     int nx1 = indcs.nx1;
     Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
 
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     int nx2 = indcs.nx2;
     Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
 
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     int nx3 = indcs.nx3;
     Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
 

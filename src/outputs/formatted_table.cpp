@@ -131,19 +131,19 @@ void FormattedTableOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin) {
         int &oje = outmbs[m].oje;
         int &oks = outmbs[m].oks;
         int &oke = outmbs[m].oke;
-        Real &x1min = size.h_view(idx).x1min;
-        Real &x1max = size.h_view(idx).x1max;
-        Real &x2min = size.h_view(idx).x2min;
-        Real &x2max = size.h_view(idx).x2max;
-        Real &x3min = size.h_view(idx).x3min;
-        Real &x3max = size.h_view(idx).x3max;
+        Real &x1min = size.view_host()(idx).x1min;
+        Real &x1max = size.view_host()(idx).x1max;
+        Real &x2min = size.view_host()(idx).x2min;
+        Real &x2max = size.view_host()(idx).x2max;
+        Real &x3min = size.view_host()(idx).x3min;
+        Real &x3max = size.view_host()(idx).x3max;
         int &nx1 = indcs.nx1;
         int &nx2 = indcs.nx2;
         int &nx3 = indcs.nx3;
         for (int k=oks; k<=oke; ++k) {
           for (int j=ojs; j<=oje; ++j) {
             for (int i=ois; i<=oie; ++i) {
-              std::fprintf(pfile, "%05d", pmb->mb_gid.h_view(idx));
+              std::fprintf(pfile, "%05d", pmb->mb_gid.view_host()(idx));
               // write x1, x2, x3 indices and coordinates
               if (oie != ois) {
                 std::fprintf(pfile, " %04d", i);  // note extra space for formatting

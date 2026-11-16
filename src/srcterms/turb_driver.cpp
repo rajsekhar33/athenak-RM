@@ -7,12 +7,14 @@
 //  \brief implementation of functions in TurbulenceDriver
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <string>
 
 #include "athena.hpp"
 #include "parameter_input.hpp"
@@ -75,6 +77,30 @@ TurbulenceDriver::TurbulenceDriver(MeshBlockPack *pp, ParameterInput *pin) :
   exp_prl = pin->GetOrAddReal("turb_driving", "exp_prl", 0.0);
   // energy injection rate
   dedt = pin->GetOrAddReal("turb_driving", "dedt", 1.0);
+  const std::string normalization =
+      pin->GetOrAddString("turb_driving", "normalization", "power");
+  if (normalization != "power" && normalization != "rms_acceleration") {
+    Kokkos::abort("turb_driving/normalization must be power or rms_acceleration");
+  }
+  rms_acceleration_ = (normalization == "rms_acceleration");
+  if (rms_acceleration_) {
+    const auto *coord = pmy_pack->pcoord;
+    const bool single_fluid = (pmy_pack->phydro != nullptr) !=
+                              (pmy_pack->pmhd != nullptr);
+    if (!single_fluid || pmy_pack->pionn != nullptr ||
+        coord->is_special_relativistic || coord->is_general_relativistic ||
+        coord->is_dynamical_relativistic) {
+      Kokkos::abort("RMS acceleration normalization requires nonrelativistic "
+                    "single-fluid hydro or MHD");
+    }
+    accel_rms_ = pin->GetReal("turb_driving", "accel_rms");
+    if (!std::isfinite(accel_rms_) || accel_rms_ < 0.0) {
+      Kokkos::abort("turb_driving/accel_rms must be finite and nonnegative");
+    }
+  }
+  if (!rms_acceleration_ && (!std::isfinite(dedt) || dedt < 0.0)) {
+    Kokkos::abort("Turbulence forcing requires finite, nonnegative turb_driving/dedt");
+  }
   // correlation time - time over which the OU process decorrelates
   tcorr = pin->GetOrAddReal("turb_driving", "tcorr", 1.0);
   // update time for the turbulence driver - we update the force field every
@@ -85,6 +111,11 @@ TurbulenceDriver::TurbulenceDriver(MeshBlockPack *pp, ParameterInput *pin) :
   // this value of dt_turb_update steps
   dt_turb_thresh=pin->GetOrAddReal("turb_driving","dt_turb_thresh",
                                     dt_turb_update/100.);
+  if (!(dt_turb_update > 0.0) || !(dt_turb_thresh >= 0.0) ||
+      !(dt_turb_thresh < 0.5*dt_turb_update)) {
+    Kokkos::abort("turb_driving requires dt_turb_update > 0 and "
+                  "0 <= dt_turb_thresh < dt_turb_update/2");
+  }
   // fraction of energy in solenoidal modes
   sol_fraction=pin->GetOrAddReal("turb_driving","sol_fraction",1.0);
 
@@ -108,9 +139,15 @@ TurbulenceDriver::TurbulenceDriver(MeshBlockPack *pp, ParameterInput *pin) :
   // if not specified, start driving at t=0
   tdriv_start = pin->GetOrAddReal("turb_driving", "tdriv_start", 0.);
   if (global_variable::my_rank == 0) {
-    std::cout << "Initializing turbulence driving module" << std::endl <<
-    " dedt = " << dedt << " tcorr = " << tcorr <<
-    " dt_turb_update = " << dt_turb_update << std::endl;
+    if (rms_acceleration_) {
+      std::cout << "Initializing turbulence driving module" << std::endl <<
+      " normalization = rms_acceleration accel_rms = " << accel_rms_ <<
+      " tcorr = " << tcorr << " dt_turb_update = " << dt_turb_update << std::endl;
+    } else {
+      std::cout << "Initializing turbulence driving module" << std::endl <<
+      " dedt = " << dedt << " tcorr = " << tcorr <<
+      " dt_turb_update = " << dt_turb_update << std::endl;
+    }
   }
   n_turb_updates_yet = 0;
 
@@ -250,9 +287,9 @@ void TurbulenceDriver::Initialize() {
     kx = dkx*trip[0];
     ky = dky*trip[1];
     kz = dkz*trip[2];
-    kx_mode_.h_view(nmode) = kx;
-    ky_mode_.h_view(nmode) = ky;
-    kz_mode_.h_view(nmode) = kz;
+    kx_mode_.view_host()(nmode) = kx;
+    ky_mode_.view_host()(nmode) = ky;
+    kz_mode_.view_host()(nmode) = kz;
   }
 
   kx_mode_.template modify<HostMemSpace>();
@@ -267,20 +304,20 @@ void TurbulenceDriver::Initialize() {
 
   par_for("xsin/xcos", DevExeSpace(),0,nmb-1,0,mode_count-1,is,ie,
   KOKKOS_LAMBDA(int m, int n, int i) {
-    Real &x1min = size.d_view(m).x1min;
-    Real &x1max = size.d_view(m).x1max;
+    Real &x1min = size.view_device()(m).x1min;
+    Real &x1max = size.view_device()(m).x1max;
     Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
-    Real k1v = kx_mode_.d_view(n);
+    Real k1v = kx_mode_.view_device()(n);
     xsin_(m,n,i) = sin(k1v*x1v);
     xcos_(m,n,i) = cos(k1v*x1v);
   });
 
   par_for("ysin/ycos", DevExeSpace(),0,nmb-1,0,mode_count-1,js,je,
   KOKKOS_LAMBDA(int m, int n, int j) {
-    Real &x2min = size.d_view(m).x2min;
-    Real &x2max = size.d_view(m).x2max;
+    Real &x2min = size.view_device()(m).x2min;
+    Real &x2max = size.view_device()(m).x2max;
     Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
-    Real k2v = ky_mode_.d_view(n);
+    Real k2v = ky_mode_.view_device()(n);
     ysin_(m,n,j) = sin(k2v*x2v);
     ycos_(m,n,j) = cos(k2v*x2v);
     if (ncells2-1 == 0) {
@@ -291,10 +328,10 @@ void TurbulenceDriver::Initialize() {
 
   par_for("zsin/zcos", DevExeSpace(),0,nmb-1,0,mode_count-1,ks,ke,
   KOKKOS_LAMBDA(int m, int n, int k) {
-    Real &x3min = size.d_view(m).x3min;
-    Real &x3max = size.d_view(m).x3max;
+    Real &x3min = size.view_device()(m).x3min;
+    Real &x3max = size.view_device()(m).x3max;
     Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
-    Real k3v = kz_mode_.d_view(n);
+    Real k3v = kz_mode_.view_device()(n);
     zsin_(m,n,k) = sin(k3v*x3v);
     zcos_(m,n,k) = cos(k3v*x3v);
     if (ncells3-1 == 0 || (drivingtype == 1)) {
@@ -304,6 +341,34 @@ void TurbulenceDriver::Initialize() {
   });
 
   return;
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn void TurbulenceDriver::ResetForNewMesh()
+//  \brief Rebuild per-MeshBlock forcing storage after mesh redistribution.
+// The local block count, order and positions can all change. Reconstruct the
+// position tables and let the next InitializeModes() replay the O-U updates
+// from random_seed, as on a restart with restart_forcing=false.
+
+void TurbulenceDriver::ResetForNewMesh() {
+  int nmb = pmy_pack->nmb_thispack;
+  auto &indcs = pmy_pack->pmesh->mb_indcs;
+  int ncells1 = indcs.nx1 + 2*(indcs.ng);
+  int ncells2 = (indcs.nx2 > 1) ? (indcs.nx2 + 2*(indcs.ng)) : 1;
+  int ncells3 = (indcs.nx3 > 1) ? (indcs.nx3 + 2*(indcs.ng)) : 1;
+
+  Kokkos::realloc(force, nmb, 3, ncells3, ncells2, ncells1);
+  Kokkos::realloc(force_tmp1, nmb, 3, ncells3, ncells2, ncells1);
+  Kokkos::realloc(force_tmp2, nmb, 3, ncells3, ncells2, ncells1);
+  Kokkos::realloc(xcos, nmb, mode_count, ncells1);
+  Kokkos::realloc(xsin, nmb, mode_count, ncells1);
+  Kokkos::realloc(ycos, nmb, mode_count, ncells2);
+  Kokkos::realloc(ysin, nmb, mode_count, ncells2);
+  Kokkos::realloc(zcos, nmb, mode_count, ncells3);
+  Kokkos::realloc(zsin, nmb, mode_count, ncells3);
+  Kokkos::deep_copy(force, 0.0);
+  Initialize();
+  n_turb_updates_yet = 0;
 }
 
 //----------------------------------------------------------------------------------------
@@ -361,7 +426,7 @@ TaskStatus TurbulenceDriver::InitializeModes(Driver *pdrive, int stage) {
   int ks = indcs.ks, ke = indcs.ke;
 
   Real current_time=pm->time;
-  int n_turb_updates_reqd = static_cast<int>(current_time/dt_turb_update) + 1;
+  int n_turb_updates_reqd = static_cast<int>(UpdateBoundariesReached(current_time)) + 1;
 
   auto mode_count_ = mode_count;
 
@@ -454,11 +519,11 @@ TaskStatus TurbulenceDriver::InitializeModes(Driver *pdrive, int stage) {
         Real kb = 0.0;
 
         for (int dir = 0; dir < no_dir; dir ++) {
-          aka_.h_view(dir,nmode) = norm*RanGaussianSt(&(rstate));
-          akb_.h_view(dir,nmode) = norm*RanGaussianSt(&(rstate));
+          aka_.view_host()(dir,nmode) = norm*RanGaussianSt(&(rstate));
+          akb_.view_host()(dir,nmode) = norm*RanGaussianSt(&(rstate));
 
-          ka = ka + k[dir]*akb_.h_view(dir,nmode);
-          kb = kb + k[dir]*aka_.h_view(dir,nmode);
+          ka = ka + k[dir]*akb_.view_host()(dir,nmode);
+          kb = kb + k[dir]*aka_.view_host()(dir,nmode);
         }
 
         // Now decompose into solenoidal/compressive modes
@@ -467,10 +532,10 @@ TaskStatus TurbulenceDriver::InitializeModes(Driver *pdrive, int stage) {
             Real diva = k[dir]*ka/SQR(kiso);
             Real divb = k[dir]*kb/SQR(kiso);
 
-            Real curla = aka_.h_view(dir,nmode) - divb;
-            Real curlb = akb_.h_view(dir,nmode) - diva;
-            aka_.h_view(dir,nmode) = sol_fraction*curla+(1.0-sol_fraction)*divb;
-            akb_.h_view(dir,nmode) = sol_fraction*curlb+(1.0-sol_fraction)*diva;
+            Real curla = aka_.view_host()(dir,nmode) - divb;
+            Real curlb = akb_.view_host()(dir,nmode) - diva;
+            aka_.view_host()(dir,nmode) = sol_fraction*curla+(1.0-sol_fraction)*divb;
+            akb_.view_host()(dir,nmode) = sol_fraction*curlb+(1.0-sol_fraction)*diva;
           }
         }
       }
@@ -497,8 +562,8 @@ TaskStatus TurbulenceDriver::InitializeModes(Driver *pdrive, int stage) {
               ( ycos_(m,n,j)*zsin_(m,n,k) + ysin_(m,n,j)*zcos_(m,n,k) ) * xcos_(m,n,i) +
               ( ycos_(m,n,j)*zcos_(m,n,k) - ysin_(m,n,j)*zsin_(m,n,k) ) * xsin_(m,n,i);
           for (int dir = 0; dir < no_dir; dir ++){
-            force_tmp2_(m,dir,k,j,i) += aka_.d_view(dir,n)*forc_real -
-                                         akb_.d_view(dir,n)*forc_imag;
+            force_tmp2_(m,dir,k,j,i) += aka_.view_device()(dir,n)*forc_real -
+                                         akb_.view_device()(dir,n)*forc_imag;
           }
         });
       }
@@ -547,6 +612,10 @@ TaskStatus TurbulenceDriver::InitializeModes(Driver *pdrive, int stage) {
 //
 
 TaskStatus TurbulenceDriver::UpdateForcing(Driver *pdrive, int stage) {
+  if (rms_acceleration_ && accel_rms_ == 0.0) {
+    Kokkos::deep_copy(force, 0.0);
+    return TaskStatus::complete;
+  }
   Mesh *pm = pmy_pack->pmesh;
   auto &indcs = pmy_pack->pmesh->mb_indcs;
   int is = indcs.is, ie = indcs.ie;
@@ -611,8 +680,8 @@ TaskStatus TurbulenceDriver::UpdateForcing(Driver *pdrive, int stage) {
     if (x_turb_scale_height_ > 0) {
       par_for("force_OU_process",DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
       KOKKOS_LAMBDA(int m, int k, int j, int i) {
-        Real &x1min = size.d_view(m).x1min;
-        Real &x1max = size.d_view(m).x1max;
+        Real &x1min = size.view_device()(m).x1min;
+        Real &x1max = size.view_device()(m).x1max;
         Real x1v = CellCenterX(i-is, nx1, x1min, x1max);
         force_(m,0,k,j,i) *=
             std::exp(-SQR(x1v-x_turb_center_)/(2*SQR(x_turb_scale_height_)));
@@ -626,8 +695,8 @@ TaskStatus TurbulenceDriver::UpdateForcing(Driver *pdrive, int stage) {
     if (y_turb_scale_height_ > 0) {
       par_for("force_OU_process",DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
       KOKKOS_LAMBDA(int m, int k, int j, int i) {
-        Real &x2min = size.d_view(m).x2min;
-        Real &x2max = size.d_view(m).x2max;
+        Real &x2min = size.view_device()(m).x2min;
+        Real &x2max = size.view_device()(m).x2max;
         Real x2v = CellCenterX(j-js, nx2, x2min, x2max);
         force_(m,0,k,j,i) *=
             std::exp(-SQR(x2v-y_turb_center_)/(2*SQR(y_turb_scale_height_)));
@@ -641,8 +710,8 @@ TaskStatus TurbulenceDriver::UpdateForcing(Driver *pdrive, int stage) {
     if (z_turb_scale_height_ > 0) {
       par_for("force_OU_process",DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
       KOKKOS_LAMBDA(int m, int k, int j, int i) {
-        Real &x3min = size.d_view(m).x3min;
-        Real &x3max = size.d_view(m).x3max;
+        Real &x3min = size.view_device()(m).x3min;
+        Real &x3max = size.view_device()(m).x3max;
         Real x3v = CellCenterX(k-ks, nx3, x3min, x3max);
         force_(m,0,k,j,i) *=
             std::exp(-SQR(x3v-z_turb_center_)/(2*SQR(z_turb_scale_height_)));
@@ -664,7 +733,8 @@ TaskStatus TurbulenceDriver::UpdateForcing(Driver *pdrive, int stage) {
       int i = (idx - m*nkji - k*nji - j*nx1) + is;
       k += ks;
       j += js;
-      Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+      Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2
+          *size.view_device()(m).dx3;
       Real den = u0(m,IDN,k,j,i);
       if (flag_twofl) {
         den += u0_(m,IDN,k,j,i);
@@ -684,12 +754,62 @@ TaskStatus TurbulenceDriver::UpdateForcing(Driver *pdrive, int stage) {
     t0 = gm[0]; t1 = gm[1]; t2 = gm[2]; t3 = gm[3];
   #endif
 
+    if (rms_acceleration_ &&
+        (!(t0 > 0.0) || !std::isfinite(t0) || !std::isfinite(t1) ||
+         !std::isfinite(t2) || !std::isfinite(t3))) {
+      Kokkos::abort("RMS acceleration normalization requires finite positive mass "
+                    "and finite forcing");
+    }
+
     par_for("force_remove_net_mom", DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
     KOKKOS_LAMBDA(int m, int k, int j, int i) {
       force_(m,0,k,j,i) -= t1/t0;
       force_(m,1,k,j,i) -= t2/t0;
       force_(m,2,k,j,i) -= t3/t0;
     });
+
+    if (rms_acceleration_) {
+      // Remove net momentum using mass weights above, then set the vector RMS
+      // using cell volumes. The normalization remains valid with unequal AMR cells.
+      Real sum_a2 = 0.0, volume = 0.0;
+      Kokkos::parallel_reduce("forcing_acceleration_rms",
+          Kokkos::RangePolicy<>(DevExeSpace(),0,nmkji),
+      KOKKOS_LAMBDA(const int &idx, Real &a2_sum, Real &volume_sum) {
+        const int m = idx/nkji;
+        const int k = (idx-m*nkji)/nji;
+        const int j = (idx-m*nkji-k*nji)/nx1;
+        const int i = idx-m*nkji-k*nji-j*nx1;
+        const Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2
+            *size.view_device()(m).dx3;
+        const Real a1 = force_(m,0,k+ks,j+js,i+is);
+        const Real a2 = force_(m,1,k+ks,j+js,i+is);
+        const Real a3 = force_(m,2,k+ks,j+js,i+is);
+        a2_sum += (a1*a1 + a2*a2 + a3*a3)*vol;
+        volume_sum += vol;
+      }, Kokkos::Sum<Real>(sum_a2), Kokkos::Sum<Real>(volume));
+#if MPI_PARALLEL_ENABLED
+      Real sums[2] = {sum_a2, volume};
+      MPI_Allreduce(MPI_IN_PLACE, sums, 2, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      sum_a2 = sums[0];
+      volume = sums[1];
+#endif
+      if (!(sum_a2 > 0.0) || !std::isfinite(sum_a2) ||
+          !(volume > 0.0) || !std::isfinite(volume)) {
+        Kokkos::abort("Positive acceleration RMS requires nonzero finite forcing "
+                      "and finite positive volume");
+      }
+      const Real scale = accel_rms_/std::sqrt(sum_a2/volume);
+      if (!(scale > 0.0) || !std::isfinite(scale)) {
+        Kokkos::abort("RMS acceleration normalization factor is not finite and positive");
+      }
+      par_for("force_rms_norm", DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
+      KOKKOS_LAMBDA(int m, int k, int j, int i) {
+        force_(m,0,k,j,i) *= scale;
+        force_(m,1,k,j,i) *= scale;
+        force_(m,2,k,j,i) *= scale;
+      });
+      return TaskStatus::complete;
+    }
 
     t0 = 0.0;
     t1 = 0.0;
@@ -703,7 +823,8 @@ TaskStatus TurbulenceDriver::UpdateForcing(Driver *pdrive, int stage) {
       int i = (idx - m*nkji - k*nji - j*nx1) + is;
       k += ks;
       j += js;
-      Real vol = size.d_view(m).dx1*size.d_view(m).dx2*size.d_view(m).dx3;
+      Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2
+          *size.view_device()(m).dx3;
 
       Real den  = u0(m,IDN,k,j,i);
       Real mom1 = u0(m,IM1,k,j,i);
@@ -730,16 +851,26 @@ TaskStatus TurbulenceDriver::UpdateForcing(Driver *pdrive, int stage) {
     t0 = gm[0]; t1 = gm[1]; totvol = gm[2];
   #endif
 
-    t0 = std::max(t0, 1.0e-20);
-
+    // Scale s solves m0*s^2 + m1*s = dedt, the energy a constant acceleration
+    // s*force injects over dt: m0 = (dt/2)*sum(rho*|a|^2*vol), m1 = sum(rho*v.a*vol).
+    // Use the root of smallest magnitude, in a form free of cancellation. For m1 >= 0
+    // it is the positive root. For m1 < 0 it is a small negative root: the pattern's
+    // sign flips for this step only (the stored O-U field is unchanged), so the force
+    // does dedt of positive work instead of nearly reversing the flow along it.
     Real m0 = t0;
     Real m1 = t1;
-
-    Real s;
-    if (m1 >= 0) {
-      s = -m1/2./m0 + sqrt(m1*m1/4./m0/m0 + dedt/m0);
-    } else {
-      s = m1/2./m0 + sqrt(m1*m1/4./m0/m0 + dedt/m0);
+    if (!std::isfinite(m0) || !std::isfinite(m1) || m0 < 0.0) {
+      Kokkos::abort("Turbulence power normalization: nonfinite forcing sums");
+    }
+    Real s = 0.0;
+    if (dedt > 0.0) {
+      const Real sign = (m1 >= 0.0) ? 1.0 : -1.0;
+      const Real denom = 0.5*m1 + sign*std::sqrt(0.25*m1*m1 + m0*dedt);
+      if (!(denom != 0.0) || !std::isfinite(dedt/denom)) {
+        Kokkos::abort("Positive turbulence power requires nonzero finite forcing "
+                      "variance");
+      }
+      s = dedt/denom;
     }
     if (scale_forcing) {
       par_for("force_norm", DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
@@ -795,6 +926,12 @@ TaskStatus TurbulenceDriver::AddForcing(Driver *pdrive, int stage) {
   Real dt = pm->dt;
   Real bdt = (pdrive->beta[stage-1])*dt;
   Real current_time=pm->time;
+  // Energy source per stage: rho*(v.a + quad*|a|^2)*bdt. Integrators with two or more
+  // explicit stages evaluate v.a at stage velocities that already include earlier
+  // kicks, so they integrate the exact work rho*(v0.a*dt + |a|^2*dt^2/2) of a constant
+  // acceleration; an explicit |a|^2 term would count it twice. RK1 evaluates v.a only
+  // at the old velocity and needs the |a|^2*bdt/2 term to stay energy consistent.
+  const Real quad = (pdrive->nexp_stages == 1) ? 0.5*bdt : 0.0;
 
   EquationOfState *peos;
 
@@ -850,8 +987,7 @@ TaskStatus TurbulenceDriver::AddForcing(Driver *pdrive, int stage) {
       u0(m,IM2,k,j,i) += den*a2*bdt;
       u0(m,IM3,k,j,i) += den*a3*bdt;
       if (eos.is_ideal) {
-        u0(m,IEN,k,j,i) += (Fv+0.5*(a1*a1+a2*a2+a3*a3)*bdt)*den*bdt;
-        // u0(m,IEN,k,j,i) += Fv*den*bdt;
+        u0(m,IEN,k,j,i) += (Fv+quad*(a1*a1+a2*a2+a3*a3))*den*bdt;
       }
 
       if (flag_twofl) {
@@ -859,8 +995,7 @@ TaskStatus TurbulenceDriver::AddForcing(Driver *pdrive, int stage) {
         u0_(m,IM1,k,j,i) += den*a1*bdt;
         u0_(m,IM2,k,j,i) += den*a2*bdt;
         u0_(m,IM3,k,j,i) += den*a3*bdt;
-        u0_(m,IEN,k,j,i) += (Fv+0.5*(a1*a1+a2*a2+a3*a3)*dt)*den*bdt;
-        // u0_(m,IEN,k,j,i) += Fv*den*bdt;
+        u0_(m,IEN,k,j,i) += (Fv+quad*(a1*a1+a2*a2+a3*a3))*den*bdt;
       }
     });
 
@@ -1112,9 +1247,21 @@ TaskStatus TurbulenceDriver::AddForcing(Driver *pdrive, int stage) {
 
 void TurbulenceDriver::UpdateTimeStepConstraint() {
   Real current_time = pmy_pack->pmesh->time;
-  int64_t n_turb_updates_reqd = static_cast<int64_t>(current_time/dt_turb_update);
-  Real next_update_time = dt_turb_update*static_cast<Real>(n_turb_updates_reqd+1);
-  dtnew = fmax(dt_turb_thresh, fmin(dt_turb_update, next_update_time-current_time));
+  Real next_update_time =
+      dt_turb_update*static_cast<Real>(UpdateBoundariesReached(current_time) + 1);
+  // next_update_time - current_time >= dt_turb_update - dt_turb_thresh > 0
+  dtnew = fmin(dt_turb_update, next_update_time - current_time);
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn TurbulenceDriver::UpdateBoundariesReached()
+//! \brief Number of dt_turb_update boundaries reached by time t. A time within
+//! dt_turb_thresh below a boundary counts as reaching it, so a time that lands one
+//! rounding error short of a boundary neither defers that O-U update by a cycle nor
+//! forces an extra step of length dt_turb_thresh.
+
+int64_t TurbulenceDriver::UpdateBoundariesReached(const Real t) const {
+  return static_cast<int64_t>(std::floor((t + dt_turb_thresh)/dt_turb_update));
 }
 
 //----------------------------------------------------------------------------------------
