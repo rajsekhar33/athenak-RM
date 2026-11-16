@@ -8,6 +8,7 @@
 //! - written by Rajsekhar Mohapatra 2022-2023 (Athenak version of Drummond Fielding's TRML setup)
 
 #include <cfloat>
+#include <limits>
 #include <algorithm>
 #include <cmath>
 #include <sstream>
@@ -1430,6 +1431,13 @@ void Diagnostic(Mesh *pm) {
      Kokkos::Max<Real>(max_z_shear),
      Kokkos::Min<Real>(min_z_vely),
      Kokkos::Max<Real>(max_z_vely));
+  // Kokkos >= 5 uses +-infinity as the Min/Max identity, so an empty region would
+  // print +-inf. Restore the +-max finite value written by Kokkos 4.x builds, keeping
+  // the history/log format unchanged. NaN is left as is.
+  for (Real *v : {&min_z_peak, &max_z_peak, &min_z_shear, &max_z_shear,
+                  &min_z_vely, &max_z_vely}) {
+    if (std::isinf(*v)) *v = std::copysign(std::numeric_limits<Real>::max(), *v);
+  }
   Real dt_hyd  = (is_mhd) ? pmbp->pmhd->dtnew        : pmbp->phydro->dtnew;
   auto *pcond = (is_mhd) ? pmbp->pmhd->pcond : pmbp->phydro->pcond;
   Real dt_cond = FLT_MAX;
@@ -1815,6 +1823,13 @@ void UserHistOutput(HistoryData *pdata, Mesh *pm) {
      Kokkos::Max<Real>(max_z_shear),
      Kokkos::Min<Real>(min_z_vely),
      Kokkos::Max<Real>(max_z_vely));
+  // Kokkos >= 5 uses +-infinity as the Min/Max identity, so an empty region would
+  // print +-inf. Restore the +-max finite value written by Kokkos 4.x builds, keeping
+  // the history/log format unchanged. NaN is left as is.
+  for (Real *v : {&min_z_peak, &max_z_peak, &min_z_shear, &max_z_shear,
+                  &min_z_vely, &max_z_vely}) {
+    if (std::isinf(*v)) *v = std::copysign(std::numeric_limits<Real>::max(), *v);
+  }
 
   #if MPI_PARALLEL_ENABLED
   Real m_min[3] = {min_z_peak,min_z_shear,min_z_vely};
