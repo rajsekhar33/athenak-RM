@@ -1,0 +1,72 @@
+<job>
+basename = Turb128
+
+<mesh>
+nghost = 2
+nx1 = 128
+nx2 = 128
+nx3 = 128
+x1min = 0.0
+x1max = 1.0
+x2min = 0.0
+x2max = 1.0
+x3min = 0.0
+x3max = 1.0
+ix1_bc = periodic
+ox1_bc = periodic
+ix2_bc = periodic
+ox2_bc = periodic
+ix3_bc = periodic
+ox3_bc = periodic
+
+<meshblock>
+nx1 = 32
+nx2 = 32
+nx3 = 32
+
+<time>
+evolution = dynamic
+integrator = rk3
+cfl_number = 0.3
+nlim = -1
+tlim = 2.0
+ndiag = 1
+
+<hydro>
+eos = ideal
+gamma = 1.6666666666666667
+reconstruct = plm
+rsolver = hllc
+fofc = false
+
+<problem>
+pgen_name = turbulence
+d_n = 1.0
+
+<turb_driving>
+random_seed = 271828
+nlow = 1
+nhigh = 3
+dedt = 0.1
+tcorr = 0.5
+dt_turb_update = 0.005
+dt_turb_thresh = 1.0e-6
+driving_type = 0
+sol_fraction = 1.0
+spect_form = 2
+expo = 1.0
+turb_flag = 2
+restart_forcing = true
+
+<output1>
+file_type = hst
+dcycle = 1
+data_format = %24.16e
+
+<output2>
+file_type = rst
+dt = 1.0
+
+<output3>
+file_type = log
+dcycle = 1

@@ -623,10 +623,12 @@ void Mesh::NewTimeStep(const Real tlim) {
     }
   }
   // Turbulence driver timestep (caps dt so it never overshoots the next
-  // dt_turb_update boundary), independent of hydro/mhd source terms
+  // dt_turb_update boundary), independent of hydro/mhd source terms. This is a
+  // scheduling limit, not a stability limit, so it is not multiplied by cfl_no:
+  // the step lands on the boundary instead of approaching it geometrically.
   if (pmb_pack->pturb != nullptr) {
     pmb_pack->pturb->UpdateTimeStepConstraint();
-    dt_cycle = std::min(dt_cycle, (cfl_no)*(pmb_pack->pturb->dtnew) );
+    dt_cycle = std::min(dt_cycle, pmb_pack->pturb->dtnew);
   }
   // user timestep
   if (pmb_pack->pmesh->pgen->user_dt) {

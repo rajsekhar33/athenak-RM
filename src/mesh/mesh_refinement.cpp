@@ -34,6 +34,7 @@
 #include "coordinates/coordinates.hpp"
 #include "z4c/z4c.hpp"
 #include "z4c/z4c_amr.hpp"
+#include "srcterms/turb_driver.hpp"
 #include "prolongation.hpp"
 #include "restriction.hpp"
 
@@ -703,6 +704,11 @@ void MeshRefinement::RedistAndRefineMeshBlocks(ParameterInput *pin, int nnew, in
   // clean-up
   delete [] newtoold;
   delete [] oldtonew;
+
+  // Forcing storage and position tables must follow the new local MeshBlocks.
+  if (pm->pmb_pack->pturb != nullptr) {
+    pm->pmb_pack->pturb->ResetForNewMesh();
+  }
 
   // Step 11.
   // Initialize quantities stored on the mesh associated with each physics, if necessary
