@@ -57,6 +57,7 @@
 #include "outputs.hpp"
 #include "structure_function.hpp"
 #include "spectrum.hpp"
+#include "area.hpp"
 
 namespace {
 
@@ -167,7 +168,7 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {
   // and add to linked list of BaseTypeOutputs.
 
   int num_hst=0, num_rst=0, num_log=0; // count # of hst,rst,log outputs
-  std::vector<std::string> sf_spec_dirs;  // "<type>_<id>" of sf/spec outputs (unique)
+  std::vector<std::string> sf_spec_dirs;  // unique directories for sf/spec/area outputs
   for (auto it = pin->block.begin(); it != pin->block.end(); ++it) {
     if (it->block_name.compare(0, 6, "output") == 0) {
       OutputParameters opar;  // define temporary OutputParameters struct
@@ -389,6 +390,41 @@ Outputs::Outputs(ParameterInput *pin, Mesh *pm) {
         opar.compute_moments = pin->GetOrAddBoolean(opar.block_name,
           "compute_moments", false);
         pnode = new CoarsenedBinaryOutput(pin,pm,opar);
+        pout_list.insert(pout_list.begin(),pnode);
+      } else if (opar.file_type.compare("area") == 0) {
+        // Area reductions operate on the complete active-cell lattice.
+        if (opar.slice1 || opar.slice2 || opar.slice3 || opar.gid >= 0 ||
+            opar.include_gzs) {
+          std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+              << std::endl << "Output block '" << opar.block_name << "' (area): "
+              << "slice_x1/2/3, gid and ghost_zones are not supported" << std::endl;
+          exit(EXIT_FAILURE);
+        }
+        const char *keys[6] = {"x1_min", "x1_max", "x2_min", "x2_max", "x3_min",
+                               "x3_max"};
+        const Real bounds[6] = {pm->mesh_size.x1min, pm->mesh_size.x1max,
+                                 pm->mesh_size.x2min, pm->mesh_size.x2max,
+                                 pm->mesh_size.x3min, pm->mesh_size.x3max};
+        for (int b = 0; b < 6; ++b) {
+          if (pin->DoesParameterExist(opar.block_name, keys[b]) &&
+              pin->GetReal(opar.block_name, keys[b]) != bounds[b]) {
+            std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+                << std::endl << "Output block '" << opar.block_name << "' (area): "
+                << keys[b] << " restricts the mesh; area requires the full lattice"
+                << std::endl;
+            exit(EXIT_FAILURE);
+          }
+        }
+        std::string dir = "area_" + opar.file_id;
+        if (std::find(sf_spec_dirs.begin(), sf_spec_dirs.end(), dir) !=
+            sf_spec_dirs.end()) {
+          std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__
+              << std::endl << "Output block '" << opar.block_name << "' reuses '"
+              << dir << "/'; give each area output a distinct id" << std::endl;
+          exit(EXIT_FAILURE);
+        }
+        sf_spec_dirs.push_back(dir);
+        pnode = new AreaOutput(pin,pm,opar);
         pout_list.insert(pout_list.begin(),pnode);
       } else if (opar.file_type.compare("pdf") == 0) {
         opar.bin_min = pin->GetReal(opar.block_name,"bin_min");

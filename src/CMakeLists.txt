@@ -138,6 +138,7 @@ add_executable(
         outputs/profile.cpp
         outputs/structure_function.cpp
         outputs/spectrum.cpp
+        outputs/area.cpp
         fft/pencil_fft.cpp
 
         pgen/pgen.cpp
