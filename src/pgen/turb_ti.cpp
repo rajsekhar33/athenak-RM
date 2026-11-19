@@ -51,7 +51,6 @@
 #include "mesh/mesh.hpp"
 #include "coordinates/cell_locations.hpp"
 #include "eos/eos.hpp"
-#include "eos/ideal_c2p_hyd.hpp"
 #include "hydro/hydro.hpp"
 #include "mhd/mhd.hpp"
 #include "pgen.hpp"
@@ -92,6 +91,7 @@ struct pgen_turb {
   Real T_ceiling;       // maximum allowed temperature in the system
   bool use_dens_ceiling;// toggle density ceiling for cooling on/off
   bool use_equ_heating; // toggle equilibrium heating on/off
+  bool equ_balance_ism_cooling;  // Use the signed loss applied by the core ISM source.
   bool equ_thot_only;   // option to balance cooling of gas only above T=T_hot
   int  heat_cycle;      // equilibrium heating rate updated every ncycles
   int  heat_weight;     // 1 for density-weighted heating, 0 for volume heating
@@ -118,12 +118,13 @@ void AddUserSrcs(Mesh *pm, const Real bdt);
 void UserTimeStep(Mesh *pm);
 void UserWorkInLoop(Mesh *pm);
 void Diagnostic(Mesh *pm);
-void AddISMCooling(Mesh *pm, const Real bdt, DvceArray5D<Real> &u0,
+Real AddISMCooling(Mesh *pm, const Real bdt, DvceArray5D<Real> &u0,
                    const DvceArray5D<Real> &w0, const EOS_Data &eos_data);
 void ApplyTempCeiling(Mesh *pm, const Real bdt, DvceArray5D<Real> &u0,
                    const DvceArray5D<Real> &w0, const EOS_Data &eos_data);
 void AddEquHeating(Mesh *pm, const Real bdt, DvceArray5D<Real> &u0,
-                   const DvceArray5D<Real> &w0, const EOS_Data &eos_data);
+                   const DvceArray5D<Real> &w0, const EOS_Data &eos_data,
+                   Real local_cooling_power);
 void TurbTiFinalWork(ParameterInput *pin, Mesh *pm);
 void UserHistOutput(HistoryData *pdata, Mesh *pm);
 } // namespace
@@ -216,10 +217,11 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   Real sigma_perturb = pin->GetOrAddReal("problem","sigma_perturb",0.0);
 
   pti_turb->use_equ_heating = pin->GetOrAddBoolean("problem","use_equ_heating", false);
-  // Switch off equilibrium heating if hc ratio is greater than 1
+  pti_turb->equ_balance_ism_cooling =
+      pin->GetOrAddBoolean("problem","equ_balance_ism_cooling",false);
   Real equ_ceiling_factor = 1.0;
   if(pti_turb->use_equ_heating ==true){
-    if (global_variable::my_rank == 0){
+    if (user_srcs && global_variable::my_rank == 0){
       std::cout << "Equilibrium heating turned on." << std::endl;
     }
     pti_turb->heat_cycle = pin->GetOrAddInteger("problem","equ_heat_cycle", 10); // number of cycles in which we update the equilibrium heating rate
@@ -231,6 +233,29 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
     pti_turb->use_equ_heat_ceiling = pin->GetOrAddBoolean("problem","use_equ_heat_ceiling", false); // Ceiling on maximum heating rate due to equilibrium heating 
     if (pti_turb->use_equ_heat_ceiling) equ_ceiling_factor = pin->GetOrAddReal("problem","equ_ceiling_factor",10.0); // Ratio between maximum equlibrium heating rate and initial cooling rate
   }
+  auto *core_src = (pmbp->pmhd != nullptr) ? pmbp->pmhd->psrc : pmbp->phydro->psrc;
+  const bool core_on = core_src != nullptr && core_src->ism_cooling;
+  if (user_srcs && pti_turb->use_equ_heating && pti_turb->equ_balance_ism_cooling && core_on) {
+    core_src->ism_budget_min_temperature = pti_turb->equ_thot_only ?
+        fmax(0.0, pti_turb->T_hot*pmbp->punit->temperature_cgs()) : 0.0;
+  }
+  if (user_srcs && global_variable::my_rank == 0) {
+    if (core_on && pti_turb->cool_subc) {
+      std::cout << "WARNING (turb_ti): ism_cooling=true and cool_subc=true. "
+                << "Gas eligible for both cooling sources receives both contributions.\n";
+    }
+    if (pti_turb->use_equ_heating && pti_turb->equ_balance_ism_cooling && !core_on) {
+      std::cout << "WARNING (turb_ti): equ_balance_ism_cooling=true with core ISM cooling off. "
+                << "Equilibrium heating supplies zero power.\n";
+    }
+    if (pti_turb->use_equ_heating && !pti_turb->equ_balance_ism_cooling && !pti_turb->cool_subc) {
+      std::cout << "WARNING (turb_ti): cool_subc=false disables problem cooling. "
+                << "Equilibrium heating still estimates losses using the problem cooling law. "
+                << (core_on ? "Core ISM cooling is active and may apply a different rate."
+                            : "Core ISM cooling is also off.") << '\n';
+    }
+  }
+
   Real pres_0 = number_density*pmbp->punit->k_boltzmann_cgs*temp_cgs/pmbp->punit->pressure_cgs();
   pti_turb->pres0 = pres_0;
   Real T_floor_cool_cgs = pti_turb->T_floor_cool*pmbp->punit->temperature_cgs();
@@ -537,17 +562,26 @@ void UserTimeStep(Mesh *pm){
 //! \brief Add User Source Terms
 // NOTE source terms must all be computed using primitive (w0) and NOT conserved (u0) vars
 void AddUserSrcs(Mesh *pm, const Real bdt) {
+  if (bdt == 0.0) return;  // A zero-weight RK stage transfers no energy.
 
   MeshBlockPack *pmbp = pm->pmb_pack;
   DvceArray5D<Real> &u0 = (pmbp->pmhd != nullptr) ? pmbp->pmhd->u0 : pmbp->phydro->u0;
   const DvceArray5D<Real> &w0 = (pmbp->pmhd != nullptr) ? pmbp->pmhd->w0 : pmbp->phydro->w0;
   const EOS_Data &eos = (pmbp->pmhd != nullptr) ?
                 pmbp->pmhd->peos->eos_data : pmbp->phydro->peos->eos_data;
+  Real local_cooling_power = 0.0;
   if (pti_turb->cool_subc) {
-    AddISMCooling(pm,bdt,u0,w0,eos);
+    local_cooling_power = AddISMCooling(pm,bdt,u0,w0,eos);
   }
   if (pti_turb->use_equ_heating){
-    AddEquHeating(pm,bdt,u0,w0,eos);
+    if (pti_turb->equ_balance_ism_cooling) {
+      auto *src = (pmbp->pmhd != nullptr) ? pmbp->pmhd->psrc : pmbp->phydro->psrc;
+      if (src != nullptr && src->ism_cooling) {
+        AddEquHeating(pm,bdt,u0,w0,eos,src->local_ism_cooling_power);
+      }
+    } else {
+      AddEquHeating(pm,bdt,u0,w0,eos,local_cooling_power);
+    }
   }
   if (pti_turb->use_temp_ceiling) ApplyTempCeiling(pm,bdt,u0,w0,eos);
   return;
@@ -560,7 +594,7 @@ void AddUserSrcs(Mesh *pm, const Real bdt) {
 // ! \fn void SourceTerms::AddISMCooling()
 // ! \brief Add explict ISM cooling and heating source terms in the energy equations.
 // NOTE source terms must all be computed using primitive (w0) and NOT conserved (u0) vars
-void AddISMCooling(Mesh *pm, const Real bdt, DvceArray5D<Real> &u0,
+Real AddISMCooling(Mesh *pm, const Real bdt, DvceArray5D<Real> &u0,
                    const DvceArray5D<Real> &w0, const EOS_Data &eos_data) {
   auto pmbp = pm->pmb_pack;
   auto &indcs = pm->mb_indcs;
@@ -595,84 +629,70 @@ void AddISMCooling(Mesh *pm, const Real bdt, DvceArray5D<Real> &u0,
   Real T_ceiling_cool_cgs = -1.0;
   if(time > pti_turb->t_ceiling_start) T_ceiling_cool_cgs = pti_turb->T_ceiling_cool*temp_unit;
   Real metallicity = pti_turb->metallicity;
-  Real tot_vol=0.0;
+  const bool hot_only = pti_turb->equ_thot_only;
+  const Real hot_temperature = pti_turb->T_hot;
+  Real local_cooling_energy = 0.0;
   Real totcoolrate = 0.0;
 
   int nsubcycle=0, nsubcycle_count=0;
   Kokkos::parallel_reduce("cooling", Kokkos::RangePolicy<>(DevExeSpace(), 0, nmkji),
-  KOKKOS_LAMBDA(const int &idx, int &sum0, int &sum1, Real &totvol_, Real &totcoolrate_) {
+  KOKKOS_LAMBDA(const int &idx, int &sum0, int &sum1, Real &cooling_energy, Real &totcoolrate_) {
     int m = (idx)/nkji;
     int k = (idx - m*nkji)/nji;
     int j = (idx - m*nkji - k*nji)/nx1;
     int i = (idx - m*nkji - k*nji - j*nx1) + is;
     k += ks;
     j += js;
-    Real dens = w0(m,IDN,k,j,i);
-    Real temp = w0(m,IEN,k,j,i)/dens*gm1;
+    const Real dens = w0(m,IDN,k,j,i);
+    if (use_dens_ceiling && dens > dens_ceiling) return;
+
     Real eint = w0(m,IEN,k,j,i);
-
-    Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2*size.view_device()(m).dx3;
-
-    Real gamma_heating = heating_rate/heating_unit;
-    bool sub_cycling = true;
+    Real temp = gm1*eint/dens;
+    const Real vol = size.view_device()(m).dx1*size.view_device()(m).dx2
+                   * size.view_device()(m).dx3;
+    const Real gamma_heating = heating_rate/heating_unit;
+    const Real etot_old = u0(m,IEN,k,j,i);
+    Real remaining = bdt;
+    Real parcel_eint = eint;
+    Real selected_loss = 0.0;
     bool sub_cycling_used = false;
-    Real bdt_now = 0.0;
-    Real etot_old = u0(m,IEN,k,j,i);
-    Real etot_new = etot_old;
-    while (sub_cycling) {
-      Real lambda_cooling = SQR(x_h*mu)*ISMCoolFn(temp*temp_unit, T_floor_cool_cgs, T_ceiling_cool_cgs, metallicity)/cooling_unit;
-      Real cooling_heating =  dens * (dens * lambda_cooling - gamma_heating);
+    while (remaining > 0.0) {
+      const Real lambda_cooling = SQR(x_h*mu)*ISMCoolFn(temp*temp_unit,
+          T_floor_cool_cgs, T_ceiling_cool_cgs, metallicity)/cooling_unit;
+      const Real rate = dens*(dens*lambda_cooling - gamma_heating);
+      const Real dt_cool = eint/(FLT_MIN + fabs(rate));
+      const Real sub_dt = fmin(remaining, beta*cfl_no*dt_cool);
+      const Real loss = sub_dt*rate;
+      u0(m,IEN,k,j,i) -= loss;
+      if (!hot_only || temp > hot_temperature) selected_loss += loss;
 
-      // Do not cool if density is above the density ceiling value
-      if(use_dens_ceiling && (w0(m,IDN,k,j,i) > dens_ceiling)) cooling_heating = FLT_MIN;
-      
-      Real dt_cool = (eint/(FLT_MIN + fabs(cooling_heating)));
-      Real bdt_cool = beta*cfl_no*dt_cool;
-      if (bdt_now+bdt_cool<bdt) {
-        u0(m,IEN,k,j,i) -= bdt_cool * cooling_heating;
-
-        // compute new temperature and internal energy
-        
-        // load single state conserved variables
-        HydCons1D u;
-        u.d  = u0(m,IDN,k,j,i);
-        u.mx = u0(m,IM1,k,j,i);
-        u.my = u0(m,IM2,k,j,i);
-        u.mz = u0(m,IM3,k,j,i);
-        u.e  = u0(m,IEN,k,j,i);
-
-        // call c2p function
-        // (inline function in ideal_c2p_hyd.hpp file)
-        HydPrim1D w;
-        bool dfloor_used=false, efloor_used=false, tfloor_used=false;
-        SingleC2P_IdealHyd(u, eos, w, dfloor_used, efloor_used, tfloor_used);
-        dens = w.d;
-        temp = gm1*w.e/w.d;
-        eint = w.e;
+      remaining -= sub_dt;
+      if (remaining > 0.0) {
+        // Cooling changes only the thermal energy of the fixed-density stage parcel.
+        parcel_eint -= loss;
+        const Real pmin = fmax(eos.pfloor, fmax(dens*eos.tfloor,
+                                               eos.sfloor*pow_dev(dens, gamma)));
+        eint = fmax(parcel_eint, pmin/gm1);
+        temp = gm1*eint/dens;
         sub_cycling_used = true;
-        sum1++;
-      } else {
-        u0(m,IEN,k,j,i) -= (bdt-bdt_now) * cooling_heating;
-        sub_cycling = false;
+        ++sum1;
       }
-      bdt_now += bdt_cool;
     }
-    etot_new = u0(m,IEN,k,j,i);
-    totvol_ += vol;
+    const Real etot_new = u0(m,IEN,k,j,i);
+    cooling_energy += vol*selected_loss;
     totcoolrate_ += vol*fabs(etot_old-etot_new)/(bdt+1e-20);
     if (sub_cycling_used) {
       sum0++;
     }
   }, Kokkos::Sum<int>(nsubcycle), 
      Kokkos::Sum<int>(nsubcycle_count),
-     Kokkos::Sum<Real>(tot_vol),
+     Kokkos::Sum<Real>(local_cooling_energy),
      Kokkos::Sum<Real>(totcoolrate));
 #if MPI_PARALLEL_ENABLED
   int* pnsubcycle = &(nsubcycle);
   int* pnsubcycle_count = &(nsubcycle_count);
   MPI_Allreduce(MPI_IN_PLACE, pnsubcycle, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(MPI_IN_PLACE, pnsubcycle_count, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(MPI_IN_PLACE, &tot_vol, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(MPI_IN_PLACE, &totcoolrate, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
 #endif
   pti_turb->tot_coolrate = totcoolrate;
@@ -685,7 +705,7 @@ void AddISMCooling(Mesh *pm, const Real bdt, DvceArray5D<Real> &u0,
       std::cout << " Subcycling cooling implementation is active." << std::endl;
     }
   }
-  return;
+  return local_cooling_energy/bdt;
 }
 
 
@@ -751,7 +771,8 @@ void ApplyTempCeiling(Mesh *pm, const Real bdt, DvceArray5D<Real> &u0,
 // NOTE source terms must all be computed using primitive (w0) and NOT conserved (u0) vars
 
 void AddEquHeating(Mesh *pm, const Real bdt, DvceArray5D<Real> &u0,
-                   const DvceArray5D<Real> &w0, const EOS_Data &eos_data) {
+                   const DvceArray5D<Real> &w0, const EOS_Data &eos_data,
+                   Real local_cooling_power) {
   MeshBlockPack *pmbp = pm->pmb_pack;
   auto &indcs = pmbp->pmesh->mb_indcs;
   int is = indcs.is; int nx1 = indcs.nx1;
@@ -779,6 +800,12 @@ void AddEquHeating(Mesh *pm, const Real bdt, DvceArray5D<Real> &u0,
   bool const_ratio_equ_heating = pti_turb->const_ratio_equ_heating; // Sets equ_heating to cooling*(1-hc_ratio) after each update
   bool const_ratio_equ_heating_L0 = pti_turb->const_ratio_equ_heating_L0; // Sets equ_heating to cooling-heating_sn after each update
   Real hc_ratio = pti_turb->hc_ratio; // ratio between heating due to equ_heating and net cooling at t=0
+  const bool use_cap = pti_turb->use_equ_heat_ceiling;
+  const bool estimate_cooling = !pti_turb->cool_subc && !pti_turb->equ_balance_ism_cooling;
+  const bool hot_only = pti_turb->equ_thot_only;
+  const Real hot_temperature = pti_turb->T_hot;
+  const bool use_dens_ceiling = pti_turb->use_dens_ceiling;
+  const Real dens_ceiling = pti_turb->dens_ceiling;
   Real q_max = pti_turb->max_equ_heat_rate; // Maximum heating rate per volume
   int weight = pti_turb->heat_weight;
 
@@ -806,9 +833,13 @@ void AddEquHeating(Mesh *pm, const Real bdt, DvceArray5D<Real> &u0,
     Real dens = w0(m,IDN,k,j,i);
     Real temp = w0(m,IEN,k,j,i)/dens*gm1;
 
-    //use temperature in cgs unit
-    Real lambda_cooling = SQR(x_h*mu)*ISMCoolFn(temp*temp_unit, T_floor_cool_cgs, T_ceiling_cool_cgs, metallicity)/cooling_unit;
-    totcoolrate_ += vol * dens * dens * lambda_cooling;
+    // Without user cooling, estimate the luminosity from the stage primitives.
+    if (estimate_cooling && (!use_dens_ceiling || dens <= dens_ceiling)
+        && (!hot_only || temp > hot_temperature)) {
+      const Real lambda_cooling = SQR(x_h*mu)*ISMCoolFn(temp*temp_unit,
+          T_floor_cool_cgs, T_ceiling_cool_cgs, metallicity)/cooling_unit;
+      totcoolrate_ += vol*dens*dens*lambda_cooling;
+    }
 
     Real a1 = force_(m,0,k,j,i);
     Real a2 = force_(m,1,k,j,i);
@@ -824,6 +855,7 @@ void AddEquHeating(Mesh *pm, const Real bdt, DvceArray5D<Real> &u0,
      Kokkos::Sum<Real>(tot_weight),
      Kokkos::Sum<Real>(totcoolrate),
      Kokkos::Sum<Real>(totturbheatrate));
+  totcoolrate += local_cooling_power;
 #if MPI_PARALLEL_ENABLED
   MPI_Allreduce(MPI_IN_PLACE, &tot_vol, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(MPI_IN_PLACE, &tot_mass, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
@@ -861,15 +893,15 @@ void AddEquHeating(Mesh *pm, const Real bdt, DvceArray5D<Real> &u0,
     Real q_comp_per_wt = q_compensate_per_wt;
     Real dens = w0(m,IDN,k,j,i);
     Real q_heating = q_comp_per_wt * pow_dev(dens, weight);
-    // Make sure this heating rate is less than the maximum heating rate/volume
-    if(const_ratio_equ_heating) q_heating = fmax(fmin( (1.0-hc_ratio) * q_heating, q_max), 0.0);
+    if (const_ratio_equ_heating) q_heating *= (1.0-hc_ratio);
     else if(const_ratio_equ_heating_L0){
       Real q_cooling0 = rho_0*rho_0*SQR(x_h*mu)*ISMCoolFn(temp_cgs_0, T_floor_cool_cgs, T_ceiling_cool_cgs, metallicity)/cooling_unit;
       Real q_cooling0_per_wt = q_cooling0/pow_dev(rho_0, weight);
       q_comp_per_wt = q_comp_per_wt-hc_ratio*q_cooling0_per_wt;
       q_heating = q_comp_per_wt * pow_dev(dens, weight);
-      q_heating = fmax(fmin(q_heating, q_max), 0.0);
-    } 
+    }
+    if (use_cap) q_heating = fmin(q_heating, q_max);
+    q_heating = fmax(q_heating, 0.0);
     u0(m,IEN,k,j,i) += bdt * q_heating;
     q_equ_tot_ += bdt * q_heating * vol;
   }, Kokkos::Sum<Real>(q_equ_tot));

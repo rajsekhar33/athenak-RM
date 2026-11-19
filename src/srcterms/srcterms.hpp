@@ -46,6 +46,11 @@ class SourceTerms {
   // data for ISM cooling
   Real hrate;
 
+  // Optional rank-local net ISM cooling power over the current explicit stage.
+  // A negative threshold disables measurement; zero includes every temperature.
+  Real ism_budget_min_temperature = -1.0;  // Kelvin
+  Real local_ism_cooling_power = 0.0;      // code energy per code time
+
   // data for relativistic cooling
   Real crate_rel;
   Real cpower_rel;

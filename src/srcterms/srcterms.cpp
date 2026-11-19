@@ -153,18 +153,39 @@ void SourceTerms::ISMCooling(const DvceArray5D<Real> &w0, const EOS_Data &eos_da
                       /n_unit/n_unit;
   Real heating_unit = pmy_pack->punit->pressure_cgs()/pmy_pack->punit->time_cgs()/n_unit;
 
-  par_for("cooling", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
-  KOKKOS_LAMBDA(const int m, const int k, const int j, const int i) {
-    // temperature in cgs unit
-    Real temp = temp_unit*w0(m,IEN,k,j,i)/w0(m,IDN,k,j,i)*gm1;
+  auto update_cell = KOKKOS_LAMBDA(int m, int k, int j, int i, Real &temp) {
+    temp = temp_unit*w0(m,IEN,k,j,i)/w0(m,IDN,k,j,i)*gm1;
     Real lambda_cooling = ISMCoolFn(temp)/cooling_unit;
     Real gamma_heating = heating_rate/heating_unit;
 
-    u0(m,IEN,k,j,i) -= bdt * w0(m,IDN,k,j,i) *
-                        (w0(m,IDN,k,j,i) * lambda_cooling - gamma_heating);
-  });
+    const Real loss = bdt * w0(m,IDN,k,j,i) *
+                      (w0(m,IDN,k,j,i) * lambda_cooling - gamma_heating);
+    u0(m,IEN,k,j,i) -= loss;
+    return loss;
+  };
 
-  return;
+  const Real min_temp = ism_budget_min_temperature;
+  if (min_temp < 0.0) {
+    par_for("cooling", DevExeSpace(), 0, nmb1, ks, ke, js, je, is, ie,
+    KOKKOS_LAMBDA(int m, int k, int j, int i) {
+      Real temp;
+      update_cell(m,k,j,i,temp);
+    });
+    return;
+  }
+
+  auto size = pmy_pack->pmb->mb_size.view_device();
+  Real local_loss = 0.0;
+  using Policy = Kokkos::MDRangePolicy<DevExeSpace, Kokkos::Rank<4>>;
+  Kokkos::parallel_reduce("cooling_with_budget", Policy({0,ks,js,is}, {nmb1+1,ke+1,je+1,ie+1}),
+  KOKKOS_LAMBDA(int m, int k, int j, int i, Real &sum) {
+    Real temp;
+    const Real loss = update_cell(m,k,j,i,temp);
+    if (min_temp == 0.0 || temp > min_temp) {
+      sum += loss * size(m).dx1 * size(m).dx2 * size(m).dx3;
+    }
+  }, local_loss);
+  local_ism_cooling_power = bdt == 0.0 ? 0.0 : local_loss/bdt;
 }
 
 //----------------------------------------------------------------------------------------
